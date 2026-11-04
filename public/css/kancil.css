@@ -31,12 +31,21 @@
     --status-green-bg: #dcfce7;
     --status-blue: #0369a1;
     --status-blue-bg: #e0f2fe;
-    --status-amber: #b45309;
-    --status-amber-bg: #fef3c7;
+    --status-amber: #A98232;
+    --status-amber-bg: #FDF8EE;
     --status-red: #dc2626;
     --status-red-bg: #fee2e2;
     --status-gray: #475569;
     --status-gray-bg: #f1f5f9;
+
+    /* Aksen Emas & Kuning (Gold & Yellow Accent System) */
+    --gold: #C6A04A;
+    --gold-deep: #A98232;
+    --gold-soft: #E8D7A7;
+    --gold-bg: #FDF8EE;
+    --gold-border: #DFC07A;
+    --yellow-warm: #F2D36B;
+    --yellow-soft: #FFF4CC;
 
     --sidebar-width: 260px;
     --topbar-height: 68px;
@@ -103,7 +112,7 @@ button {
     display: flex;
     align-items: center;
     gap: 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(198, 160, 74, 0.25);
 }
 
 .brand-logo-img {
@@ -126,7 +135,7 @@ button {
     font-size: 10.5px;
     font-weight: 600;
     letter-spacing: 0.8px;
-    color: #93c5fd;
+    color: var(--gold-soft);
     text-transform: uppercase;
 }
 
@@ -143,7 +152,7 @@ button {
     display: block;
     font-size: 10.5px;
     font-weight: 600;
-    color: #64748b;
+    color: rgba(198, 160, 74, 0.55);
     letter-spacing: 1px;
     padding: 6px 12px;
     margin-bottom: 6px;
@@ -163,15 +172,19 @@ button {
 }
 
 .menu-item:hover {
-    background-color: rgba(255, 255, 255, 0.06);
-    color: #ffffff;
+    background-color: rgba(198, 160, 74, 0.08);
+    color: var(--gold-soft);
 }
 
 .menu-item.active {
     background-color: var(--sidebar-active);
     color: #ffffff;
     font-weight: 600;
-    box-shadow: inset 3px 0 0 #38bdf8;
+    box-shadow: inset 3px 0 0 var(--gold);
+}
+
+.menu-item.active .menu-icon {
+    color: var(--gold);
 }
 
 .menu-icon {
@@ -191,7 +204,7 @@ button {
 
 .sidebar-status-card {
     background-color: var(--navy-card);
-    border: 1px solid var(--navy-border);
+    border: 1px solid rgba(198, 160, 74, 0.2);
     border-radius: var(--radius-md);
     padding: 12px 14px;
 }
@@ -364,7 +377,7 @@ button {
 }
 
 .status-dot-amber {
-    color: #eab308;
+    color: var(--gold);
     font-size: 9px;
 }
 
@@ -419,7 +432,7 @@ button {
     display: block;
     font-size: 10.5px;
     font-weight: 700;
-    color: var(--text-muted);
+    color: var(--gold-deep);
     letter-spacing: 1px;
     margin-bottom: 4px;
 }
@@ -658,7 +671,7 @@ button {
     display: inline-flex;
 }
 
-.stat-icon-amber { color: #d97706; }
+.stat-icon-amber { color: var(--gold); }
 .stat-icon-blue { color: #0284c7; }
 .stat-icon-green { color: #16a34a; }
 .alert-icon { color: #dc2626; }
@@ -1396,8 +1409,8 @@ button {
 }
 
 .chat-thread-item.active {
-    background-color: #f0f7ff;
-    border-color: #93c5fd;
+    background-color: var(--gold-bg);
+    border-color: var(--gold-border);
     box-shadow: 0 1px 3px rgba(11, 26, 48, 0.05);
 }
 
@@ -1690,7 +1703,7 @@ button {
 }
 
 .badge-text-primary {
-    color: #0284c7;
+    color: var(--gold-deep);
     font-weight: 600;
 }
 
@@ -1948,7 +1961,7 @@ button {
 }
 
 .yellow-dot {
-    color: #eab308;
+    color: var(--gold);
     font-size: 8px;
 }
 
@@ -2157,7 +2170,7 @@ button {
 }
 
 .dot-accent {
-    color: #eab308;
+    color: var(--gold);
     font-size: 8px;
 }
 
