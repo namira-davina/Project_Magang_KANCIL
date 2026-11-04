@@ -2,47 +2,59 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    protected $table = 'users';
+
     protected $fillable = [
-        'name',
+        'username',
         'email',
         'password',
+        'role',
+        'is_active',
+        'last_login_at',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    protected $casts = [
+        'is_active' => 'boolean',
+        'last_login_at' => 'datetime',
+        'password' => 'hashed',
+    ];
+
+    public function assignedConversations(): HasMany
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->hasMany(Conversation::class, 'assigned_to');
+    }
+
+    public function sentMessages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'sender_user_id');
+    }
+
+    public function assignedComplaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class, 'assigned_to');
+    }
+
+    public function handledEscalations(): HasMany
+    {
+        return $this->hasMany(EscalationLog::class, 'handled_by');
+    }
+
+    public function verifiedFaqs(): HasMany
+    {
+        return $this->hasMany(Faq::class, 'verified_by');
     }
 }
