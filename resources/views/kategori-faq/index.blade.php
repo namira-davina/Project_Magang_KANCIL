@@ -6,6 +6,23 @@
 
 @section('content')
 
+    @if (session('success'))
+        <div class="content-panel" style="padding: 12px 18px; margin-bottom: 16px; border-left: 4px solid #22c55e;">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="content-panel" style="padding: 12px 18px; margin-bottom: 16px; border-left: 4px solid #ef4444;">
+            <strong>Periksa kembali data:</strong>
+            <ul style="margin: 6px 0 0 16px;">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     {{-- HEADER HALAMAN --}}
     <div class="page-heading-action">
         <div>
@@ -55,68 +72,60 @@
                         <th width="160" style="text-align: right;">AKSI</th>
                     </tr>
                 </thead>
+                
                 <tbody id="kategoriTableBody">
-                    <tr data-id="1" data-nama="Paspor" data-faq="15 FAQ">
-                        <td>1</td>
-                        <td class="font-medium">Paspor</td>
-                        <td class="text-muted">15 FAQ</td>
-                        <td style="text-align: right;">
-                            <button type="button" class="btn-link-action btn-edit-kategori" data-id="1" data-nama="Paspor">Edit</button>
-                            <span class="action-divider">|</span>
-                            <button type="button" class="btn-link-action btn-delete-kategori" data-id="1">Hapus</button>
-                        </td>
-                    </tr>
-                    <tr data-id="2" data-nama="Visa" data-faq="8 FAQ">
-                        <td>2</td>
-                        <td class="font-medium">Visa</td>
-                        <td class="text-muted">8 FAQ</td>
-                        <td style="text-align: right;">
-                            <button type="button" class="btn-link-action btn-edit-kategori" data-id="2" data-nama="Visa">Edit</button>
-                            <span class="action-divider">|</span>
-                            <button type="button" class="btn-link-action btn-delete-kategori" data-id="2">Hapus</button>
-                        </td>
-                    </tr>
-                    <tr data-id="3" data-nama="Izin Tinggal" data-faq="6 FAQ">
-                        <td>3</td>
-                        <td class="font-medium">Izin Tinggal</td>
-                        <td class="text-muted">6 FAQ</td>
-                        <td style="text-align: right;">
-                            <button type="button" class="btn-link-action btn-edit-kategori" data-id="3" data-nama="Izin Tinggal">Edit</button>
-                            <span class="action-divider">|</span>
-                            <button type="button" class="btn-link-action btn-delete-kategori" data-id="3">Hapus</button>
-                        </td>
-                    </tr>
-                    <tr data-id="4" data-nama="Biaya dan Pembayaran" data-faq="5 FAQ">
-                        <td>4</td>
-                        <td class="font-medium">Biaya dan Pembayaran</td>
-                        <td class="text-muted">5 FAQ</td>
-                        <td style="text-align: right;">
-                            <button type="button" class="btn-link-action btn-edit-kategori" data-id="4" data-nama="Biaya dan Pembayaran">Edit</button>
-                            <span class="action-divider">|</span>
-                            <button type="button" class="btn-link-action btn-delete-kategori" data-id="4">Hapus</button>
-                        </td>
-                    </tr>
-                    <tr data-id="5" data-nama="Jadwal Pelayanan" data-faq="4 FAQ">
-                        <td>5</td>
-                        <td class="font-medium">Jadwal Pelayanan</td>
-                        <td class="text-muted">4 FAQ</td>
-                        <td style="text-align: right;">
-                            <button type="button" class="btn-link-action btn-edit-kategori" data-id="5" data-nama="Jadwal Pelayanan">Edit</button>
-                            <span class="action-divider">|</span>
-                            <button type="button" class="btn-link-action btn-delete-kategori" data-id="5">Hapus</button>
-                        </td>
-                    </tr>
-                    <tr data-id="6" data-nama="Pengaduan" data-faq="3 FAQ">
-                        <td>6</td>
-                        <td class="font-medium">Pengaduan</td>
-                        <td class="text-muted">3 FAQ</td>
-                        <td style="text-align: right;">
-                            <button type="button" class="btn-link-action btn-edit-kategori" data-id="6" data-nama="Pengaduan">Edit</button>
-                            <span class="action-divider">|</span>
-                            <button type="button" class="btn-link-action btn-delete-kategori" data-id="6">Hapus</button>
-                        </td>
-                    </tr>
+                    @forelse ($categories as $index => $category)
+                        <tr
+                            data-id="{{ $category->id }}"
+                            data-nama="{{ strtolower($category->name) }}"
+                            data-faq="{{ $category->total_faq }}"
+                        >
+                            <td>{{ $index + 1 }}</td>
+
+                            <td class="font-medium">
+                                {{ $category->name }}
+                            </td>
+
+                            <td class="text-muted">
+                                {{ $category->total_faq }} FAQ
+                            </td>
+
+                            <td style="text-align: right;">
+                                <button
+                                    type="button"
+                                    class="btn-link-action btn-edit-kategori"
+                                    data-id="{{ $category->id }}"
+                                    data-nama="{{ $category->name }}"
+                                >
+                                    Edit
+                                </button>
+
+                                <span class="action-divider">|</span>
+
+                                <form
+                                    action="{{ route('kategori-faq.destroy', $category->id) }}"
+                                    method="POST"
+                                    style="display: inline;"
+                                    onsubmit="return confirm('Yakin ingin menghapus kategori ini?')"
+                                >
+                                    @csrf
+                                    @method('DELETE')
+
+                                    <button type="submit" class="btn-link-action">
+                                        Hapus
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 30px;">
+                                Belum ada kategori FAQ.
+                            </td>
+                        </tr>
+                    @endforelse
                 </tbody>
+
             </table>
         </div>
 
@@ -143,8 +152,15 @@
                 <button type="button" class="modal-close-icon-btn" id="btnTutupModalKategori">&times;</button>
             </div>
 
-            <form id="formEditKategori">
-                <input type="hidden" id="editKategoriId">
+            <form
+                id="formEditKategori"
+                method="POST"
+                action=""
+            >
+                @csrf
+                @method('PUT')
+
+                <input type="hidden" id="editKategoriId" name="id">
 
                 <div class="modal-form-body">
                     <div class="form-group-clean">
@@ -152,7 +168,9 @@
                         <input
                             type="text"
                             id="inputNamaKategori"
+                            name="namaKategori"
                             class="form-control-clean"
+                            maxlength="100"
                             required
                         >
                         <p class="form-helper-note">

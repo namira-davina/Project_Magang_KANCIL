@@ -13,8 +13,8 @@
     <div class="sidebar-menu">
         <span class="menu-label">MENU UTAMA</span>
 
-        <a href="{{ route('dashboard') }}"
-           class="menu-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+        <a href="{{ route('admin.dashboard') }}"
+           class="menu-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
             <span class="menu-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="3" width="7" height="7"></rect>
@@ -48,7 +48,7 @@
             <span>Database FAQ</span>
         </a>
 
-        <a href="{{ route('kategori-faq') }}"
+        <a href="{{ route('kategori-faq.index') }}"
            class="menu-item {{ request()->routeIs('kategori-faq*') ? 'active' : '' }}">
             <span class="menu-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

@@ -1,8 +1,24 @@
-
 @extends('layouts.app')
 
 @section('title', 'Dashboard')
 @section('breadcrumb', 'Dashboard')
+
+@php
+    /**
+     * @var int    $totalPertanyaan
+     * @var int    $terjawabOtomatis
+     * @var int    $totalEskalasi
+     * @var int    $totalPengaduan
+     * @var int    $pengaduanSelesai
+     * @var int    $pengaduanDiproses
+     * @var int    $pengaduanMenunggu
+     * @var array  $chartLabels
+     * @var array  $chartBot
+     * @var array  $chartPetugas
+     * @var \Illuminate\Support\Collection $kategoriPopuler
+     * @var \Illuminate\Support\Collection $percakapanTerbaru
+     */
+@endphp
 
 @section('content')
 
@@ -46,9 +62,9 @@
                     </svg>
                 </span>
             </div>
-            <div class="stat-metric-value">1.250</div>
+            <div class="stat-metric-value">{{ number_format($totalPertanyaan) }}</div>
             <div class="stat-metric-footer trend-up">
-                +12.4% dari bulan lalu
+                Total pesan masuk dari pengguna
             </div>
         </div>
 
@@ -63,9 +79,13 @@
                     </svg>
                 </span>
             </div>
-            <div class="stat-metric-value">980</div>
+            <div class="stat-metric-value">{{ number_format($terjawabOtomatis) }}</div>
             <div class="stat-metric-footer">
-                78.4% rasio respon otomatis bot
+                @if($totalPertanyaan > 0)
+                    {{ round(($terjawabOtomatis / $totalPertanyaan) * 100) }}% rasio respon otomatis bot
+                @else
+                    Belum ada data pertanyaan
+                @endif
             </div>
         </div>
 
@@ -79,9 +99,13 @@
                     </svg>
                 </span>
             </div>
-            <div class="stat-metric-value">170</div>
+            <div class="stat-metric-value">{{ number_format($totalEskalasi) }}</div>
             <div class="stat-metric-footer trend-warning">
-                13.6% eskalasi ke helpdesk
+                @if($totalPertanyaan > 0)
+                    {{ round(($totalEskalasi / $totalPertanyaan) * 100) }}% eskalasi ke helpdesk
+                @else
+                    Belum ada data eskalasi
+                @endif
             </div>
         </div>
 
@@ -96,9 +120,9 @@
                     </svg>
                 </span>
             </div>
-            <div class="stat-metric-value">100</div>
+            <div class="stat-metric-value">{{ number_format($totalPengaduan) }}</div>
             <div class="stat-metric-footer">
-                94 selesai • 6 dalam proses
+                {{ $pengaduanSelesai }} selesai • {{ $pengaduanDiproses }} diproses • {{ $pengaduanMenunggu }} menunggu
             </div>
         </div>
 
@@ -136,55 +160,19 @@
             </div>
 
             <div class="category-bars-list">
-                <div class="category-bar-item">
-                    <div class="category-bar-label-row">
-                        <span>1. Layanan Paspor RI</span>
-                        <strong>58% (725)</strong>
+                @forelse ($kategoriPopuler as $i => $kategori)
+                    <div class="category-bar-item">
+                        <div class="category-bar-label-row">
+                            <span>{{ $i + 1 }}. {{ $kategori->name }}</span>
+                            <strong>{{ $kategori->persentase }}% ({{ $kategori->jumlah }})</strong>
+                        </div>
+                        <div class="category-progress-track">
+                            <div class="category-progress-fill" style="width:{{ $kategori->persentase }}%"></div>
+                        </div>
                     </div>
-                    <div class="category-progress-track">
-                        <div class="category-progress-fill" style="width: 58%;"></div>
-                    </div>
-                </div>
-
-                <div class="category-bar-item">
-                    <div class="category-bar-label-row">
-                        <span>2. Izin Tinggal WNA</span>
-                        <strong>18% (225)</strong>
-                    </div>
-                    <div class="category-progress-track">
-                        <div class="category-progress-fill" style="width: 18%;"></div>
-                    </div>
-                </div>
-
-                <div class="category-bar-item">
-                    <div class="category-bar-label-row">
-                        <span>3. Biaya & Syarat Dokumen</span>
-                        <strong>14% (175)</strong>
-                    </div>
-                    <div class="category-progress-track">
-                        <div class="category-progress-fill" style="width: 14%;"></div>
-                    </div>
-                </div>
-
-                <div class="category-bar-item">
-                    <div class="category-bar-label-row">
-                        <span>4. Pengaduan Masyarakat</span>
-                        <strong>6% (75)</strong>
-                    </div>
-                    <div class="category-progress-track">
-                        <div class="category-progress-fill" style="width: 6%;"></div>
-                    </div>
-                </div>
-
-                <div class="category-bar-item">
-                    <div class="category-bar-label-row">
-                        <span>5. Visa & Lainnya</span>
-                        <strong>4% (50)</strong>
-                    </div>
-                    <div class="category-progress-track">
-                        <div class="category-progress-fill" style="width: 4%;"></div>
-                    </div>
-                </div>
+                @empty
+                    <p class="text-muted">Belum ada data kategori.</p>
+                @endforelse
             </div>
         </section>
 
@@ -217,65 +205,39 @@
                 </thead>
 
                 <tbody>
-                    <tr>
-                        <td class="font-medium">+62 812-3456-9182</td>
-                        <td>Paspor Baru - Kode billing belum keluar</td>
-                        <td><span class="badge-status-pill bot">Otomatis Bot</span></td>
-                        <td class="text-muted">5 mnt lalu</td>
-                        <td style="text-align: right;">
-                            <a href="{{ route('percakapan') }}" class="btn-table-action">
-                                Buka Percakapan
-                            </a>
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td class="font-medium">+62 857-9921-4401</td>
-                        <td>Paspor Rusak / Terkena Air - Jadwal BAP</td>
-                        <td><span class="badge-status-pill agent">Ditangani Petugas</span></td>
-                        <td class="text-muted">14 mnt lalu</td>
-                        <td style="text-align: right;">
-                            <a href="{{ route('percakapan') }}" class="btn-table-action">
-                                Buka Percakapan
-                            </a>
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td class="font-medium">+62 821-7789-2023</td>
-                        <td>Perpanjangan ITAS Perusahaan</td>
-                        <td><span class="badge-status-pill bot">Otomatis Bot</span></td>
-                        <td class="text-muted">28 mnt lalu</td>
-                        <td style="text-align: right;">
-                            <a href="{{ route('percakapan') }}" class="btn-table-action">
-                                Buka Percakapan
-                            </a>
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td class="font-medium">+62 813-1100-8834</td>
-                        <td>Biaya Paspor Elektronik Polikarbonat</td>
-                        <td><span class="badge-status-pill bot">Otomatis Bot</span></td>
-                        <td class="text-muted">42 mnt lalu</td>
-                        <td style="text-align: right;">
-                            <a href="{{ route('percakapan') }}" class="btn-table-action">
-                                Buka Percakapan
-                            </a>
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td class="font-medium">+62 878-5541-6020</td>
-                        <td>Layanan Paspor Simpatik Akhir Pekan</td>
-                        <td><span class="badge-status-pill agent">Ditangani Petugas</span></td>
-                        <td class="text-muted">1 jam lalu</td>
-                        <td style="text-align: right;">
-                            <a href="{{ route('percakapan') }}" class="btn-table-action">
-                                Buka Percakapan
-                            </a>
-                        </td>
-                    </tr>
+                    @forelse ($percakapanTerbaru as $conv)
+                        @php
+                            $badgeClass = match($conv->pengirim_terakhir ?? '') {
+                                'bot', 'ai' => 'bot',
+                                'petugas'   => 'agent',
+                                default     => 'bot',
+                            };
+                            $badgeLabel = match($conv->pengirim_terakhir ?? '') {
+                                'bot', 'ai' => 'Otomatis Bot',
+                                'petugas'   => 'Ditangani Petugas',
+                                default     => 'Otomatis Bot',
+                            };
+                        @endphp
+                        <tr>
+                            <td class="font-medium">{{ $conv->wa_number ?? '-' }}</td>
+                            <td>{{ Str::limit($conv->pesan_terakhir ?? '-', 60) }}</td>
+                            <td><span class="badge-status-pill {{ $badgeClass }}">{{ $badgeLabel }}</span></td>
+                            <td class="text-muted">
+                                {{ $conv->last_message_at ? \Carbon\Carbon::parse($conv->last_message_at)->diffForHumans() : '-' }}
+                            </td>
+                            <td style="text-align: right;">
+                                <a href="{{ route('percakapan') }}" class="btn-table-action">
+                                    Buka Percakapan
+                                </a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="text-muted" style="text-align: center; padding: 24px;">
+                                Belum ada percakapan terbaru.
+                            </td>
+                        </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
@@ -294,11 +256,11 @@
             new Chart(trendCanvas, {
                 type: 'line',
                 data: {
-                    labels: ['01 Mei', '05 Mei', '10 Mei', '15 Mei', '20 Mei', '25 Mei', 'Hari Ini'],
+                    labels: {!! json_encode($chartLabels, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!},
                     datasets: [
                         {
                             label: 'Bot Kancil',
-                            data: [35, 42, 33, 47, 53, 44, 56],
+                            data: {!! json_encode($chartBot, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!},
                             borderColor: '#0b1a30',
                             backgroundColor: 'transparent',
                             borderWidth: 2.2,
@@ -308,7 +270,7 @@
                         },
                         {
                             label: 'Petugas',
-                            data: [15, 22, 14, 21, 26, 19, 28],
+                            data: {!! json_encode($chartPetugas, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!},
                             borderColor: '#718096',
                             borderDash: [5, 5],
                             backgroundColor: 'transparent',
@@ -339,7 +301,6 @@
                     scales: {
                         y: {
                             min: 0,
-                            max: 60,
                             ticks: {
                                 stepSize: 20,
                                 font: { family: 'Poppins', size: 11 },
@@ -366,4 +327,3 @@
     });
 </script>
 @endpush
-

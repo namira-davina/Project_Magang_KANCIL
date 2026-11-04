@@ -8,21 +8,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     form.addEventListener('submit', function (event) {
-
-        event.preventDefault();
-
         const nama = document.getElementById('namaKategori').value.trim();
 
         if (!nama) {
+            event.preventDefault();
             alert('Nama kategori wajib diisi.');
             return;
         }
 
-        alert(
-            'Tampilan tambah kategori sudah berjalan. ' +
-            'Penyimpanan kategori belum dihubungkan ke database.'
-        );
-
+        // Biarkan form submit secara normal ke server
     });
 
 });

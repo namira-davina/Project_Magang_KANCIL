@@ -6,6 +6,23 @@
 
 @section('content')
 
+    @if (session('success'))
+        <div class="content-panel" style="padding: 12px 18px; margin-bottom: 16px; border-left: 4px solid #22c55e;">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="content-panel" style="padding: 12px 18px; margin-bottom: 16px; border-left: 4px solid #ef4444;">
+            <strong>Periksa kembali data FAQ:</strong>
+            <ul style="margin: 6px 0 0 16px;">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     {{-- HEADER HALAMAN & OVERLINE --}}
     <div class="page-heading-action">
         <div>
@@ -53,10 +70,12 @@
             <div class="select-dropdown-box">
                 <select id="faqCategoryFilter" class="form-select-clean">
                     <option value="">Semua Kategori</option>
-                    <option value="Paspor">Paspor</option>
-                    <option value="Biaya & Jadwal">Biaya & Jadwal</option>
-                    <option value="Izin Tinggal">Izin Tinggal</option>
-                    <option value="Pengaduan">Pengaduan</option>
+
+                    @foreach ($categories as $category)
+                        <option value="{{ $category->name }}">
+                            {{ $category->name }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
 
@@ -65,6 +84,8 @@
                     <option value="">Semua Status</option>
                     <option value="Aktif">Aktif</option>
                     <option value="Draf">Draf</option>
+                    <option value="Perlu Verifikasi">Perlu Verifikasi</option>
+                    <option value="Nonaktif">Nonaktif</option>
                 </select>
             </div>
 
@@ -92,137 +113,75 @@
 
                 <tbody id="faqTableBody">
 
-                    <tr class="faq-row" data-category="Paspor" data-status="Aktif">
-                        <td>1</td>
-                        <td class="font-medium">Apa syarat pembuatan paspor baru untuk WNI?</td>
-                        <td class="text-muted">Paspor</td>
-                        <td class="text-secondary-cell">e-KTP, Kartu Keluarga, Akta Kelahiran/Ijazah/Buku Nikah asli & fotokopi dokumen pendukung…</td>
-                        <td><span class="status-dot-badge active">● Aktif</span></td>
-                        <td style="text-align: right;">
-                            <a href="{{ route('faq.edit', 1) }}" class="btn-icon-action" title="Edit FAQ">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M12 20h9"></path>
-                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                                </svg>
-                            </a>
-                            <button type="button" class="btn-icon-action delete" title="Hapus FAQ" onclick="if(confirm('Hapus FAQ ini?')) this.closest('tr').remove();">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        </td>
-                    </tr>
+                    @forelse ($faqs as $index => $faq)
 
-                    <tr class="faq-row" data-category="Biaya & Jadwal" data-status="Aktif">
-                        <td>2</td>
-                        <td class="font-medium">Berapa biaya paspor biasa dan e-paspor?</td>
-                        <td class="text-muted">Biaya & Jadwal</td>
-                        <td class="text-secondary-cell">Paspor Biasa 48 Hal Rp 350.000, Paspor Elektronik Rp 650.000, layanan percepatan same…</td>
-                        <td><span class="status-dot-badge active">● Aktif</span></td>
-                        <td style="text-align: right;">
-                            <a href="{{ route('faq.edit', 2) }}" class="btn-icon-action" title="Edit FAQ">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M12 20h9"></path>
-                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                                </svg>
-                            </a>
-                            <button type="button" class="btn-icon-action delete" title="Hapus FAQ" onclick="if(confirm('Hapus FAQ ini?')) this.closest('tr').remove();">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        </td>
-                    </tr>
+                        @php
+                            if (!$faq->is_active && $faq->verification_status === 'terverifikasi') {
+                                $status = 'Nonaktif';
+                            } elseif ($faq->verification_status === 'terverifikasi') {
+                                $status = 'Aktif';
+                            } elseif ($faq->verification_status === 'perlu_verifikasi') {
+                                $status = 'Perlu Verifikasi';
+                            } else {
+                                $status = 'Draf';
+                            }
+                        @endphp
 
-                    <tr class="faq-row" data-category="Izin Tinggal" data-status="Aktif">
-                        <td>3</td>
-                        <td class="font-medium">Bagaimana prosedur perpanjangan ITAS TKA?</td>
-                        <td class="text-muted">Izin Tinggal</td>
-                        <td class="text-secondary-cell">Pengajuan permohonan melalui akun penjamin di portal TKA Online, verifikasi berkas, dan…</td>
-                        <td><span class="status-dot-badge active">● Aktif</span></td>
-                        <td style="text-align: right;">
-                            <a href="{{ route('faq.edit', 3) }}" class="btn-icon-action" title="Edit FAQ">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M12 20h9"></path>
-                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                                </svg>
-                            </a>
-                            <button type="button" class="btn-icon-action delete" title="Hapus FAQ" onclick="if(confirm('Hapus FAQ ini?')) this.closest('tr').remove();">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        </td>
-                    </tr>
+                        <tr class="faq-row"
+                            data-category="{{ $faq->category_name ?? '' }}"
+                            data-status="{{ $status }}">
 
-                    <tr class="faq-row" data-category="Biaya & Jadwal" data-status="Aktif">
-                        <td>4</td>
-                        <td class="font-medium">Jam operasional pelayanan dan pengambilan paspor?</td>
-                        <td class="text-muted">Biaya & Jadwal</td>
-                        <td class="text-secondary-cell">Senin-Kamis 08.00-16.00 WIB, Jumat 08.00-16.30 WIB dengan jeda istirahat operasional pukul 12.00-</td>
-                        <td><span class="status-dot-badge active">● Aktif</span></td>
-                        <td style="text-align: right;">
-                            <a href="{{ route('faq.edit', 4) }}" class="btn-icon-action" title="Edit FAQ">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M12 20h9"></path>
-                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                                </svg>
-                            </a>
-                            <button type="button" class="btn-icon-action delete" title="Hapus FAQ" onclick="if(confirm('Hapus FAQ ini?')) this.closest('tr').remove();">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        </td>
-                    </tr>
+                            <td>{{ $index + 1 }}</td>
 
-                    <tr class="faq-row" data-category="Paspor" data-status="Aktif">
-                        <td>5</td>
-                        <td class="font-medium">Prosedur penggantian paspor hilang atau rusak?</td>
-                        <td class="text-muted">Paspor</td>
-                        <td class="text-secondary-cell">Membuat Surat Laporan Kehilangan dari Kepolisian lalu pemeriksaan BAP di kantor imigrasi</td>
-                        <td><span class="status-dot-badge active">● Aktif</span></td>
-                        <td style="text-align: right;">
-                            <a href="{{ route('faq.edit', 5) }}" class="btn-icon-action" title="Edit FAQ">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M12 20h9"></path>
-                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                                </svg>
-                            </a>
-                            <button type="button" class="btn-icon-action delete" title="Hapus FAQ" onclick="if(confirm('Hapus FAQ ini?')) this.closest('tr').remove();">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        </td>
-                    </tr>
+                            <td class="font-medium">
+                                {{ $faq->question }}
+                            </td>
 
-                    <tr class="faq-row" data-category="Pengaduan" data-status="Draf">
-                        <td>6</td>
-                        <td class="font-medium">Bagaimana cara pengaduan layanan petugas nakal/pungli?</td>
-                        <td class="text-muted">Pengaduan</td>
-                        <td class="text-secondary-cell">Kirim pesan format: LAPOR#Nama#Uraian atau via kanal SIPPN/LAPOR.go.id disertai bukti…</td>
-                        <td><span class="status-dot-badge draft">● Draf</span></td>
-                        <td style="text-align: right;">
-                            <a href="{{ route('faq.edit', 6) }}" class="btn-icon-action" title="Edit FAQ">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M12 20h9"></path>
-                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                                </svg>
-                            </a>
-                            <button type="button" class="btn-icon-action delete" title="Hapus FAQ" onclick="if(confirm('Hapus FAQ ini?')) this.closest('tr').remove();">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        </td>
-                    </tr>
+                            <td class="text-muted">
+                                {{ $faq->category_name ?? 'Tanpa Kategori' }}
+                            </td>
+
+                            <td class="text-secondary-cell">
+                                {{ \Illuminate\Support\Str::limit($faq->answer, 100) }}
+                            </td>
+
+                            <td>
+                                @if ($status === 'Aktif')
+                                    <span class="status-dot-badge active">● Aktif</span>
+                                @else
+                                    <span class="status-dot-badge draft">
+                                        ● {{ $status }}
+                                    </span>
+                                @endif
+                            </td>
+
+                            <td style="text-align: right;">
+                                <a href="{{ route('faq.edit', $faq->id) }}"
+                                class="btn-icon-action"
+                                title="Edit FAQ">
+
+                                    <!-- SVG edit yang sudah ada tetap digunakan -->
+                                    <svg width="15" height="15" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <path d="M12 20h9"></path>
+                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                                    </svg>
+                                </a>
+                            </td>
+
+                        </tr>
+
+                    @empty
+
+                        <tr>
+                            <td colspan="6" style="text-align: center;">
+                                Belum ada data FAQ.
+                            </td>
+                        </tr>
+
+                    @endforelse
 
                 </tbody>
             </table>

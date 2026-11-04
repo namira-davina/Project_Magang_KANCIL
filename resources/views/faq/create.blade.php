@@ -5,6 +5,17 @@
 
 @section('content')
 
+    @if ($errors->any())
+        <div class="content-panel" style="padding: 12px 18px; margin-bottom: 16px; border-left: 4px solid #ef4444;">
+            <strong>Periksa kembali data FAQ:</strong>
+            <ul style="margin: 6px 0 0 16px;">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     {{-- BREADCRUMB INTERNAL KHUSUS DETAIL FAQ --}}
     <div class="faq-detail-breadcrumb">
         <span>KANCIL SAPA</span>
@@ -46,7 +57,8 @@
             <span class="required-notice-star">* Wajib diisi</span>
         </div>
 
-        <form action="{{ route('faq.index') }}" method="GET" class="clean-form" id="formTambahFaq">
+        <form action="{{ route('faq.store') }}" method="POST" class="clean-form" id="formTambahFaq">
+            @csrf
 
             {{-- 2 KOLOM KATEGORI & STATUS --}}
             <div class="form-row-2col">
@@ -54,18 +66,20 @@
                     <label for="kategoriLayanan">Kategori Layanan <span class="required-star">*</span></label>
                     <select id="kategoriLayanan" name="kategori" class="form-select-clean" required>
                         <option value="">-- Pilih Kategori Layanan --</option>
-                        <option value="Paspor">Layanan Paspor Republik Indonesia (WNI)</option>
-                        <option value="Visa">Visa & Izin Tinggal</option>
-                        <option value="Biaya & Jadwal">Biaya dan Jadwal Pelayanan</option>
-                        <option value="Pengaduan">Pengaduan Masyarakat</option>
+                        @foreach ($categories as $category)
+                            <option value="{{ $category->id }}" {{ old('kategori') == $category->id ? 'selected' : '' }}>
+                                {{ $category->name }}
+                            </option>
+                        @endforeach
                     </select>
                 </div>
 
                 <div class="form-group-clean">
                     <label for="statusPublikasi">Status Publikasi <span class="required-star">*</span></label>
                     <select id="statusPublikasi" name="status" class="form-select-clean" required>
-                        <option value="Aktif" selected>Aktif (Dipublikasikan ke Bot)</option>
-                        <option value="Draf">Draf (Nonaktif / Internal)</option>
+                        <option value="draft" selected>Draf (Belum diverifikasi)</option>
+                        <option value="perlu_verifikasi">Perlu Verifikasi</option>
+                        <option value="terverifikasi">Terverifikasi</option>
                     </select>
                 </div>
             </div>
@@ -78,6 +92,7 @@
                     id="inputPertanyaan"
                     name="pertanyaan"
                     class="form-control-clean"
+                    value="{{ old('pertanyaan') }}"
                     placeholder="Contoh: Apa saja syarat permohonan paspor baru?"
                     required
                 >
@@ -94,6 +109,7 @@
                     id="inputKeywords"
                     name="kata_kunci"
                     class="form-control-clean"
+                    value="{{ old('kata_kunci') }}"
                     placeholder="Contoh: paspor baru, syarat paspor, bikin paspor, permohonan paspor"
                     required
                 >
@@ -113,7 +129,20 @@
                     maxlength="1000"
                     placeholder="Tuliskan jawaban ringkas, jelas, dan santun yang dikirimkan otomatis oleh bot WhatsApp..."
                     required
-                ></textarea>
+                >{{ old('jawaban') }}</textarea>
+            </div>
+
+            {{-- TAUTAN RUJUKAN OPSIONAL --}}
+            <div class="form-group-clean">
+                <label for="tautanRujukan">Tautan Rujukan / Dokumen (Opsional)</label>
+                <input
+                    type="url"
+                    id="tautanRujukan"
+                    name="tautan"
+                    class="form-control-clean"
+                    value="{{ old('tautan') }}"
+                    placeholder="https://contoh.go.id/informasi"
+                >
             </div>
 
             {{-- TOMBOL AKSI KANAN BAWAH --}}
@@ -152,15 +181,6 @@
             textarea.addEventListener('input', function () {
                 const len = this.value.length;
                 counter.textContent = `${len} / 1000 Karakter`;
-            });
-        }
-
-        const form = document.getElementById('formTambahFaq');
-        if (form) {
-            form.addEventListener('submit', function (e) {
-                e.preventDefault();
-                alert('Data FAQ baru berhasil disimulasikan dan disimpan.');
-                window.location.href = "{{ route('faq.index') }}";
             });
         }
     });

@@ -28,6 +28,23 @@
         </div>
     </div>
 
+    {{-- NOTIFIKASI SUKSES / ERROR --}}
+    @if (session('success'))
+        <div class="alert-banner success" style="margin-bottom:16px; padding:12px 16px; background:#d1fae5; border:1px solid #6ee7b7; border-radius:8px; color:#065f46;">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="alert-banner error" style="margin-bottom:16px; padding:12px 16px; background:#fee2e2; border:1px solid #fca5a5; border-radius:8px; color:#991b1b;">
+            <ul style="margin:0; padding-left:16px;">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     {{-- DUA KARTU PENGATURAN TERTUMPUK SESUAI DESAIN --}}
     <div class="pengaturan-vertical-stack">
 
@@ -45,46 +62,52 @@
             </div>
 
             <div class="settings-card-body">
-                <div class="form-group-clean">
-                    <label for="namaPetugas">Nama Lengkap</label>
-                    <input
-                        type="text"
-                        id="namaPetugas"
-                        class="form-control-clean"
-                        value="Agus Setiawan, S.IP."
-                    >
-                </div>
+                <form method="POST" action="{{ route('pengaturan.profil') }}">
+                    @csrf
+                    <div class="form-group-clean">
+                        <label for="namaPetugas">Nama Lengkap</label>
+                        <input
+                            type="text"
+                            id="namaPetugas"
+                            name="name"
+                            class="form-control-clean"
+                            value="{{ old('name', Auth::user()->name) }}"
+                        >
+                    </div>
 
-                <div class="form-group-clean">
-                    <label for="emailPetugas">Email</label>
-                    <input
-                        type="email"
-                        id="emailPetugas"
-                        class="form-control-clean"
-                        value="agus.setiawan@kemenkumham.go.id"
-                    >
-                </div>
+                    <div class="form-group-clean">
+                        <label for="emailPetugas">Email</label>
+                        <input
+                            type="email"
+                            id="emailPetugas"
+                            name="email"
+                            class="form-control-clean"
+                            value="{{ old('email', Auth::user()->email) }}"
+                        >
+                    </div>
 
-                <div class="form-group-clean">
-                    <label for="usernamePetugas">Username</label>
-                    <input
-                        type="text"
-                        id="usernamePetugas"
-                        class="form-control-clean"
-                        value="agus_tikim"
-                    >
-                </div>
+                    <div class="form-group-clean">
+                        <label for="usernamePetugas">Username</label>
+                        <input
+                            type="text"
+                            id="usernamePetugas"
+                            name="username"
+                            class="form-control-clean"
+                            value="{{ old('username', Auth::user()->username ?? Auth::user()->name) }}"
+                        >
+                    </div>
 
-                <div class="settings-action-row">
-                    <button type="button" class="btn-primary-dark" id="btnSimpanAkun">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                            <polyline points="7 3 7 8 15 8"></polyline>
-                        </svg>
-                        <span>Simpan Perubahan</span>
-                    </button>
-                </div>
+                    <div class="settings-action-row">
+                        <button type="submit" class="btn-primary-dark" id="btnSimpanAkun">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                <polyline points="7 3 7 8 15 8"></polyline>
+                            </svg>
+                            <span>Simpan Perubahan</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -100,45 +123,51 @@
             </div>
 
             <div class="settings-card-body">
-                <div class="form-group-clean">
-                    <label for="passwordLama">Password Lama</label>
-                    <input
-                        type="password"
-                        id="passwordLama"
-                        class="form-control-clean"
-                        placeholder="Masukkan password lama"
-                    >
-                </div>
+                <form method="POST" action="{{ route('pengaturan.password') }}">
+                    @csrf
+                    <div class="form-group-clean">
+                        <label for="passwordLama">Password Lama</label>
+                        <input
+                            type="password"
+                            id="passwordLama"
+                            name="password_lama"
+                            class="form-control-clean"
+                            placeholder="Masukkan password lama"
+                        >
+                    </div>
 
-                <div class="form-group-clean">
-                    <label for="passwordBaru">Password Baru</label>
-                    <input
-                        type="password"
-                        id="passwordBaru"
-                        class="form-control-clean"
-                        placeholder="Masukkan password baru"
-                    >
-                </div>
+                    <div class="form-group-clean">
+                        <label for="passwordBaru">Password Baru</label>
+                        <input
+                            type="password"
+                            id="passwordBaru"
+                            name="password_baru"
+                            class="form-control-clean"
+                            placeholder="Masukkan password baru"
+                        >
+                    </div>
 
-                <div class="form-group-clean">
-                    <label for="konfirmasiPassword">Konfirmasi Password Baru</label>
-                    <input
-                        type="password"
-                        id="konfirmasiPassword"
-                        class="form-control-clean"
-                        placeholder="Ulangi password baru"
-                    >
-                </div>
+                    <div class="form-group-clean">
+                        <label for="konfirmasiPassword">Konfirmasi Password Baru</label>
+                        <input
+                            type="password"
+                            id="konfirmasiPassword"
+                            name="password_baru_confirmation"
+                            class="form-control-clean"
+                            placeholder="Ulangi password baru"
+                        >
+                    </div>
 
-                <div class="settings-action-row">
-                    <button type="button" class="btn-primary-dark" id="btnUbahPassword">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                        </svg>
-                        <span>Ubah Password</span>
-                    </button>
-                </div>
+                    <div class="settings-action-row">
+                        <button type="submit" class="btn-primary-dark" id="btnUbahPassword">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <span>Ubah Password</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 

@@ -1,86 +1,64 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.getElementById('kategoriSearchInput');
-    const tableBody = document.getElementById('kategoriTableBody');
-    const modalEdit = document.getElementById('modalEditKategori');
-    const btnTutup = document.getElementById('btnTutupModalKategori');
-    const btnBatal = document.getElementById('btnBatalModalKategori');
-    const formEdit = document.getElementById('formEditKategori');
-    const inputId = document.getElementById('editKategoriId');
-    const inputNama = document.getElementById('inputNamaKategori');
-    const totalCount = document.getElementById('kategoriTotalCount');
+    const searchInput   = document.getElementById('kategoriSearchInput');
+    const tableBody     = document.getElementById('kategoriTableBody');
+    const modalEdit     = document.getElementById('modalEditKategori');
+    const formEdit      = document.getElementById('formEditKategori');
+    const totalCount    = document.getElementById('kategoriTotalCount');
     const paginationInfo = document.getElementById('kategoriPaginationInfo');
+    const inputId       = document.getElementById('editKategoriId');
+    const inputNama     = document.getElementById('inputNamaKategori');
+    const btnTutup      = document.getElementById('btnTutupModalKategori');
+    const btnBatal      = document.getElementById('btnBatalModalKategori');
 
-    function openModal(id, currentName) {
-        if (!modalEdit) return;
-        inputId.value = id;
-        inputNama.value = currentName;
-        modalEdit.style.display = 'flex';
-        inputNama.focus();
-    }
+    // ── BUKA MODAL EDIT ──────────────────────────────────────────────────────
+    document.querySelectorAll('.btn-edit-kategori').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const id   = this.getAttribute('data-id');
+            const nama = this.getAttribute('data-nama');
 
-    function closeModal() {
-        if (!modalEdit) return;
+            inputId.value   = id;
+            inputNama.value = nama;
+
+            // Set action form ke URL update yang benar
+            formEdit.action = '/kategori-faq/' + id;
+
+            modalEdit.style.display = 'flex';
+            inputNama.focus();
+        });
+    });
+
+    // ── TUTUP MODAL ──────────────────────────────────────────────────────────
+    function tutupModal() {
         modalEdit.style.display = 'none';
-        inputId.value = '';
+        inputId.value   = '';
         inputNama.value = '';
     }
 
-    // Attach click to Edit buttons
-    document.querySelectorAll('.btn-edit-kategori').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            const id = this.getAttribute('data-id');
-            const row = this.closest('tr');
-            const nama = row ? row.querySelector('.font-medium').textContent.trim() : '';
-            openModal(id, nama);
-        });
-    });
+    if (btnTutup) btnTutup.addEventListener('click', tutupModal);
+    if (btnBatal) btnBatal.addEventListener('click', tutupModal);
 
-    // Attach click to Delete buttons
-    document.querySelectorAll('.btn-delete-kategori').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            const row = this.closest('tr');
-            const nama = row ? row.querySelector('.font-medium').textContent.trim() : 'kategori ini';
-            if (confirm(`Apakah Anda yakin ingin menghapus kategori "${nama}"?`)) {
-                if (row) row.remove();
-                updateCounts();
-            }
-        });
-    });
-
-    if (btnTutup) btnTutup.addEventListener('click', closeModal);
-    if (btnBatal) btnBatal.addEventListener('click', closeModal);
-
+    // Klik di luar modal → tutup
     if (modalEdit) {
         modalEdit.addEventListener('click', function (e) {
-            if (e.target === modalEdit) {
-                closeModal();
-            }
+            if (e.target === modalEdit) tutupModal();
         });
     }
 
+    // ── VALIDASI SUBMIT EDIT ─────────────────────────────────────────────────
     if (formEdit) {
         formEdit.addEventListener('submit', function (e) {
-            e.preventDefault();
-            const id = inputId.value;
-            const newName = inputNama.value.trim();
-            if (!newName) return;
-
-            const row = document.querySelector(`tr[data-id="${id}"]`);
-            if (row) {
-                const nameCol = row.querySelector('.font-medium');
-                if (nameCol) nameCol.textContent = newName;
-                row.setAttribute('data-nama', newName);
+            if (!inputNama.value.trim()) {
+                e.preventDefault();
+                inputNama.focus();
             }
-
-            closeModal();
-            alert(`Nama kategori berhasil diperbarui menjadi "${newName}".`);
+            // Biarkan form submit secara normal ke server
         });
     }
 
-    // Search filter
+    // ── PENCARIAN ────────────────────────────────────────────────────────────
     if (searchInput && tableBody) {
         searchInput.addEventListener('input', function () {
-            const q = this.value.toLowerCase().trim();
+            const q    = this.value.toLowerCase().trim();
             const rows = tableBody.querySelectorAll('tr');
             let visibleCount = 0;
 
@@ -94,16 +72,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            if (paginationInfo) {
-                paginationInfo.textContent = `Menampilkan 1 - ${visibleCount} dari ${visibleCount} entri`;
-            }
+            updateCounts(visibleCount);
         });
     }
 
-    function updateCounts() {
+    // ── UPDATE COUNTER ────────────────────────────────────────────────────────
+    function updateCounts(visible) {
         if (!tableBody) return;
-        const total = tableBody.querySelectorAll('tr').length;
-        if (totalCount) totalCount.textContent = `${total} data`;
-        if (paginationInfo) paginationInfo.textContent = `Menampilkan 1 - ${total} dari ${total} entri`;
+        const total = visible !== undefined
+            ? visible
+            : tableBody.querySelectorAll('tr').length;
+
+        if (totalCount)     totalCount.textContent     = total + ' data';
+        if (paginationInfo) paginationInfo.textContent = 'Menampilkan 1 - ' + total + ' dari ' + total + ' entri';
     }
 });

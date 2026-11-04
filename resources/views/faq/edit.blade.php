@@ -5,6 +5,17 @@
 
 @section('content')
 
+    @if ($errors->any())
+        <div class="content-panel" style="padding: 12px 18px; margin-bottom: 16px; border-left: 4px solid #ef4444;">
+            <strong>Periksa kembali data FAQ:</strong>
+            <ul style="margin: 6px 0 0 16px;">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     {{-- BREADCRUMB INTERNAL KHUSUS DETAIL FAQ --}}
     <div class="faq-detail-breadcrumb">
         <span>KANCIL SAPA</span>
@@ -18,9 +29,13 @@
     <div class="page-heading-action">
         <div>
             <div class="faq-title-meta-row">
-                <h1>Edit Data FAQ #{{ $id ?? 1 }}</h1>
-                <span class="status-dot-badge active">● Aktif Publikasi</span>
-                <span class="badge-id-ref">ID: FAQ-CLP-001</span>
+                <h1>Edit Data FAQ #{{ $faq->id }}</h1>
+                @if ($faq->is_active && $faq->verification_status === 'terverifikasi')
+                    <span class="status-dot-badge active">● Aktif Publikasi</span>
+                @else
+                    <span class="status-dot-badge draft">● {{ ucfirst($faq->verification_status ?? 'Draf') }}</span>
+                @endif
+                <span class="badge-id-ref">ID: FAQ-CLP-{{ str_pad($faq->id, 3, '0', STR_PAD_LEFT) }}</span>
             </div>
             <p>Perbarui informasi pertanyaan dan jawaban otomatis bot WhatsApp layanan keimigrasian KANCIL SAPA.</p>
             <div class="faq-last-updated">
@@ -28,7 +43,7 @@
                     <circle cx="12" cy="12" r="10"></circle>
                     <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
-                <span>Terakhir diperbarui oleh <strong>Agus Setiawan, S.IP.</strong> pada 28 Okt 2025, 09:15 WIB</span>
+                <span>Terakhir diperbarui pada {{ $faq->updated_at ? \Carbon\Carbon::parse($faq->updated_at)->translatedFormat('d M Y, H:i') . ' WIB' : '-' }}</span>
             </div>
         </div>
 
@@ -52,35 +67,45 @@
                 </svg>
                 <h3>Formulir Edit FAQ</h3>
             </div>
-            <span class="badge-id-ref">ID: FAQ-CLP-001</span>
+            <span class="badge-id-ref">ID: FAQ-CLP-{{ str_pad($faq->id, 3, '0', STR_PAD_LEFT) }}</span>
         </div>
 
-        <form action="{{ route('faq.index') }}" method="GET" class="clean-form" id="formEditFaq">
+        {{-- Form hapus diletakkan di LUAR form edit, dihubungkan via atribut form= --}}
+        <form
+            id="deleteFaqForm"
+            action="{{ route('faq.destroy', $faq->id) }}"
+            method="POST"
+            onsubmit="return confirm('Hapus FAQ ini secara permanen?')"
+        >
+            @csrf
+            @method('DELETE')
+        </form>
 
-            {{-- ROW 1: KATEGORI & STATUS RADIO --}}
+        <form action="{{ route('faq.update', $faq->id) }}" method="POST" class="clean-form" id="formEditFaq">
+            @csrf
+            @method('PUT')
+
+            {{-- ROW 1: KATEGORI & STATUS --}}
             <div class="form-row-2col">
                 <div class="form-group-clean">
                     <label for="kategoriLayanan">Kategori Layanan <span class="required-star">*</span></label>
                     <select id="kategoriLayanan" name="kategori" class="form-select-clean" required>
-                        <option value="Paspor" selected>Layanan Paspor Republik Indonesia (WNI)</option>
-                        <option value="Visa">Visa & Izin Tinggal</option>
-                        <option value="Biaya & Jadwal">Biaya dan Jadwal Pelayanan</option>
-                        <option value="Pengaduan">Pengaduan Masyarakat</option>
+                        <option value="">-- Pilih Kategori Layanan --</option>
+                        @foreach ($categories as $category)
+                            <option value="{{ $category->id }}" {{ old('kategori', $faq->category_id) == $category->id ? 'selected' : '' }}>
+                                {{ $category->name }}
+                            </option>
+                        @endforeach
                     </select>
                 </div>
 
                 <div class="form-group-clean">
-                    <label>Status Publikasi <span class="required-star">*</span></label>
-                    <div class="radio-group-clean">
-                        <label class="radio-label">
-                            <input type="radio" name="status" value="Aktif" checked>
-                            <span>Aktif</span>
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="status" value="Draf">
-                            <span>Draf / Nonaktif</span>
-                        </label>
-                    </div>
+                    <label for="statusPublikasi">Status Publikasi <span class="required-star">*</span></label>
+                    <select id="statusPublikasi" name="status" class="form-select-clean" required>
+                        <option value="draft" {{ old('status', $faq->verification_status) === 'draft' ? 'selected' : '' }}>Draf (Belum diverifikasi)</option>
+                        <option value="perlu_verifikasi" {{ old('status', $faq->verification_status) === 'perlu_verifikasi' ? 'selected' : '' }}>Perlu Verifikasi</option>
+                        <option value="terverifikasi" {{ old('status', $faq->verification_status) === 'terverifikasi' ? 'selected' : '' }}>Terverifikasi</option>
+                    </select>
                 </div>
             </div>
 
@@ -92,7 +117,7 @@
                     id="pertanyaan"
                     name="pertanyaan"
                     class="form-control-clean"
-                    value="Apa syarat pembuatan paspor baru untuk WNI?"
+                    value="{{ old('pertanyaan', $faq->question) }}"
                     required
                 >
             </div>
@@ -105,7 +130,7 @@
                     id="kata_kunci"
                     name="kata_kunci"
                     class="form-control-clean"
-                    value="syarat paspor, paspor baru, bikin paspor, dokumen paspor wni"
+                    value="{{ old('kata_kunci', $keywords) }}"
                     required
                 >
                 <span class="field-hint">Pisahkan kata kunci dengan tanda koma.</span>
@@ -115,21 +140,16 @@
             <div class="form-group-clean">
                 <div class="label-with-right-hint">
                     <label for="jawaban">Isi Jawaban / Respon Bot <span class="required-star">*</span></label>
-                    <span class="field-hint-right" id="charCounter">235 Karakter</span>
+                    <span class="field-hint-right" id="charCounter">{{ strlen(old('jawaban', $faq->answer)) }} Karakter</span>
                 </div>
                 <textarea
                     id="jawaban"
                     name="jawaban"
                     rows="6"
                     class="form-textarea-clean"
+                    maxlength="1000"
                     required
-                >Halo Sahabat Mido Cilacap! 👋
-
-Persyaratan permohonan paspor baru RI bagi WNI dewasa:
-1. e-KTP asli & fotokopi
-2. Kartu Keluarga asli & fotokopi
-3. Akta Kelahiran / Ijazah / Buku Nikah asli & fotokopi
-4. Surat penetapan ganti nama (jika ada)</textarea>
+                >{{ old('jawaban', $faq->answer) }}</textarea>
             </div>
 
             {{-- TAUTAN RUJUKAN OPSIONAL --}}
@@ -143,18 +163,14 @@ Persyaratan permohonan paspor baru RI bagi WNI dewasa:
                     id="tautanRujukan"
                     name="tautan"
                     class="form-control-clean"
-                    value="https://cilacap.imigrasi.go.id/layanan-paspor"
+                    value="{{ old('tautan', $faq->source_url) }}"
                 >
             </div>
 
             {{-- FORM ACTION FOOTER: HAPUS DI KIRI, BATAL & SIMPAN DI KANAN --}}
             <div class="form-action-footer space-between">
-                <button
-                    type="button"
-                    class="btn-danger-outline"
-                    data-url="{{ route('faq.index') }}"
-                    onclick="if (confirm('Hapus FAQ ini secara permanen?')) window.location.href = this.dataset.url;"
-                >
+                {{-- Tombol hapus dihubungkan ke form hapus terpisah via form="deleteFaqForm" --}}
+                <button type="submit" form="deleteFaqForm" class="btn-danger-outline">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -194,15 +210,6 @@ Persyaratan permohonan paspor baru RI bagi WNI dewasa:
             textarea.addEventListener('input', function () {
                 const len = this.value.length;
                 counter.textContent = `${len} Karakter`;
-            });
-        }
-
-        const form = document.getElementById('formEditFaq');
-        if (form) {
-            form.addEventListener('submit', function (e) {
-                e.preventDefault();
-                alert('Perubahan data FAQ berhasil disimpan.');
-                window.location.href = "{{ route('faq.index') }}";
             });
         }
     });
