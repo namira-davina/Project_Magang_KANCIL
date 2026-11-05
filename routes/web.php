@@ -11,6 +11,7 @@ use App\Http\Controllers\PercakapanController;
 use App\Http\Controllers\PengaduanController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\PengaturanController;
+use App\Http\Middleware\PreventBackHistory;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,14 +34,14 @@ Route::post('/logout', [AuthController::class, 'logout'])
     ->name('logout');
 
 // Halaman Admin
-Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', PreventBackHistory::class])->prefix('admin')->name('admin.')->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 });
 
 // FAQ — auth tapi tanpa prefix admin agar nama route tetap faq.*
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', PreventBackHistory::class])->group(function () {
     Route::get('/faq', [FaqController::class, 'index'])->name('faq.index');
     Route::get('/faq/create', [FaqController::class, 'create'])->name('faq.create');
     Route::post('/faq', [FaqController::class, 'store'])->name('faq.store');
