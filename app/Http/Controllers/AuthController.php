@@ -16,11 +16,7 @@ class AuthController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
-        return response()->view('auth.login')->withHeaders([
-            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-            'Pragma'        => 'no-cache',
-            'Expires'       => 'Sat, 01 Jan 2000 00:00:00 GMT',
-        ]);
+        return view('auth.login');
     }
 
     // Memproses login
@@ -34,12 +30,15 @@ class AuthController extends Controller
             'password.required' => 'Kata sandi wajib diisi.',
         ]);
 
-        $user = User::where('username', $credentials['username'])
+        $user = User::where(function ($q) use ($credentials) {
+            $q->where('username', $credentials['username'])
+                ->orWhere('email', $credentials['username']);
+        })
             ->where('role', 'admin')
             ->where('is_active', 1)
             ->first();
 
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             return back()
                 ->withInput($request->only('username'))
                 ->with('message', 'Username atau kata sandi tidak sesuai.');
