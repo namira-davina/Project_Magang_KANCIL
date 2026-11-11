@@ -39,11 +39,11 @@ class DatabaseSeeder extends Seeder
             FaqCategory::firstOrCreate(['name' => $name], ['description' => $description, 'is_active' => true]);
         }
 
+        // Kategori pengaduan sesuai PGD-03 (Dokumen Skenario FAQ).
         foreach ([
-            'Pelayanan' => 'Keluhan terkait pelayanan keimigrasian',
-            'Persyaratan' => 'Kendala terkait persyaratan',
-            'Sistem atau Aplikasi' => 'Kendala pada sistem atau aplikasi',
-            'Informasi' => 'Informasi yang tidak sesuai atau belum jelas',
+            'Layanan paspor' => 'Pengaduan terkait layanan paspor WNI',
+            'Layanan WNA / izin tinggal' => 'Pengaduan terkait layanan WNA dan izin tinggal',
+            'Pelayanan petugas' => 'Pengaduan tentang perilaku petugas (diteruskan ke Pimpinan)',
             'Lainnya' => 'Pengaduan di luar kategori yang tersedia',
         ] as $name => $description) {
             ComplaintCategory::firstOrCreate(['name' => $name], ['description' => $description, 'is_active' => true]);
@@ -54,8 +54,11 @@ class DatabaseSeeder extends Seeder
             'working_hours_start' => ['08:00', 'Jam mulai layanan petugas - perlu konfirmasi'],
             'working_hours_end' => ['16:00', 'Jam selesai layanan petugas - perlu konfirmasi'],
             'working_days' => ['Senin-Jumat', 'Hari layanan petugas - perlu konfirmasi'],
+            'service_hours_text' => ['', 'Teks jam layanan yang boleh disebut bot (kosong = tidak disebut sampai dikonfirmasi)'],
         ] as $key => [$value, $description]) {
             BotSetting::firstOrCreate(['setting_key' => $key], ['setting_value' => $value, 'description' => $description]);
         }
+
+        $this->call(FaqSeeder::class);
     }
 }

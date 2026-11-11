@@ -34,6 +34,13 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
+    public const ROLES = ['admin', 'petugas', 'pimpinan'];
+
+    public function hasRole(string ...$roles): bool
+    {
+        return in_array($this->role, $roles, true);
+    }
+
     public function assignedConversations(): HasMany
     {
         return $this->hasMany(Conversation::class, 'assigned_to');

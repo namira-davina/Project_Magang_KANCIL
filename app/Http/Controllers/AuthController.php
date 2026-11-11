@@ -34,7 +34,7 @@ class AuthController extends Controller
             $q->where('username', $credentials['username'])
                 ->orWhere('email', $credentials['username']);
         })
-            ->where('role', 'admin')
+            ->whereIn('role', User::ROLES)
             ->where('is_active', 1)
             ->first();
 

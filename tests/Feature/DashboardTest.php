@@ -31,12 +31,15 @@ class DashboardTest extends TestCase
     {
         $this->actingAsAdmin();
         $conv = $this->makeConversation();
+        $faq = $this->makeFaq($this->makeCategory()->id);
         $this->makeMessage($conv, 'user');
         $this->makeMessage($conv, 'user');
-        $this->makeMessage($conv, 'bot');
-        $this->makeMessage($conv, 'ai');
+        $this->makeMessage($conv, 'bot');                       // menu: bukan jawaban otomatis
+        $this->makeMessage($conv, 'bot', ['faq_id' => $faq]);   // jawaban FAQ
+        $this->makeMessage($conv, 'ai');                        // jawaban AI
         $this->makeMessage($conv, 'petugas');
         $this->makeEscalation($conv);
+        $this->makeEscalation($conv, ['escalation_code' => 'B0']); // pengaduan terputus: bukan eskalasi
         foreach (['Menunggu', 'Diproses', 'Diproses', 'Selesai', 'Selesai', 'Selesai'] as $status) {
             $this->makeComplaint($status);
         }

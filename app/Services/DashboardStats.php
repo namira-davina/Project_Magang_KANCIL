@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\EscalationLog;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +15,7 @@ class DashboardStats
         return [
             ...$this->messageTotals(),
             ...$this->complaintTotals(),
-            'totalEskalasi' => DB::table('escalation_logs')->count(),
+            'totalEskalasi' => EscalationLog::escalations()->count(),
             ...$this->chart(),
             'kategoriPopuler' => $this->popularCategories(),
             'percakapanTerbaru' => $this->latestConversations(),
@@ -23,9 +24,10 @@ class DashboardStats
 
     private function messageTotals(): array
     {
+        // Terjawab otomatis = jawaban dari FAQ (bot) + jawaban AI; pesan menu tidak dihitung.
         $row = DB::table('messages')
             ->selectRaw("SUM(CASE WHEN sender_type = 'user' THEN 1 ELSE 0 END) as pertanyaan")
-            ->selectRaw("SUM(CASE WHEN sender_type IN ('bot', 'ai') THEN 1 ELSE 0 END) as otomatis")
+            ->selectRaw("SUM(CASE WHEN sender_type = 'ai' OR (sender_type = 'bot' AND faq_id IS NOT NULL) THEN 1 ELSE 0 END) as otomatis")
             ->first();
 
         return [

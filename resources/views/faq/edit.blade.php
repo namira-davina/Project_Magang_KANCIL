@@ -106,6 +106,11 @@
                         <option value="perlu_verifikasi" {{ old('status', $faq->verification_status) === 'perlu_verifikasi' ? 'selected' : '' }}>Perlu Verifikasi</option>
                         <option value="terverifikasi" {{ old('status', $faq->verification_status) === 'terverifikasi' ? 'selected' : '' }}>Terverifikasi</option>
                     </select>
+                    <input type="hidden" name="aktif" value="0">
+                    <label for="aktifBot" style="display: flex; align-items: center; gap: 8px; margin-top: 10px; font-weight: 400;">
+                        <input type="checkbox" id="aktifBot" name="aktif" value="1" {{ old('aktif', $faq->is_active) ? 'checked' : '' }}>
+                        Aktif ditampilkan bot (hanya berlaku bila Terverifikasi)
+                    </label>
                 </div>
             </div>
 

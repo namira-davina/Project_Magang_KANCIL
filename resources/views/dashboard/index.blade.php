@@ -39,6 +39,7 @@
                 <span>Cetak</span>
             </button>
 
+            @if (auth()->user()?->hasRole('admin', 'pimpinan'))
             <a href="{{ route('laporan') }}" class="btn-primary-dark">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -47,6 +48,7 @@
                 </svg>
                 <span>Ekspor PDF</span>
             </a>
+            @endif
         </div>
     </div>
 
@@ -219,14 +221,14 @@
                             };
                         @endphp
                         <tr>
-                            <td class="font-medium">{{ $conv->wa_number ?? '-' }}</td>
+                            <td class="font-medium">{{ $conv->whatsapp_number ?? ($conv->user_name ?? '-') }}</td>
                             <td>{{ Str::limit($conv->pesan_terakhir ?? '-', 60) }}</td>
                             <td><span class="badge-status-pill {{ $badgeClass }}">{{ $badgeLabel }}</span></td>
                             <td class="text-muted">
                                 {{ $conv->last_message_at ? \Carbon\Carbon::parse($conv->last_message_at)->diffForHumans() : '-' }}
                             </td>
                             <td style="text-align: right;">
-                                <a href="{{ route('percakapan') }}" class="btn-table-action">
+                                <a href="{{ route('percakapan', ['id' => $conv->id]) }}" class="btn-table-action">
                                     Buka Percakapan
                                 </a>
                             </td>

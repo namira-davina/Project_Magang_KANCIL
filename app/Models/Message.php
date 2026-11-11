@@ -22,11 +22,19 @@ class Message extends Model
         'faq_id',
         'is_read',
         'sent_at',
+        'external_message_id',
+        'client_uuid',
+        'delivery_status',
+        'delivery_error',
+        'meta',
+        'raw_payload',
     ];
 
     protected $casts = [
         'is_read' => 'boolean',
         'sent_at' => 'datetime',
+        'meta' => 'array',
+        'raw_payload' => 'array',
     ];
 
     public function conversation(): BelongsTo
