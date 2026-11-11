@@ -19,6 +19,8 @@ use App\Http\Middleware\PreventBackHistory;
 |--------------------------------------------------------------------------
 */
 
+Route::redirect('/', '/login');
+
 // HALAMAN UTAMA
 // Halaman login
 Route::get('/login', [AuthController::class, 'showLogin'])

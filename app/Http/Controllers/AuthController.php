@@ -34,7 +34,10 @@ class AuthController extends Controller
             'password.required' => 'Kata sandi wajib diisi.',
         ]);
 
-        $user = User::where('username', $credentials['username'])
+        $user = User::where(function ($q) use ($credentials) {
+                $q->where('username', $credentials['username'])
+                  ->orWhere('email', $credentials['username']);
+            })
             ->where('role', 'admin')
             ->where('is_active', 1)
             ->first();
