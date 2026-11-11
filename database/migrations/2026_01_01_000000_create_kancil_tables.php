@@ -4,121 +4,120 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Application tables, mirroring `kancil_sapa.sql`.
+ * (`users` lives in the 0001_01_01_000000 migration.)
+ */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('username')->nullable()->unique();
-            $table->string('role', 30)->default('admin');
-            $table->boolean('is_active')->default(true);
-            $table->timestamp('last_login_at')->nullable();
-        });
-
         Schema::create('faq_categories', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100)->unique();
             $table->text('description')->nullable();
             $table->boolean('is_active')->default(true);
-            $table->timestamps();
+            $this->timestamps($table);
         });
 
         Schema::create('faqs', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('category_id')->nullable()->constrained('faq_categories')->nullOnDelete();
-            $table->string('question');
-            $table->text('answer');
+            $table->foreignId('category_id')->nullable()->constrained('faq_categories')->nullOnDelete()->cascadeOnUpdate();
+            $table->text('question');
+            $table->longText('answer');
             $table->string('source')->nullable();
-            $table->string('source_url')->nullable();
-            $table->string('verification_status', 30)->default('draft');
-            $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamp('verified_at')->nullable();
-            $table->boolean('is_active')->default(false);
-            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamps();
+            $table->string('source_url', 500)->nullable();
+            $table->enum('verification_status', ['draft', 'perlu_verifikasi', 'terverifikasi'])->default('draft')->index();
+            $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
+            $table->dateTime('verified_at')->nullable();
+            $table->boolean('is_active')->default(false)->index();
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
+            $this->timestamps($table);
         });
 
         Schema::create('faq_keywords', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('faq_id')->constrained('faqs')->cascadeOnDelete();
-            $table->string('keyword');
-            $table->timestamp('created_at')->nullable();
+            $table->foreignId('faq_id')->constrained('faqs')->cascadeOnDelete()->cascadeOnUpdate();
+            $table->string('keyword')->index();
+            $table->timestamp('created_at')->nullable()->useCurrent();
         });
 
         Schema::create('complaint_categories', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100);
+            $table->string('name', 100)->unique();
             $table->text('description')->nullable();
             $table->boolean('is_active')->default(true);
-            $table->timestamps();
+            $this->timestamps($table);
         });
 
         Schema::create('conversations', function (Blueprint $table) {
             $table->id();
-            $table->string('ticket_number')->nullable()->index();
-            $table->string('whatsapp_number', 30)->nullable();
-            $table->string('user_name')->nullable();
-            $table->string('channel', 30)->default('whatsapp');
-            $table->string('conversation_mode', 30)->default('bot');
-            $table->string('current_menu')->nullable();
-            $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamp('started_at')->nullable();
-            $table->timestamp('last_message_at')->nullable();
-            $table->timestamp('closed_at')->nullable();
-            $table->timestamps();
+            $table->string('ticket_number', 30)->unique();
+            $table->string('whatsapp_number', 25)->index();
+            $table->string('user_name', 100)->nullable();
+            $table->enum('channel', ['whatsapp', 'simulasi'])->default('simulasi');
+            $table->enum('conversation_mode', ['BOT_ACTIVE', 'WAITING_HUMAN', 'HUMAN_HANDLING', 'CLOSED'])
+                ->default('BOT_ACTIVE')->index();
+            $table->string('current_menu', 50)->nullable();
+            $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
+            $table->dateTime('started_at')->useCurrent();
+            $table->dateTime('last_message_at')->nullable()->index();
+            $table->dateTime('closed_at')->nullable();
+            $this->timestamps($table);
         });
 
         Schema::create('messages', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('conversation_id')->constrained('conversations')->cascadeOnDelete();
-            $table->string('sender_type', 20); // user, bot, ai, petugas
-            $table->foreignId('sender_user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('message_type', 30)->default('text');
-            $table->text('message_text')->nullable();
-            $table->string('attachment_path')->nullable();
-            $table->foreignId('faq_id')->nullable()->constrained('faqs')->nullOnDelete();
+            $table->foreignId('conversation_id')->constrained('conversations')->cascadeOnDelete()->cascadeOnUpdate();
+            $table->enum('sender_type', ['user', 'bot', 'ai', 'petugas', 'system'])->index();
+            $table->foreignId('sender_user_id')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
+            $table->enum('message_type', ['text', 'image', 'document', 'audio', 'other'])->default('text');
+            $table->longText('message_text')->nullable();
+            $table->string('attachment_path', 500)->nullable();
+            $table->foreignId('faq_id')->nullable()->constrained('faqs')->nullOnDelete()->cascadeOnUpdate();
             $table->boolean('is_read')->default(false);
-            $table->timestamp('sent_at')->nullable()->index();
-            $table->timestamps();
+            $table->dateTime('sent_at')->useCurrent();
+            $table->timestamp('created_at')->nullable()->useCurrent();
+            $table->index(['conversation_id', 'sent_at'], 'idx_message_conversation_time');
         });
 
         Schema::create('complaints', function (Blueprint $table) {
             $table->id();
-            $table->string('ticket_number')->unique();
-            $table->foreignId('conversation_id')->nullable()->constrained('conversations')->nullOnDelete();
-            $table->foreignId('category_id')->nullable()->constrained('complaint_categories')->nullOnDelete();
-            $table->string('user_name')->nullable();
-            $table->string('whatsapp_number', 30)->nullable();
-            $table->text('complaint_text');
-            $table->string('status', 30)->default('Menunggu'); // Menunggu, Diproses, Selesai
-            $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();
-            $table->text('response_text')->nullable();
-            $table->timestamp('submitted_at')->nullable();
-            $table->timestamp('resolved_at')->nullable();
-            $table->timestamps();
+            $table->string('ticket_number', 30)->unique();
+            $table->foreignId('conversation_id')->nullable()->constrained('conversations')->nullOnDelete()->cascadeOnUpdate();
+            $table->foreignId('category_id')->nullable()->constrained('complaint_categories')->nullOnDelete()->cascadeOnUpdate();
+            $table->string('user_name', 100);
+            $table->string('whatsapp_number', 25)->index();
+            $table->longText('complaint_text');
+            $table->enum('status', ['Menunggu', 'Diproses', 'Selesai'])->default('Menunggu')->index();
+            $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
+            $table->longText('response_text')->nullable();
+            $table->dateTime('submitted_at')->useCurrent()->index();
+            $table->dateTime('resolved_at')->nullable();
+            $this->timestamps($table);
         });
 
         Schema::create('escalation_logs', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('conversation_id')->constrained('conversations')->cascadeOnDelete();
-            $table->foreignId('handled_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('escalation_type', 50)->nullable();
+            $table->foreignId('conversation_id')->constrained('conversations')->cascadeOnDelete()->cascadeOnUpdate();
+            $table->foreignId('handled_by')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
+            $table->enum('escalation_type', ['faq_not_found', 'user_request', 'complaint', 'special_case', 'uncertain_answer'])->index();
             $table->text('reason')->nullable();
-            $table->string('status', 30)->default('Menunggu');
-            $table->timestamp('escalated_at')->nullable();
-            $table->timestamp('taken_at')->nullable();
-            $table->timestamp('completed_at')->nullable();
-            $table->timestamps();
+            $table->enum('status', ['Menunggu', 'Diambil', 'Selesai'])->default('Menunggu')->index();
+            $table->dateTime('escalated_at')->useCurrent();
+            $table->dateTime('taken_at')->nullable();
+            $table->dateTime('completed_at')->nullable();
+            $table->timestamp('created_at')->nullable()->useCurrent();
         });
 
         Schema::create('bot_settings', function (Blueprint $table) {
             $table->id();
-            $table->string('setting_key')->unique();
+            $table->string('setting_key', 100)->unique();
             $table->text('setting_value')->nullable();
             $table->string('description')->nullable();
-            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamps();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
+            $this->timestamps($table);
         });
     }
 
@@ -130,10 +129,11 @@ return new class extends Migration
         ] as $t) {
             Schema::dropIfExists($t);
         }
+    }
 
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropUnique(['username']);
-            $table->dropColumn(['username', 'role', 'is_active', 'last_login_at']);
-        });
+    private function timestamps(Blueprint $table): void
+    {
+        $table->timestamp('created_at')->nullable()->useCurrent();
+        $table->timestamp('updated_at')->nullable()->useCurrent()->useCurrentOnUpdate();
     }
 };
