@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EscalationLog extends Model
 {
+    // Table has created_at only (see kancil_sapa.sql).
+    public const UPDATED_AT = null;
+
     protected $table = 'escalation_logs';
 
     protected $fillable = [
