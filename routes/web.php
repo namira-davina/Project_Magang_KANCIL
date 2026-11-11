@@ -2,16 +2,16 @@
 
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\FaqController;
 use App\Http\Controllers\FaqCategoryController;
-use App\Http\Controllers\PercakapanController;
-use App\Http\Controllers\PengaduanController;
+use App\Http\Controllers\FaqController;
 use App\Http\Controllers\LaporanController;
+use App\Http\Controllers\PengaduanController;
 use App\Http\Controllers\PengaturanController;
+use App\Http\Controllers\PercakapanController;
 use App\Http\Middleware\PreventBackHistory;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,6 +24,7 @@ Route::redirect('/', '/login');
 // HALAMAN UTAMA
 // Halaman login
 Route::get('/login', [AuthController::class, 'showLogin'])
+    ->middleware(PreventBackHistory::class)
     ->name('login');
 
 // Proses login

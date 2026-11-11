@@ -79,7 +79,7 @@ class FaqCategoryController extends Controller
             ->where('id', $id)
             ->first();
 
-        abort_if(!$category, 404);
+        abort_if(! $category, 404);
 
         $validated = $request->validate([
             'namaKategori' => [
@@ -112,7 +112,7 @@ class FaqCategoryController extends Controller
             ->where('id', $id)
             ->first();
 
-        abort_if(!$category, 404);
+        abort_if(! $category, 404);
 
         DB::table('faq_categories')
             ->where('id', $id)
