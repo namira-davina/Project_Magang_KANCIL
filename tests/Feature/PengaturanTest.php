@@ -63,6 +63,9 @@ class PengaturanTest extends TestCase
             'missing email' => [['email' => ''], 'email'],
             'bad email' => [['email' => 'bukan-email'], 'email'],
             'missing username' => [['username' => ''], 'username'],
+            'name too long' => [['name' => str_repeat('a', 101)], 'name'],
+            'username too long' => [['username' => str_repeat('a', 51)], 'username'],
+            'email too long' => [['email' => 'a@'.str_repeat('b', 50).'.'.str_repeat('c', 50).'.com'], 'email'],
         ];
     }
 

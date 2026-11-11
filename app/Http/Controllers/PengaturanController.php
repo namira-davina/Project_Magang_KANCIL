@@ -18,9 +18,9 @@ class PengaturanController extends Controller
     public function updateProfil(Request $request)
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore(Auth::id())],
-            'username' => ['required', 'string', 'max:255', Rule::unique('users', 'username')->ignore(Auth::id())],
+            'name' => ['required', 'string', 'max:100'],
+            'email' => ['required', 'email', 'max:100', Rule::unique('users', 'email')->ignore(Auth::id())],
+            'username' => ['required', 'string', 'max:50', Rule::unique('users', 'username')->ignore(Auth::id())],
         ], [
             'name.required' => 'Nama lengkap wajib diisi.',
             'email.required' => 'Email wajib diisi.',

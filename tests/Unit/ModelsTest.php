@@ -57,6 +57,7 @@ class ModelsTest extends TestCase
         $convId = $this->makeConversation(['assigned_to' => $user->id]);
         $complaint = Complaint::create([
             'ticket_number' => 'T-1', 'conversation_id' => $convId, 'complaint_text' => 'x',
+            'user_name' => 'Budi', 'whatsapp_number' => '6281',
             'assigned_to' => $user->id, 'submitted_at' => now(),
         ]);
 

@@ -36,12 +36,9 @@ class DashboardTest extends TestCase
         $this->makeMessage($conv, 'bot');
         $this->makeMessage($conv, 'ai');
         $this->makeMessage($conv, 'petugas');
-        DB::table('escalation_logs')->insert(['conversation_id' => $conv, 'created_at' => now(), 'updated_at' => now()]);
-        foreach (['Menunggu', 'Diproses', 'Diproses', 'Selesai', 'Selesai', 'Selesai'] as $i => $status) {
-            DB::table('complaints')->insert([
-                'ticket_number' => "T-$i", 'complaint_text' => 'x', 'status' => $status,
-                'created_at' => now(), 'updated_at' => now(),
-            ]);
+        $this->makeEscalation($conv);
+        foreach (['Menunggu', 'Diproses', 'Diproses', 'Selesai', 'Selesai', 'Selesai'] as $status) {
+            $this->makeComplaint($status);
         }
 
         $r = $this->get(route('admin.dashboard'))->assertOk();

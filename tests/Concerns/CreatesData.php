@@ -48,7 +48,10 @@ trait CreatesData
 
     protected function makeConversation(array $overrides = []): int
     {
+        static $n = 0;
+
         return DB::table('conversations')->insertGetId(array_merge([
+            'ticket_number' => 'KS-'.str_pad((string) ++$n, 6, '0', STR_PAD_LEFT),
             'whatsapp_number' => '6281234567890',
             'user_name' => 'Budi',
             'started_at' => now(),
@@ -66,7 +69,30 @@ trait CreatesData
             'message_text' => 'halo',
             'sent_at' => now(),
             'created_at' => now(),
+        ], $overrides));
+    }
+
+    protected function makeComplaint(string $status = 'Menunggu', array $overrides = []): int
+    {
+        static $n = 0;
+
+        return DB::table('complaints')->insertGetId(array_merge([
+            'ticket_number' => 'PG-'.str_pad((string) ++$n, 6, '0', STR_PAD_LEFT),
+            'user_name' => 'Budi',
+            'whatsapp_number' => '6281234567890',
+            'complaint_text' => 'keluhan',
+            'status' => $status,
+            'created_at' => now(),
             'updated_at' => now(),
+        ], $overrides));
+    }
+
+    protected function makeEscalation(int $conversationId, array $overrides = []): int
+    {
+        return DB::table('escalation_logs')->insertGetId(array_merge([
+            'conversation_id' => $conversationId,
+            'escalation_type' => 'user_request',
+            'created_at' => now(),
         ], $overrides));
     }
 
