@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Models\EscalationLog;
+use App\Services\Tickets\TicketStats;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class DashboardStats
 {
+    public function __construct(private readonly TicketStats $tickets) {}
+
     /** @return array<string, mixed> */
     public function all(): array
     {
@@ -16,6 +19,7 @@ class DashboardStats
             ...$this->messageTotals(),
             ...$this->complaintTotals(),
             'totalEskalasi' => EscalationLog::escalations()->count(),
+            'antrean' => $this->tickets->today(),
             ...$this->chart(),
             'kategoriPopuler' => $this->popularCategories(),
             'percakapanTerbaru' => $this->latestConversations(),

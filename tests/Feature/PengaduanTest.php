@@ -83,7 +83,12 @@ class PengaduanTest extends TestCase
         $this->assertStringContainsString('*ADU-202611-0001*', $wa->message_text);
         $this->assertStringContainsString('Sedang kami tindak lanjuti.', $this->sentWhatsappTexts()[0]['message']);
 
+        // Status berubah tanpa tanggapan: pelapor tetap diberi tahu statusnya.
+        $this->putJson(route('pengaduan.update', $complaint), ['status' => 'Selesai'])->assertOk()->assertJsonPath('notified', true);
+        $this->assertSame('Status pengaduan *ADU-202611-0001* kini: *Selesai*.', Message::latest('id')->value('message_text'));
+        // Simpan ulang tanpa perubahan: tidak ada pesan.
         $this->putJson(route('pengaduan.update', $complaint), ['status' => 'Selesai'])->assertOk()->assertJsonPath('notified', false);
+        $this->assertSame(2, Message::count());
         $complaint->refresh();
         $this->assertNotNull($complaint->resolved_at);
         $this->assertSame('Sedang kami tindak lanjuti.', $complaint->response_text, 'Tanggapan kosong tidak menghapus tanggapan lama.');
@@ -159,5 +164,26 @@ class PengaduanTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-11-09 09:00', 'Asia/Jakarta'));
 
         $this->assertTrue($this->get(route('pengaduan'))->viewData('complaints')[0]['terlambat']);
+    }
+
+    public function test_initial_response_overdue_flag(): void
+    {
+        $this->actingAsAdmin();
+        Carbon::setTestNow(Carbon::parse('2026-11-02 09:00', 'Asia/Jakarta')); // Senin
+        $complaint = $this->ticket('ADU-202611-0001', ['priority' => 'Sedang']);
+        $low = $this->ticket('ADU-202611-0002', ['priority' => 'Rendah']);
+
+        Carbon::setTestNow(Carbon::parse('2026-11-03 09:00', 'Asia/Jakarta')); // 1 hari kerja: masih dalam batas
+        $items = $this->get(route('pengaduan'))->viewData('complaints')->keyBy('id');
+        $this->assertFalse($items[$complaint->id]['terlambat_respon']);
+
+        Carbon::setTestNow(Carbon::parse('2026-11-04 09:00', 'Asia/Jakarta')); // 2 hari kerja
+        $items = $this->get(route('pengaduan'))->viewData('complaints')->keyBy('id');
+        $this->assertTrue($items[$complaint->id]['terlambat_respon']);
+        $this->assertFalse($items[$complaint->id]['terlambat'], 'Batas penyelesaian (5 hari) belum lewat.');
+        $this->assertFalse($items[$low->id]['terlambat_respon'], 'Rendah: batas respon awal 2 hari kerja.');
+
+        $this->putJson(route('pengaduan.update', $complaint), ['status' => 'Diproses'])->assertOk();
+        $this->assertFalse($this->get(route('pengaduan'))->viewData('complaints')->keyBy('id')[$complaint->id]['terlambat_respon'], 'Sudah direspons.');
     }
 }

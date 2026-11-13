@@ -2542,3 +2542,105 @@ button {
         padding: 0 16px;
     }
 }
+
+/* ANTREAN TIKET PETUGAS */
+.menu-badge {
+    margin-left: auto;
+    min-width: 20px;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background-color: var(--status-red);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.ticket-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.ticket-priority {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 0 7px;
+    border-radius: 8px;
+    font-size: 10.5px;
+    font-weight: 600;
+    background-color: var(--status-gray-bg);
+    color: var(--status-gray);
+}
+
+.ticket-priority.priority-high {
+    background-color: var(--status-red-bg);
+    color: var(--status-red);
+}
+
+.ticket-priority.priority-medium {
+    background-color: var(--status-amber-bg);
+    color: var(--status-amber);
+}
+
+.ticket-row-mine td {
+    background-color: var(--status-blue-bg);
+}
+
+.thread-queue-tag {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--status-amber);
+}
+
+.complaint-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+.complaint-attachment-link {
+    padding: 3px 10px;
+    border-radius: 10px;
+    background-color: var(--status-gray-bg);
+    color: var(--status-gray);
+    font-size: 12px;
+    text-decoration: none;
+}
+
+a.complaint-attachment-link:hover {
+    background-color: var(--status-blue-bg);
+    color: var(--status-blue);
+}
+
+.ticket-dialog {
+    width: min(520px, calc(100vw - 32px));
+    padding: 24px;
+    border: none;
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+}
+
+.ticket-dialog::backdrop {
+    background-color: rgba(15, 23, 42, 0.45);
+}
+
+.ticket-dialog h3 {
+    margin: 0 0 8px;
+}
+
+.ticket-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}

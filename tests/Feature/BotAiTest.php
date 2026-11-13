@@ -105,7 +105,7 @@ class BotAiTest extends TestCase
 
         $reply = $this->reply('alamat kantor imigrasi di mana ya?');
 
-        $this->assertSame(['AI-UNKNOWN', 'ESK-01'], $reply->codes);
+        $this->assertSame(['AI-UNKNOWN', 'ESK-01', 'LYN'], $reply->codes);
         $this->assertStringContainsString(BotScript::handoff(), $reply->text);
         $this->assertStringNotContainsString('081217000900', $reply->text);
         $log = EscalationLog::sole();
@@ -119,7 +119,7 @@ class BotAiTest extends TestCase
         $this->fakeApis($this->aiJson('Jawaban karangan', ['XXX-999'], true));
         $this->reply('Halo');
 
-        $this->assertSame(['AI-UNKNOWN', 'ESK-01'], $this->reply('pertanyaan aneh sekali')->codes);
+        $this->assertSame(['AI-UNKNOWN', 'ESK-01', 'LYN'], $this->reply('pertanyaan aneh sekali')->codes);
         $this->assertFalse(LlmLog::sole()->confident);
     }
 
@@ -131,7 +131,7 @@ class BotAiTest extends TestCase
 
         $reply = $this->reply('syarat paspor baru apa saja?');
 
-        $this->assertSame(['AI-UNKNOWN', 'ESK-01'], $reply->codes);
+        $this->assertSame(['AI-UNKNOWN', 'ESK-01', 'LYN'], $reply->codes);
         $this->assertStringContainsString('Belum ada FAQ', LlmLog::sole()->error);
         Http::assertNotSent(fn (Request $r) => str_contains($r->url(), 'sumopod'));
     }

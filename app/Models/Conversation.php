@@ -66,6 +66,34 @@ class Conversation extends Model
             && ($this->bot_paused_until === null || $this->bot_paused_until->isFuture());
     }
 
+    /**
+     * Kembalikan ke bot (masa ambil alih/antrean habis atau dilepas petugas).
+     * Eskalasi yang sudah diambil petugas ditutup; yang belum diambil tetap "Menunggu" (tercatat tidak terlayani).
+     */
+    public function returnToBot(bool $closeAll = false): void
+    {
+        $this->update([
+            'conversation_mode' => self::MODE_BOT,
+            'bot_paused_until' => null,
+            'assigned_to' => null,
+        ]);
+
+        $this->escalationLogs()->chatHandoff()
+            ->whereIn('status', $closeAll ? ['Menunggu', 'Diambil'] : ['Diambil'])
+            ->update(['status' => 'Selesai', 'completed_at' => now()]);
+
+        // Tiket yang masih terbuka ikut ditutup agar antrean tidak menyimpan tiket yatim.
+        $this->serviceTickets()->where('status', ServiceTicket::HANDLING)->update([
+            'status' => ServiceTicket::RESOLVED,
+            'resolved_at' => now(),
+            'close_reason' => $closeAll ? 'Dikembalikan ke bot oleh petugas.' : 'Otomatis: masa penanganan petugas habis.',
+        ]);
+
+        $this->serviceTickets()->where('status', ServiceTicket::WAITING)->update($closeAll
+            ? ['status' => ServiceTicket::RESOLVED, 'resolved_at' => now(), 'close_reason' => 'Dikembalikan ke bot oleh petugas.']
+            : ['status' => ServiceTicket::EXPIRED, 'resolved_at' => now(), 'close_reason' => 'Otomatis: masa tunggu habis.']);
+    }
+
     /** Nomor tujuan kirim (tanpa +), atau null untuk kontak LID tanpa nomor. */
     public function recipientPhone(): ?string
     {
@@ -98,5 +126,17 @@ class Conversation extends Model
     public function escalationLogs(): HasMany
     {
         return $this->hasMany(EscalationLog::class, 'conversation_id');
+    }
+
+    public function serviceTickets(): HasMany
+    {
+        return $this->hasMany(ServiceTicket::class, 'conversation_id');
+    }
+
+    /** Tiket antrean yang masih terbuka (Menunggu/Ditangani); paling banyak satu per percakapan. */
+    public function openTicket(): HasOne
+    {
+        return $this->hasOne(ServiceTicket::class, 'conversation_id')
+            ->ofMany(['id' => 'max'], fn ($q) => $q->whereIn('status', ServiceTicket::OPEN));
     }
 }

@@ -36,6 +36,21 @@
             <span>Percakapan</span>
         </a>
 
+        @php($antreanMenunggu = \App\Models\ServiceTicket::where('status', \App\Models\ServiceTicket::WAITING)->count())
+        <a href="{{ route('antrean') }}"
+           class="menu-item {{ request()->routeIs('antrean') ? 'active' : '' }}">
+            <span class="menu-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+            </span>
+            <span>Antrean Petugas</span>
+            <span class="menu-badge" data-queue-badge style="{{ $antreanMenunggu === 0 ? 'display: none;' : '' }}">{{ $antreanMenunggu }}</span>
+        </a>
+
         @if (auth()->user()?->hasRole('admin'))
         <a href="{{ route('faq.index') }}"
            class="menu-item {{ request()->routeIs('faq.*') ? 'active' : '' }}">

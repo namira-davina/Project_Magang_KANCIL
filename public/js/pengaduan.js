@@ -77,7 +77,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const colStatus = document.createElement('td');
             colStatus.innerHTML = `<span class="badge-status-pill ${badgeClass(item.status)}">${escapeHtml(item.status)}</span>`
-                + (item.terlambat ? ' <span class="badge-status-pill waiting">Terlambat</span>' : '');
+                + (item.terlambat ? ' <span class="badge-status-pill waiting">Terlambat</span>' : '')
+                + (!item.terlambat && item.terlambat_respon ? ' <span class="badge-status-pill waiting">Belum direspons</span>' : '');
 
             const colAksi = document.createElement('td');
             colAksi.style.textAlign = 'right';
@@ -166,7 +167,25 @@ document.addEventListener('DOMContentLoaded', function () {
         set('detailNama', item.nama);
         set('detailNomor', item.nomor);
         set('detailIsi', `“${item.isi}”` + (item.lampiran ? ` (${item.lampiran} lampiran)` : ''));
-        set('detailPrioritas', (item.prioritas || '-') + (item.level === 2 ? ' • Level 2 (Pimpinan)' : '') + (item.terlambat ? ' • Terlambat' : ''));
+        set('detailPrioritas', (item.prioritas || '-') + (item.level === 2 ? ' • Level 2 (Pimpinan)' : '')
+            + (item.terlambat ? ' • Terlambat' : (item.terlambat_respon ? ' • Respon awal terlambat' : '')));
+
+        const lampiran = document.getElementById('detailLampiran');
+        if (lampiran) {
+            lampiran.innerHTML = '';
+            (item.lampiran_list || []).forEach(function (file) {
+                const el = document.createElement(file.url ? 'a' : 'span');
+                el.className = 'complaint-attachment-link';
+                el.textContent = file.url ? file.nama : `${file.nama} (berkas tidak tersimpan)`;
+                if (file.url) {
+                    el.href = file.url;
+                    el.target = '_blank';
+                    el.rel = 'noopener';
+                }
+                lampiran.appendChild(el);
+            });
+            lampiran.style.display = (item.lampiran_list || []).length ? 'flex' : 'none';
+        }
 
         const tanggapanLama = document.getElementById('detailTanggapanLama');
         if (tanggapanLama) {

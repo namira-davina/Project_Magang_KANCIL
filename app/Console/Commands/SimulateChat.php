@@ -58,7 +58,15 @@ class SimulateChat extends Command
         ]);
         $conversation->update(['last_inbound_at' => now(), 'last_message_at' => now()]);
 
-        foreach ($engine->handle($conversation, $message, $previous) as $reply) {
+        $replies = $conversation->isWaitingForOfficer() && $conversation->serviceTickets()->open()->exists()
+            ? $engine->handleQueued($conversation, $message)
+            : $engine->handle($conversation, $message, $previous);
+
+        if ($replies === []) {
+            $this->line('<fg=yellow>(Bot diam: pemohon di antrean petugas.)</>');
+        }
+
+        foreach ($replies as $reply) {
             $messenger->queue($conversation, $reply->text, $reply->sender, null, $reply->faqId, ['codes' => $reply->codes]);
             $this->line('');
             $this->line('<fg=green>Bot ['.implode(', ', $reply->codes).']</>');

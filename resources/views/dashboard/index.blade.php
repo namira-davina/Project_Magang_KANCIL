@@ -130,6 +130,30 @@
 
     </div>
 
+    {{-- ANTREAN TIKET PETUGAS --}}
+    <div class="stat-grid-4" id="dashboardAntrean">
+        <div class="stat-metric-card">
+            <div class="stat-metric-header"><span class="stat-metric-label">Antrean Menunggu</span></div>
+            <div class="stat-metric-value">{{ number_format($antrean['menunggu']) }}</div>
+            <div class="stat-metric-footer trend-warning">
+                {{ $antrean['tertua_menit'] !== null ? 'Terlama menunggu '.$antrean['tertua_menit'].' menit' : 'Antrean kosong' }}
+            </div>
+        </div>
+        <div class="stat-metric-card">
+            <div class="stat-metric-header"><span class="stat-metric-label">Sedang Ditangani</span></div>
+            <div class="stat-metric-value">{{ number_format($antrean['ditangani']) }}</div>
+            <div class="stat-metric-footer"><a href="{{ route('antrean') }}">Buka halaman antrean</a></div>
+        </div>
+        <div class="stat-metric-card">
+            <div class="stat-metric-header"><span class="stat-metric-label">Tiket Selesai Hari Ini</span></div>
+            <div class="stat-metric-value">{{ number_format($antrean['selesai_hari_ini']) }}</div>
+        </div>
+        <div class="stat-metric-card">
+            <div class="stat-metric-header"><span class="stat-metric-label">Rata-rata Tunggu Hari Ini</span></div>
+            <div class="stat-metric-value">{{ $antrean['rata_tunggu_menit'] !== null ? $antrean['rata_tunggu_menit'].' mnt' : '-' }}</div>
+        </div>
+    </div>
+
     {{-- MIDDLE SECTION: 2 COLUMNS (CHART & CATEGORIES) --}}
     <div class="dashboard-middle-grid">
 

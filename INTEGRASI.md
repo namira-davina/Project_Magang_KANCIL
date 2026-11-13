@@ -23,12 +23,32 @@ Pemohon ──WA──> BalesOtomatis ──webhook──> /webhook/balesotomati
                                     SendWhatsappMessage → send_personal_message
 ```
 
-Hubungi Petugas (menu 4, "1" setelah jawaban, atau 88) tidak lagi menyebut nomor/email kantor:
-bot membalas "mohon menunggu … masuk antrean", status jadi *Menunggu Petugas*, bot diam sampai petugas
-membalas (dashboard atau HP) atau `BOT_WAITING_MINUTES` habis. Petugas membalas di chat yang sama.
+Hubungi Petugas (menu 4, "1" setelah jawaban, 88, atau AI tidak tahu jawaban) tidak menyebut nomor/email kantor.
+Pemohon masuk **antrean tiket petugas** (FIFO, yang lebih dulu bertanya dilayani lebih dulu):
+
+- Bot membalas nomor tiket `LYN-YYYYMMDD-NNN`, nomor antrean hari ini, dan posisi antrean.
+- Status percakapan *Menunggu Petugas*; bot diam. Selama menunggu pemohon bisa mengetik **antrean**
+  (cek posisi, maks. 1x/menit) atau **batal** (keluar antrean, kembali ke menu). Pesan lain dicatat untuk petugas
+  dan dibalas pengingat posisi paling sering tiap `TICKET_NOTICE_MINUTES` (15).
+- Petugas: halaman **Antrean Petugas** → *Ambil Antrean Berikutnya* (tiket tertua) atau *Ambil* tiket tertentu,
+  lalu membalas di Percakapan. Membalas/ambil alih dari Percakapan juga mengambil tiket. Petugas tidak bisa
+  menyerobot percakapan yang dipegang petugas lain (409); Admin bisa.
+- *Selesaikan Tiket* (Antrean atau tombol Kembalikan ke Bot) mengirim pesan penutup dan bot aktif lagi.
+- Tiket menunggu yang tidak diambil `TICKET_EXPIRE_BUSINESS_DAYS` (2) hari kerja ditutup *Kedaluwarsa*
+  oleh `kancil:pemeliharaan` dan pemohon diberi tahu. Masa ambil alih (`BOT_HANDOFF_MINUTES`) yang habis
+  menutup tiket yang sedang ditangani sebagai *Selesai*.
+- Status tiket: Menunggu → Ditangani → Selesai; Menunggu → Batal / Kedaluwarsa.
+- *Jadikan Pengaduan*: bila ternyata keluhan, petugas mengalihkan tiket `LYN` menjadi pengaduan resmi `ADU`
+  (pilih kategori + isi). Tiket antrean ditutup, pemohon menerima nomor pengaduan.
+
+**Antrean vs Pengaduan.** Antrean (`LYN`) = pemohon bertanya dan ingin dilayani petugas sekarang lewat chat (menit/jam).
+Pengaduan (`ADU`, menu 3) = keluhan resmi dengan kategori, kronologi, lampiran; ditindaklanjuti Admin/Pimpinan di
+halaman Pengaduan dengan batas waktu hari kerja per prioritas dan eskalasi ke Pimpinan. Pelapor diberi tahu setiap ada
+tanggapan atau perubahan status. Lampiran pengaduan bisa dibuka dari panel detail.
+- Opsi A (`BOT_ENGINE=balesotomatis`): tiket dicatat tanpa pesan ke pemohon (AI BalesOtomatis yang membalas).
 
 Eskalasi dicatat dengan kode Matriks Eskalasi (A1–A4, B0/B1, C1–C6) dan prioritasnya.
-Dashboard: Percakapan (inbox, balas, ambil alih/kembalikan ke bot), Pengaduan (status + tanggapan terkirim ke WA),
+Dashboard: Percakapan (inbox, balas, ambil alih/kembalikan ke bot), Antrean Petugas (FIFO, ambil, selesaikan), Pengaduan (status + tanggapan terkirim ke WA),
 Laporan (bulanan, eskalasi per kode), FAQ (centang **Aktif ditampilkan bot** setelah Terverifikasi).
 
 ## Setup
@@ -40,7 +60,7 @@ Laporan (bulanan, eskalasi per kode), FAQ (centang **Aktif ditampilkan bot** set
 4. `php artisan kancil:ai-cek` — cek koneksi, saldo SumoPod, dan jumlah FAQ yang boleh dipakai AI.
 5. Bila `BOT_ENGINE=laravel`: **matikan AI Powered** di BalesOtomatis agar pemohon tidak dibalas dua kali.
 6. Produksi: worker antrean (`php artisan queue:work`, via Supervisor/systemd) dan cron
-   `* * * * * php artisan schedule:run` (lepas ambil alih kedaluwarsa, eskalasi tiket terlambat, bersihkan webhook).
+   `* * * * * php artisan schedule:run` (lepas ambil alih kedaluwarsa, tutup antrean basi, eskalasi tiket terlambat, bersihkan webhook).
 
 ## Perintah
 

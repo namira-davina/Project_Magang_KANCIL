@@ -191,6 +191,34 @@
             </table>
         </div>
 
+        <div class="panel-heading-row" style="margin-top: 28px;">
+            <div>
+                <h3>Rekap Antrean Tiket Petugas</h3>
+                <p>Tiket LYN yang masuk antrean pada {{ $periodLabel }}. Tepat waktu = direspons petugas paling lambat 1 hari kerja.</p>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="clean-data-table" id="tableAntreanLaporan">
+                <thead>
+                    <tr>
+                        <th>INDIKATOR</th>
+                        <th width="180" style="text-align: right;">NILAI</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Total tiket masuk antrean</td><td style="text-align: right;" class="font-medium">{{ number_format($antrean['total'], 0, ',', '.') }}</td></tr>
+                    <tr><td>Selesai ditangani</td><td style="text-align: right;" class="font-medium">{{ number_format($antrean['selesai'], 0, ',', '.') }}</td></tr>
+                    <tr><td>Dibatalkan pemohon</td><td style="text-align: right;" class="font-medium">{{ number_format($antrean['batal'], 0, ',', '.') }}</td></tr>
+                    <tr><td>Kedaluwarsa (tidak terlayani)</td><td style="text-align: right;" class="font-medium">{{ number_format($antrean['kedaluwarsa'], 0, ',', '.') }}</td></tr>
+                    <tr><td>Masih terbuka</td><td style="text-align: right;" class="font-medium">{{ number_format($antrean['terbuka'], 0, ',', '.') }}</td></tr>
+                    <tr><td>Rata-rata waktu tunggu sampai diambil petugas</td><td style="text-align: right;" class="font-medium">{{ $antrean['rata_tunggu_menit'] !== null ? $antrean['rata_tunggu_menit'].' menit' : '-' }}</td></tr>
+                    <tr><td>Rata-rata lama penanganan</td><td style="text-align: right;" class="font-medium">{{ $antrean['rata_tangani_menit'] !== null ? $antrean['rata_tangani_menit'].' menit' : '-' }}</td></tr>
+                    <tr><td>Direspons tepat waktu</td><td style="text-align: right;" class="font-medium">{{ $antrean['tepat_waktu'] }} dari {{ $antrean['direspons'] }}{{ $antrean['persen_tepat_waktu'] !== null ? ' ('.$antrean['persen_tepat_waktu'].'%)' : '' }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+
         {{-- EXPORT BUTTONS DI KANAN BAWAH SESUAI DESAIN --}}
         <div class="laporan-export-footer-bar">
             <button type="button" class="btn-export-outline pdf" id="btnExportPDF">

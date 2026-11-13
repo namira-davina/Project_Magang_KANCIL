@@ -112,8 +112,8 @@ class BotScenarioTest extends TestCase
         $this->assertSame($faqs[$faqCodes[0]]->id, Message::where('sender_type', 'user')->latest('id')->value('faq_id'));
 
         $esk = $this->reply('1');
-        $this->assertSame(['ESK-01'], $esk->codes, 'Ketik 1 setelah jawaban = hubungi Petugas.');
-        $this->assertSame(BotScript::handoff(), $esk->text);
+        $this->assertSame(['ESK-01', 'LYN'], $esk->codes, 'Ketik 1 setelah jawaban = hubungi Petugas.');
+        $this->assertStringStartsWith(BotScript::handoff(), $esk->text);
         $this->assertStringNotContainsString('081217000900', $esk->text);
         $this->assertStringNotContainsString('cilacap@imigrasi.go.id', $esk->text);
 
@@ -183,12 +183,12 @@ class BotScenarioTest extends TestCase
         $this->reply('Halo');
         $reply = $this->reply('4');
 
-        $this->assertSame(['KTK-001', 'ESK-01'], $reply->codes);
-        $this->assertSame(BotScript::handoff(), $reply->text);
+        $this->assertSame(['KTK-001', 'ESK-01', 'LYN'], $reply->codes);
+        $this->assertStringStartsWith(BotScript::handoff(), $reply->text);
         $this->assertStringContainsString('masuk antrean', $reply->text);
         $this->assertStringNotContainsString('081217000900', $reply->text);
         $this->assertSame(Conversation::MODE_WAITING, $this->chat->fresh()->conversation_mode);
-        $this->assertTrue($this->chat->fresh()->bot_paused_until->isFuture());
+        $this->assertNull($this->chat->fresh()->bot_paused_until, 'Antrean tiket: bot diam sampai tiket ditutup.');
         $log = EscalationLog::sole();
         $this->assertSame('A2', $log->escalation_code);
         $this->assertSame('Rendah', $log->priority);
@@ -215,7 +215,7 @@ class BotScenarioTest extends TestCase
         $this->assertSame('A1', $log->escalation_code);
         $this->assertSame('tolong bantu', $log->reason);
 
-        $this->assertSame(['ESK-01'], $this->reply('88')->codes);
+        $this->assertSame(['ESK-01', 'LYN'], $this->reply('88')->codes);
         $this->assertSame(1, EscalationLog::count(), '88 setelah MSG-03 tidak dicatat dua kali.');
         $this->assertSame(['M-00'], $this->reply('99')->codes);
     }
@@ -368,13 +368,13 @@ class BotScenarioTest extends TestCase
 
         $this->reply('Halo');
         $menu4 = $this->reply('4');
-        $this->assertSame(['KTK-001', 'ESK-01', 'MSG-07'], $menu4->codes);
+        $this->assertSame(['KTK-001', 'ESK-01', 'LYN', 'MSG-07'], $menu4->codes);
         $this->assertStringStartsWith(BotScript::handoff(), $menu4->text);
         $this->assertStringContainsString('Saat ini di luar jam layanan petugas.', $menu4->text);
         $this->assertStringNotContainsString('jam layanan:', $menu4->text, 'Jam layanan belum dikonfirmasi, jadi tidak disebut.');
 
         $this->reply('1');
-        $this->assertSame(['ESK-01', 'MSG-07'], $this->reply('88')->codes);
+        $this->assertSame(['ESK-01', 'LYN', 'MSG-07'], $this->reply('88')->codes);
     }
 
     public function test_msg_07_mentions_service_hours_once_confirmed(): void
@@ -392,7 +392,7 @@ class BotScenarioTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-11-15 10:00:00', 'Asia/Jakarta'));
 
         $this->reply('Halo');
-        $this->assertSame(['ESK-01'], $this->reply('88')->codes);
+        $this->assertSame(['ESK-01', 'LYN'], $this->reply('88')->codes);
     }
 
     // ------------------------------------------------------------ pengaduan
@@ -576,7 +576,7 @@ class BotScenarioTest extends TestCase
     public function test_88_and_99_inside_complaint_discard_draft(): void
     {
         $this->conversation(['Halo', '3', '1', 'Budi']);
-        $this->assertSame(['ESK-01'], $this->reply('88')->codes);
+        $this->assertSame(['ESK-01', 'LYN'], $this->reply('88')->codes);
         $this->assertSame(['B0', 'A2'], EscalationLog::orderBy('id')->pluck('escalation_code')->all());
 
         $this->conversation(['99', '3', '1', 'Budi']);

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AntreanController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FaqCategoryController;
@@ -83,6 +84,17 @@ Route::middleware(['auth', PreventBackHistory::class])->group(function () {
             ->name('percakapan.balas');
         Route::post('/percakapan/{conversation}/ambil-alih', [PercakapanController::class, 'takeover'])->name('percakapan.ambil-alih');
         Route::post('/percakapan/{conversation}/kembalikan', [PercakapanController::class, 'release'])->name('percakapan.kembalikan');
+    });
+
+    // ANTREAN TIKET PETUGAS (FIFO) — semua role melihat, Admin/Petugas bertindak
+    Route::get('/antrean', [AntreanController::class, 'index'])->name('antrean');
+    Route::get('/antrean/data', [AntreanController::class, 'data'])->name('antrean.data');
+
+    Route::middleware('role:admin,petugas')->group(function () {
+        Route::post('/antrean/ambil-berikutnya', [AntreanController::class, 'claimNext'])->name('antrean.ambil-berikutnya');
+        Route::post('/antrean/{ticket}/ambil', [AntreanController::class, 'claim'])->name('antrean.ambil');
+        Route::post('/antrean/{ticket}/selesai', [AntreanController::class, 'resolve'])->name('antrean.selesai');
+        Route::post('/antrean/{ticket}/jadikan-pengaduan', [AntreanController::class, 'toComplaint'])->name('antrean.pengaduan');
     });
 
     // PENGADUAN

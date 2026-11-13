@@ -140,11 +140,13 @@ class FaqIntegrationTest extends TestCase
 
     public function test_migration_can_roll_back_and_reapply(): void
     {
-        Artisan::call('migrate:rollback', ['--step' => 1, '--force' => true]);
+        Artisan::call('migrate:rollback', ['--step' => 2, '--force' => true]);
+        $this->assertFalse(Schema::hasTable('service_tickets'));
         $this->assertFalse(Schema::hasTable('webhook_events'));
         $this->assertFalse(Schema::hasColumn('faqs', 'code'));
 
         Artisan::call('migrate', ['--force' => true]);
         $this->assertTrue(Schema::hasTable('webhook_events'));
+        $this->assertTrue(Schema::hasTable('service_tickets'));
     }
 }

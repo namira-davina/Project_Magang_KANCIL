@@ -18,6 +18,7 @@ use App\Services\ComplaintService;
 use App\Services\Llm\LlmClient;
 use App\Services\Llm\LlmException;
 use App\Services\MonthlyReport;
+use App\Services\Tickets\TicketQueueService;
 use App\Services\Whatsapp\WhatsappMessenger;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -101,7 +102,7 @@ class EdgeCasesTest extends TestCase
         $messenger->shouldReceive('resolveConversation')->andThrow(new RuntimeException('gagal'));
 
         try {
-            (new ProcessOutgoingChat($event->id))->handle($messenger);
+            (new ProcessOutgoingChat($event->id))->handle($messenger, app(TicketQueueService::class));
             $this->fail();
         } catch (RuntimeException) {
             $this->assertSame('gagal', $event->fresh()->error);
@@ -123,7 +124,7 @@ class EdgeCasesTest extends TestCase
     {
         $event = WebhookEvent::create(['type' => 'outgoing_chat', 'payload' => $this->incomingPayload(['is_group' => true], 'outgoing_chat')]);
 
-        (new ProcessOutgoingChat($event->id))->handle(app(WhatsappMessenger::class));
+        (new ProcessOutgoingChat($event->id))->handle(app(WhatsappMessenger::class), app(TicketQueueService::class));
 
         $this->assertSame(0, Message::count());
         $this->assertNotNull($event->fresh()->processed_at);

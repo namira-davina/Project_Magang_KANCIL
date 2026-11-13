@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\ServiceTicket;
+use App\Services\Tickets\TicketQueueService;
 use App\Services\Whatsapp\WhatsappMessenger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,6 +17,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class PercakapanController extends Controller
 {
     private const LIMIT = 100;
+
+    public function __construct(private readonly TicketQueueService $tickets) {}
 
     public function index(Request $request)
     {
@@ -59,7 +63,7 @@ class PercakapanController extends Controller
             'pesan.max' => 'Pesan maksimal 4.000 karakter.',
         ]);
 
-        $this->assignToOfficer($conversation, $request->user()->id);
+        $this->tickets->assign($conversation, $request->user(), responded: true);
 
         $message = $messenger->queue($conversation, trim($validated['pesan']), 'petugas', $request->user()->id);
 
@@ -71,20 +75,21 @@ class PercakapanController extends Controller
 
     public function takeover(Request $request, Conversation $conversation): JsonResponse
     {
-        $this->assignToOfficer($conversation, $request->user()->id);
+        $this->tickets->assign($conversation, $request->user());
 
         return response()->json(['conversation' => $this->presentThread($conversation->fresh())]);
     }
 
-    public function release(Conversation $conversation): JsonResponse
+    /** Kembalikan ke bot; bila ada tiket antrean terbuka, tiket diselesaikan dan pemohon diberi tahu. */
+    public function release(Request $request, Conversation $conversation): JsonResponse
     {
-        $conversation->update([
-            'conversation_mode' => Conversation::MODE_BOT,
-            'bot_paused_until' => null,
-            'assigned_to' => null,
-        ]);
+        $this->tickets->guardOwnership($conversation, $request->user());
 
-        $conversation->escalationLogs()->where('status', '!=', 'Selesai')->update(['status' => 'Selesai', 'completed_at' => now()]);
+        if ($ticket = $conversation->serviceTickets()->open()->latest('id')->first()) {
+            $this->tickets->resolve($ticket, $request->user());
+        } else {
+            $conversation->returnToBot(closeAll: true);
+        }
 
         return response()->json(['conversation' => $this->presentThread($conversation->fresh())]);
     }
@@ -99,32 +104,27 @@ class PercakapanController extends Controller
         return Storage::disk(WhatsappMessenger::MEDIA_DISK)->download($message->attachment_path, $name);
     }
 
-    private function assignToOfficer(Conversation $conversation, int $userId): void
-    {
-        $conversation->update([
-            'conversation_mode' => Conversation::MODE_HUMAN,
-            'assigned_to' => $userId,
-            'bot_paused_until' => now()->addMinutes((int) config('kancil.handoff_minutes', 120)),
-        ]);
-
-        $conversation->escalationLogs()->where('status', 'Menunggu')->update([
-            'status' => 'Diambil',
-            'handled_by' => $userId,
-            'taken_at' => now(),
-        ]);
-    }
-
+    /** 100 percakapan terbaru + semua yang perlu petugas (tidak boleh hilang dari daftar walau sudah lama). */
     private function threadList(): array
     {
-        return Conversation::query()
+        $base = fn () => Conversation::query()
+            ->with(['openTicket', 'assignedPetugas:id,name'])
             ->withCount(['messages as unread_count' => fn ($q) => $q->where('sender_type', 'user')->where('is_read', false)])
             ->addSelect(['last_text' => Message::select('message_text')
                 ->whereColumn('conversation_id', 'conversations.id')
                 ->orderByDesc('sent_at')->orderByDesc('id')->limit(1)])
-            ->orderByDesc('last_message_at')->orderByDesc('id')
-            ->limit(self::LIMIT)
-            ->get()
-            ->map(fn (Conversation $c) => $this->presentThread($c))
+            ->orderByDesc('last_message_at')->orderByDesc('id');
+
+        $latest = $base()->limit(self::LIMIT)->get();
+        $needOfficer = $base()
+            ->whereIn('conversation_mode', [Conversation::MODE_WAITING, Conversation::MODE_HUMAN])
+            ->whereNotIn('id', $latest->modelKeys())
+            ->get();
+
+        $positions = $this->tickets->positions();
+
+        return $latest->concat($needOfficer)
+            ->map(fn (Conversation $c) => $this->presentThread($c, $positions))
             ->all();
     }
 
@@ -136,11 +136,15 @@ class PercakapanController extends Controller
             'all' => (int) $byMode->sum(),
             'bot' => (int) ($byMode[Conversation::MODE_BOT] ?? 0),
             'human' => (int) (($byMode[Conversation::MODE_WAITING] ?? 0) + ($byMode[Conversation::MODE_HUMAN] ?? 0)),
+            'queue' => ServiceTicket::where('status', ServiceTicket::WAITING)->count(),
         ];
     }
 
-    private function presentThread(Conversation $c): array
+    /** @param  array<int, int>|null  $positions  posisi antrean per id tiket (null = hitung untuk tiket ini saja) */
+    private function presentThread(Conversation $c, ?array $positions = null): array
     {
+        $ticket = $c->relationLoaded('openTicket') ? $c->openTicket : $c->openTicket()->first();
+
         $name = $c->user_name ?: ($c->whatsapp_number ? self::formatPhone($c->whatsapp_number) : 'Kontak WhatsApp');
         [$badge, $class, $header] = match ($c->conversation_mode) {
             Conversation::MODE_WAITING => ['Menunggu Petugas', 'waiting', 'Perlu Petugas'],
@@ -164,6 +168,16 @@ class PercakapanController extends Controller
             'code' => '#'.$c->displayCode(),
             'unread' => (int) ($c->unread_count ?? 0),
             'paused_until' => $c->bot_paused_until?->format('H:i'),
+            'assigned_to' => $c->assigned_to,
+            'assigned_name' => $c->assigned_to ? $c->assignedPetugas?->name : null,
+            'ticket' => $ticket ? [
+                'id' => $ticket->id,
+                'number' => $ticket->ticket_number,
+                'queue_no' => $ticket->queue_no,
+                'status' => $ticket->status,
+                'position' => $positions !== null ? ($positions[$ticket->id] ?? null) : $this->tickets->position($ticket),
+                'queued_ts' => $ticket->queued_at?->getTimestamp(),
+            ] : null,
         ];
     }
 

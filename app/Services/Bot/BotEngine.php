@@ -4,11 +4,14 @@ namespace App\Services\Bot;
 
 use App\Models\Complaint;
 use App\Models\Conversation;
+use App\Models\EscalationLog;
 use App\Models\Faq;
 use App\Models\Message;
+use App\Models\ServiceTicket;
 use App\Services\ComplaintService;
 use App\Services\Llm\LlmAnswer;
 use App\Services\Llm\LlmResponder;
+use App\Services\Tickets\TicketQueueService;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -47,6 +50,7 @@ class BotEngine
         private readonly EscalationRecorder $escalations,
         private readonly BusinessHours $hours,
         private readonly ComplaintService $complaints,
+        private readonly TicketQueueService $tickets,
     ) {}
 
     /**
@@ -318,7 +322,7 @@ class BotEngine
         $codes = $viaMenu3 ? ['KTK-001', 'ESK-01'] : ['ESK-01'];
 
         if ($viaMenu3) {
-            $this->escalations->record($this->conversation, 'A2', 'Memilih menu 3 (Hubungi Petugas).',
+            $log = $this->escalations->record($this->conversation, 'A2', 'Memilih menu 3 (Hubungi Petugas).',
                 Faq::where('code', 'KTK-001')->value('id'), '3');
         } elseif (! ($this->state['after_msg03'] ?? false)) {
             $path = $this->state['answer'] ?? null;
@@ -326,23 +330,58 @@ class BotEngine
 
             if ($special) {
                 $faqId = Faq::where('code', BotScript::ANSWERS[$path]['faqs'][0])->value('id');
-                $this->escalations->record($this->conversation, $special, "Mengetik 88 setelah jawaban {$path}.", $faqId, $path);
+                $log = $this->escalations->record($this->conversation, $special, "Mengetik 88 setelah jawaban {$path}.", $faqId, $path);
             } else {
-                $this->escalations->record($this->conversation, 'A2', 'Mengetik 88.', null, $path ?? BotScript::MENUS[$this->state['menu']]['path']);
+                $log = $this->escalations->record($this->conversation, 'A2', 'Mengetik 88.', null, $path ?? BotScript::MENUS[$this->state['menu']]['path']);
             }
+        } else {
+            // 88 setelah MSG-03: log A1 sudah dicatat saat MSG-03.
+            $log = $this->conversation->escalationLogs()->latest('id')->first();
         }
 
-        // Sesi menu dimulai ulang: setelah antrean selesai, pesan berikutnya kembali ke menu utama.
+        $ticket = $this->enqueue($log, $this->recentQuestion());
+
+        return $this->reply($this->handoffText($codes, $ticket), $codes);
+    }
+
+    /**
+     * Masuk antrean petugas: sesi menu dimulai ulang (setelah tiket selesai, pesan berikutnya kembali ke menu utama),
+     * bot diam, dan tiket antrean dibuat (atau tiket terbuka yang ada dipakai lagi).
+     */
+    private function enqueue(?EscalationLog $log, ?string $question): ServiceTicket
+    {
         $this->state = self::freshState();
         $this->markWaitingHuman();
 
-        return $this->reply($this->handoffText($codes), $codes);
+        return $this->tickets->open($this->conversation, $log, $question)[0];
     }
 
-    /** Pesan antrean petugas (tanpa nomor/email kantor) + catatan di luar jam layanan. */
-    private function handoffText(array &$codes): string
+    /** Pertanyaan terakhir pemohon (bukan angka menu/salam) dalam sesi ini, untuk konteks petugas. */
+    private function recentQuestion(): ?string
     {
-        $text = BotScript::handoff();
+        return $this->conversation->messages()
+            ->where('sender_type', 'user')->where('message_type', 'text')
+            ->where('id', '!=', $this->incoming->id ?? 0)
+            ->where('sent_at', '>=', now()->subMinutes((int) config('kancil.session_timeout_minutes', 30)))
+            ->orderByDesc('sent_at')->orderByDesc('id')
+            ->limit(10)
+            ->pluck('message_text')
+            ->first(fn ($text) => $this->isQuestionText((string) $text));
+    }
+
+    private function isQuestionText(string $text): bool
+    {
+        $command = self::normalize($text);
+
+        return ! ctype_digit($command) && ! in_array($command, ['menu', 'batal', 'selesai'], true)
+            && count($this->words($text)) >= 2 && ! $this->isGreeting($text);
+    }
+
+    /** Pesan antrean petugas (tanpa nomor/email kantor) + nomor tiket/posisi + catatan di luar jam layanan. */
+    private function handoffText(array &$codes, ServiceTicket $ticket): string
+    {
+        $text = BotScript::handoff($ticket->ticket_number, $ticket->queue_no, $this->tickets->position($ticket));
+        $codes[] = 'LYN';
 
         if (config('kancil.outside_hours_notice') && ! $this->hours->isOpen()) {
             $text .= "\n\n".BotScript::msg('MSG-07', $this->hours->publicText());
@@ -352,14 +391,58 @@ class BotEngine
         return $text;
     }
 
-    /** Masuk antrean petugas: bot diam sampai petugas membalas atau batas tunggu habis. */
+    /** Masuk antrean petugas: bot diam sampai tiket diambil, diselesaikan, dibatalkan, atau kedaluwarsa. */
     private function markWaitingHuman(): void
     {
         if (in_array($this->conversation->conversation_mode, [Conversation::MODE_BOT, Conversation::MODE_CLOSED, null], true)) {
             $this->conversation->conversation_mode = Conversation::MODE_WAITING;
-            $minutes = (int) config('kancil.waiting_minutes', 240);
-            $this->conversation->bot_paused_until = $minutes > 0 ? now()->addMinutes($minutes) : null;
+            $this->conversation->bot_paused_until = null;
         }
+    }
+
+    /**
+     * Pesan pemohon selama menunggu di antrean petugas:
+     *  "batal"   -> tiket dibatalkan, kembali ke menu utama
+     *  "antrean" -> posisi antrean (paling sering 1x per menit)
+     *  lainnya   -> pengingat posisi (paling sering 1x per kancil.ticket.notice_minutes); pesan tetap tercatat untuk petugas.
+     *
+     * @return list<BotReply>
+     */
+    public function handleQueued(Conversation $conversation, Message $incoming): array
+    {
+        $this->conversation = $conversation;
+        $this->incoming = $incoming;
+        $ticket = $conversation->serviceTickets()->open()->latest('id')->first();
+
+        if (! $ticket) {
+            return [];
+        }
+
+        $command = $incoming->message_type === 'text' ? self::normalize((string) $incoming->message_text) : '';
+
+        if (in_array($command, ['batal', 'batalkan', 'batal antrean', 'batal antrian', 'cancel'], true)
+            && $ticket->status === ServiceTicket::WAITING) {
+            $this->tickets->cancel($ticket);
+            $this->state = self::freshState();
+            $conversation->forceFill(['session_state' => $this->state, 'current_menu' => 'M-00'])->save();
+
+            return [$this->reply(BotScript::queueCancelled($ticket->ticket_number)."\n\n".$this->mainMenuText(), ['LYN-BATAL', 'M-00'])];
+        }
+
+        $asked = (bool) preg_match('/^(cek\s+)?(antrean|antrian|posisi|status)(\s+(saya|antrean|antrian))?$/u', $command);
+        $minutes = $asked ? 1 : max(1, (int) config('kancil.ticket.notice_minutes', 15));
+
+        if ($ticket->last_notice_at && $ticket->last_notice_at->gt(now()->subMinutes($minutes))) {
+            return [];
+        }
+
+        $ticket->update(['last_notice_at' => now()]);
+        $handling = $ticket->status === ServiceTicket::HANDLING;
+
+        return [$this->reply(
+            BotScript::queueStatus($ticket->ticket_number, $ticket->queue_no, $this->tickets->position($ticket), $handling),
+            ['LYN-STATUS'],
+        )];
     }
 
     // ---------------------------------------------------------------- input salah & teks bebas
@@ -408,11 +491,10 @@ class BotEngine
             }
 
             if ($answer !== null) {
-                $this->escalations->record($this->conversation, 'A1', 'AI: '.$text, null, 'AI');
-                $this->state = self::freshState();
-                $this->markWaitingHuman();
+                $log = $this->escalations->record($this->conversation, 'A1', 'AI: '.$text, null, 'AI');
+                $ticket = $this->enqueue($log, $text);
                 $codes = ['AI-UNKNOWN', 'ESK-01'];
-                $handoff = $this->handoffText($codes);
+                $handoff = $this->handoffText($codes, $ticket);
 
                 return [$this->reply(BotScript::msg('AI-UNKNOWN')."\n\n".$handoff, $codes, sender: 'ai')];
             }

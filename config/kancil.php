@@ -4,7 +4,7 @@ return [
 
     // balesotomatis = Opsi A (AI BalesOtomatis menjawab, Laravel mencatat)
     // laravel       = Opsi B (menu rule-based + AI sendiri di Laravel; matikan AI Powered BalesOtomatis)
-    'bot_engine' => env('BOT_ENGINE', 'balesotomatis'),
+    'bot_engine' => env('BOT_ENGINE', 'laravel'),
 
     // Sesi menu berakhir setelah N menit tanpa pesan (Dokumen Skenario: 30).
     'session_timeout_minutes' => (int) env('BOT_SESSION_TIMEOUT', 30),
@@ -12,9 +12,14 @@ return [
     // Lama bot diam setelah petugas mengambil alih / membalas.
     'handoff_minutes' => (int) env('BOT_HANDOFF_MINUTES', 120),
 
-    // Lama bot diam saat pemohon menunggu di antrean petugas (88 / Hubungi Petugas).
-    // Lewat batas ini tanpa balasan petugas, bot aktif lagi. 0 = tunggu sampai petugas membalas/mengembalikan.
-    'waiting_minutes' => (int) env('BOT_WAITING_MINUTES', 240),
+    // Tiket antrean petugas (88 / Hubungi Petugas / AI tidak tahu): urut FIFO, nomor LYN-YYYYMMDD-NNN.
+    // Selama tiket menunggu bot diam (kecuali perintah "antrean"/"batal" dan pengingat posisi).
+    'ticket' => [
+        // Tiket menunggu ditutup otomatis (Kedaluwarsa) setelah N hari kerja tanpa diambil petugas.
+        'expire_business_days' => (int) env('TICKET_EXPIRE_BUSINESS_DAYS', 2),
+        // Jarak minimal pengingat posisi antrean saat pemohon mengirim pesan biasa selama menunggu.
+        'notice_minutes' => (int) env('TICKET_NOTICE_MINUTES', 15),
+    ],
 
     // FAQ yang boleh ditampilkan menu: verified = Terverifikasi + Aktif; all = semua non-draf (+ catatan "Informasi umum").
     'faq_scope' => env('BOT_FAQ_SCOPE', 'verified'),

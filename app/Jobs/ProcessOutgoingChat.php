@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\WebhookEvent;
 use App\Services\BalesOtomatis\WebhookData;
+use App\Services\Tickets\TicketQueueService;
 use App\Services\Whatsapp\WhatsappMessenger;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -23,7 +24,7 @@ class ProcessOutgoingChat implements ShouldQueue
 
     public function __construct(public readonly int $eventId) {}
 
-    public function handle(WhatsappMessenger $messenger): void
+    public function handle(WhatsappMessenger $messenger, TicketQueueService $tickets): void
     {
         $event = WebhookEvent::find($this->eventId);
 
@@ -35,7 +36,7 @@ class ProcessOutgoingChat implements ShouldQueue
 
         try {
             if (! $data->isGroup()) {
-                $this->record($data, $messenger, $event->number_key);
+                $this->record($data, $messenger, $tickets, $event->number_key);
             }
 
             $event->update(['processed_at' => now(), 'error' => null]);
@@ -46,7 +47,7 @@ class ProcessOutgoingChat implements ShouldQueue
         }
     }
 
-    private function record(WebhookData $data, WhatsappMessenger $messenger, ?string $deviceKey): void
+    private function record(WebhookData $data, WhatsappMessenger $messenger, TicketQueueService $tickets, ?string $deviceKey): void
     {
         $externalId = $data->messageId();
 
@@ -90,6 +91,10 @@ class ProcessOutgoingChat implements ShouldQueue
         }
 
         $conversation->update($update);
+
+        if ($engineIsLaravel) {
+            $tickets->markRespondedExternally($conversation);
+        }
     }
 
     /** Cocokkan echo dengan pesan yang kita kirim: message_uuid, lalu teks yang sama dalam 10 menit terakhir. */

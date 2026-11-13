@@ -18,6 +18,8 @@ final class BotScript
 
     public const DIVIDER = '------------------------';
 
+    public const QUEUE_HELP = 'Ketik *antrean* untuk cek posisi, atau *batal* untuk membatalkan antrean.';
+
     /**
      * Menu: judul, jalur, induk, pilihan (angka => [label, tujuan]).
      * Tujuan: kode menu (M-xx), "ANS:<jalur>", "PGD-01", atau "ESK".
@@ -236,9 +238,68 @@ final class BotScript
     }
 
     /** Pemohon dimasukkan ke antrean petugas; petugas membalas di chat yang sama. */
-    public static function handoff(): string
+    public static function handoff(?string $ticket = null, ?int $queueNo = null, ?int $position = null): string
     {
-        return "Baik, mohon menunggu sebentar.\n\nPermintaan Anda sedang kami hubungkan dengan *Petugas* dan masuk antrean.";
+        $text = "Baik, mohon menunggu sebentar.\n\nPermintaan Anda sedang kami hubungkan dengan *Petugas* dan masuk antrean.";
+
+        if ($ticket === null) {
+            return $text;
+        }
+
+        return $text."\n\n".self::queueLines($ticket, $queueNo, $position)
+            ."\n\nPetugas akan membalas di chat ini sesuai urutan antrean.\n".self::QUEUE_HELP;
+    }
+
+    /** Balasan perintah "antrean" atau pengingat saat pemohon mengirim pesan selama menunggu. */
+    public static function queueStatus(string $ticket, ?int $queueNo, ?int $position, bool $handling = false): string
+    {
+        if ($handling) {
+            return "Tiket *{$ticket}* sedang ditangani *Petugas*. Mohon tunggu balasan di chat ini.";
+        }
+
+        return "Anda masih dalam antrean *Petugas*.\n\n".self::queueLines($ticket, $queueNo, $position)
+            ."\n\nPesan Anda tetap kami teruskan ke petugas.\n".self::QUEUE_HELP;
+    }
+
+    public static function queueCancelled(string $ticket): string
+    {
+        return "Antrean tiket *{$ticket}* dibatalkan.";
+    }
+
+    public static function ticketResolved(string $ticket): string
+    {
+        return "Tiket *{$ticket}* telah diselesaikan oleh Petugas. Terima kasih telah menghubungi *Kantor Imigrasi Kelas I TPI Cilacap*.\n\n"
+            .'Ketik *0* untuk kembali ke menu utama.';
+    }
+
+    /** Petugas mengalihkan tiket antrean menjadi pengaduan resmi. */
+    public static function ticketToComplaint(string $ticket, string $complaint): string
+    {
+        return "Permintaan Anda pada tiket *{$ticket}* telah kami catat sebagai *pengaduan resmi*.\n\n"
+            ."Nomor tiket pengaduan: *{$complaint}*\n_Status awal tiket: Baru._\n\n"
+            ."Tanggapan akan dikirim ke chat ini. Cek status kapan saja lewat menu *3* (Layanan Pengaduan) lalu *2* (Cek status pengaduan).\n\n"
+            .'Ketik *0* untuk kembali ke menu utama';
+    }
+
+    public static function ticketExpired(string $ticket): string
+    {
+        return "Mohon maaf, tiket *{$ticket}* belum dapat dilayani Petugas dan ditutup otomatis.\n\n"
+            ."Ketik *0* untuk kembali ke menu utama\nKetik *88* untuk masuk antrean Petugas kembali";
+    }
+
+    private static function queueLines(string $ticket, ?int $queueNo, ?int $position): string
+    {
+        $lines = ["Nomor tiket: *{$ticket}*"];
+
+        if ($queueNo !== null) {
+            $lines[] = "Nomor antrean hari ini: *{$queueNo}*";
+        }
+
+        if ($position !== null) {
+            $lines[] = "Posisi antrean Anda: *ke-{$position}*".($position === 1 ? ' (berikutnya dilayani)' : '');
+        }
+
+        return implode("\n", $lines);
     }
 
     public static function msg(string $id, ?string $fill = null): string
@@ -287,6 +348,38 @@ final class BotScript
             'PGD-10-NOTFOUND' => "Nomor tiket tidak ditemukan untuk nomor WhatsApp ini. Pastikan nomor tiket benar (contoh: ADU-202611-0001).\n\n".self::FOOTER,
             default => throw new \InvalidArgumentException("Pesan {$id} tidak dikenal."),
         };
+    }
+
+    /** Label topik untuk petugas dari jalur menu (mis. 0>1>5 => "Persyaratan Paspor › Paspor Hilang"). */
+    public static function topicLabel(?string $path): string
+    {
+        if ($path === null || $path === '') {
+            return 'Umum';
+        }
+
+        if ($path === 'AI') {
+            return 'Pertanyaan bebas (AI)';
+        }
+
+        if ($path === '3') {
+            return 'Hubungi Petugas (menu utama)';
+        }
+
+        foreach (self::MENUS as $menu) {
+            foreach ($menu['options'] as $option) {
+                if ($option[1] === 'ANS:'.$path) {
+                    return ($menu['title'] ? $menu['title'].' › ' : '').$option[0];
+                }
+            }
+        }
+
+        foreach (self::MENUS as $menu) {
+            if ($menu['path'] === $path && $menu['title']) {
+                return $menu['title'];
+            }
+        }
+
+        return $path;
     }
 
     /** Kode jawaban (jalur) yang memuat FAQ tertentu. */
