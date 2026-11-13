@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Services\Bot\BotEngine;
 use App\Services\Bot\BotScript;
+use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 use Tests\TestCase;
 
@@ -27,7 +28,7 @@ class BotScriptTest extends TestCase
 
                 $this->assertTrue($valid, "{$code} pilihan {$key} → {$target}");
                 $this->assertNotSame('', $label);
-                $this->assertNotContains($key, ['9', '99', '88'], 'Angka perintah tidak boleh dipakai sebagai pilihan.');
+                $this->assertNotContains((string) $key, ['0', '9', '99', '88'], 'Angka perintah tidak boleh dipakai sebagai pilihan.');
             }
         }
     }
@@ -44,8 +45,11 @@ class BotScriptTest extends TestCase
         }
 
         // M-xx yang dibuka dari induk memiliki jalur induk + pilihan.
+        // Menu utama tampil 1/2 (gaya Bogor), jalur internalnya tetap 0 (WNI) / 1 (WNA).
         foreach (BotScript::MENUS as $code => $menu) {
             foreach ($menu['options'] as $key => [, $target]) {
+                $key = $code === 'M-00' ? (string) ((int) $key - 1) : $key;
+
                 if (isset(BotScript::MENUS[$target])) {
                     $expected = ltrim($menu['path'].'>'.$key, '>');
                     $this->assertSame($expected, BotScript::MENUS[$target]['path'], $target);
@@ -103,19 +107,48 @@ class BotScriptTest extends TestCase
 
     public function test_standard_messages_match_document(): void
     {
-        $this->assertSame('Maaf, pilihan tidak valid. Silakan ketik angka sesuai daftar menu.', BotScript::msg('MSG-01'));
-        $this->assertSame('Sesi sebelumnya telah berakhir. Silakan pilih layanan kembali:', BotScript::msg('MSG-06'));
+        $this->assertSame('Mohon maaf, pilihan Anda tidak tersedia. Silakan ketik angka sesuai menu di bawah ini.', BotScript::msg('MSG-01'));
+        $this->assertSame('Sesi sebelumnya telah berakhir.', BotScript::msg('MSG-06'));
         $this->assertSame('Pengaduan dibatalkan. Anda dapat memulai kembali kapan saja.', BotScript::msg('MSG-08'));
-        $this->assertStringContainsString('081217000900', BotScript::msg('MSG-05'));
-        $this->assertStringContainsString('cilacap@imigrasi.go.id', BotScript::esk01());
-        $this->assertSame('Saat ini di luar jam layanan petugas. Silakan hubungi kembali pada jam layanan.', BotScript::msg('MSG-07'));
-        $this->assertStringEndsWith('jam layanan: 08-16.', BotScript::msg('MSG-07', '08-16'));
+        $this->assertSame('_Saat ini di luar jam layanan petugas. Petugas akan membalas pesan Anda pada jam layanan berikutnya._', BotScript::msg('MSG-07'));
+        $this->assertStringEndsWith('jam layanan: 08-16._', BotScript::msg('MSG-07', '08-16'));
+
+        // Permintaan pengguna: bot tidak lagi menyebut nomor/email kantor; pemohon masuk antrean petugas.
+        foreach (['MSG-01', 'MSG-02', 'MSG-03', 'MSG-04', 'MSG-05', 'MSG-06', 'MSG-07', 'MSG-08', 'MSG-09', 'AI-UNKNOWN'] as $id) {
+            $this->assertStringNotContainsString('081217000900', BotScript::msg($id), $id);
+            $this->assertStringNotContainsString('cilacap@imigrasi.go.id', BotScript::msg($id), $id);
+        }
+        $this->assertSame("Baik, mohon menunggu sebentar.\n\nPermintaan Anda sedang kami hubungkan dengan *Petugas* dan masuk antrean.", BotScript::handoff());
+    }
+
+    public function test_answer_format_follows_bogor_style(): void
+    {
+        $text = BotScript::answer('Isi jawaban.');
+
+        $this->assertSame(
+            "*Berikut ini adalah informasi dan solusi yang Anda cari:*\n\nIsi jawaban.\n\n------------------------\n\n"
+            ."Butuh bantuan lebih lanjut?\n\n*Ketik 0* untuk kembali ke menu sebelumnya\n*Ketik 1* untuk menghubungi Petugas\n\n*Terima kasih.*",
+            $text,
+        );
+    }
+
+    public function test_greeting_follows_time_of_day_and_name(): void
+    {
+        $at = fn (string $time) => Carbon::parse("2026-11-13 {$time}", 'Asia/Jakarta');
+
+        $this->assertSame('Selamat Pagi, Halo *Budi*', BotScript::greeting('Budi', $at('08:00')));
+        $this->assertSame('Selamat Siang, Halo *Budi*', BotScript::greeting('Budi', $at('12:00')));
+        $this->assertSame('Selamat Sore, Halo *Budi*', BotScript::greeting('Budi', $at('16:00')));
+        $this->assertSame('Selamat Malam, Halo', BotScript::greeting(null, $at('20:00')));
+        $this->assertSame('Selamat Malam, Halo *Budi*', BotScript::greeting('*Bu_di*', $at('02:00')), 'Format WhatsApp di nama dibuang.');
     }
 
     public function test_main_menu_hint_toggle(): void
     {
         $this->assertStringNotContainsString('pertanyaan', BotScript::mainMenu(false));
-        $this->assertStringEndsWith('Anda juga dapat langsung mengetik pertanyaan.', BotScript::mainMenu(true));
+        $this->assertStringContainsString('Anda juga dapat langsung mengetik pertanyaan.', BotScript::mainMenu(true));
+        $this->assertStringStartsWith('*Menu Utama*', BotScript::mainMenu());
+        $this->assertStringStartsWith('Selamat ', BotScript::mainMenu(false, 'Budi', true));
     }
 
     public function test_unknown_message_ids_throw(): void
@@ -134,7 +167,7 @@ class BotScriptTest extends TestCase
     {
         $summary = BotScript::pgd('PGD-07', ['name' => 'A', 'category' => 'Lainnya', 'text' => 'isi', 'attachments' => 2]);
         $this->assertStringContainsString('Lampiran: 2 berkas', $summary);
-        $this->assertStringContainsString("*1* = Kirim\n*2* = Batalkan", $summary);
+        $this->assertStringContainsString("Ketik *1* Kirim pengaduan\nKetik *2* Batalkan", $summary);
 
         $status = BotScript::pgd('PGD-10', ['ticket' => 'ADU-1', 'status' => 'Selesai', 'response' => null]);
         $this->assertStringNotContainsString('Tanggapan', $status);

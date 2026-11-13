@@ -52,6 +52,13 @@ class Conversation extends Model
         return $this->ticket_number ?: 'KS-'.str_pad((string) $this->id, 5, '0', STR_PAD_LEFT);
     }
 
+    /** Pemohon di antrean petugas: bot diam sampai petugas membalas atau batas tunggu habis. */
+    public function isWaitingForOfficer(): bool
+    {
+        return $this->conversation_mode === self::MODE_WAITING
+            && ($this->bot_paused_until === null || $this->bot_paused_until->isFuture());
+    }
+
     /** Petugas sedang menangani: bot tidak boleh membalas. */
     public function isHumanHandling(): bool
     {

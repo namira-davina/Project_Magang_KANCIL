@@ -12,14 +12,20 @@ Pemohon ──WA──> BalesOtomatis ──webhook──> /webhook/balesotomati
                                     ProcessIncomingChat
                                     ├─ simpan pesan + lampiran (disk privat)
                                     ├─ BOT_ENGINE=laravel:
-                                    │    petugas menangani? → bot diam
-                                    │    BotEngine: menu M-00..M-10, 9/99/88, salah input 3x,
+                                    │    petugas menangani / pemohon di antrean petugas? → bot diam
+                                    │    BotEngine: menu M-00..M-10 gaya Imigrasi Bogor ("Ketik *N* ..."),
+                                    │    0 = menu utama, 9 = menu sebelumnya, setelah jawaban 0 = kembali / 1 = Petugas,
+                                    │    99/88 tetap jalan pintas, salah input 3x,
                                     │    sesi 30 menit, MSG-05 (FAQ belum aktif), pengaduan PGD-01..10,
                                     │    pertanyaan bebas → AI (hanya FAQ, wajib kode FAQ, fallback ESK-01)
                                     └─ BOT_ENGINE=balesotomatis: AI BalesOtomatis menjawab, Laravel mencatat
                                               ▼
                                     SendWhatsappMessage → send_personal_message
 ```
+
+Hubungi Petugas (menu 4, "1" setelah jawaban, atau 88) tidak lagi menyebut nomor/email kantor:
+bot membalas "mohon menunggu … masuk antrean", status jadi *Menunggu Petugas*, bot diam sampai petugas
+membalas (dashboard atau HP) atau `BOT_WAITING_MINUTES` habis. Petugas membalas di chat yang sama.
 
 Eskalasi dicatat dengan kode Matriks Eskalasi (A1–A4, B0/B1, C1–C6) dan prioritasnya.
 Dashboard: Percakapan (inbox, balas, ambil alih/kembalikan ke bot), Pengaduan (status + tanggapan terkirim ke WA),
@@ -45,6 +51,7 @@ Laporan (bulanan, eskalasi per kode), FAQ (centang **Aktif ditampilkan bot** set
 | `kancil:ai-cek [--saldo]` | Cek AI SumoPod |
 | `kancil:balesotomatis-info` | Info perangkat + URL webhook |
 | `kancil:pemeliharaan` | Tugas berkala (juga terjadwal tiap 5 menit) |
+| `kancil:gabung-percakapan [--dry-run]` | Gabungkan percakapan ganda dengan nomor WA sama (sisa bug chat_id @lid vs @s.whatsapp.net) |
 
 ## Role
 

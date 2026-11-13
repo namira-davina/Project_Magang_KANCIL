@@ -25,6 +25,39 @@ class CommandsTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_merge_duplicate_conversations_moves_messages_and_drops_bot_echoes(): void
+    {
+        $sent = now()->subMinutes(5);
+        $original = Conversation::create([
+            'channel' => 'whatsapp', 'conversation_mode' => Conversation::MODE_BOT, 'wa_chat_id' => '111@lid',
+            'whatsapp_number' => '6285786470923', 'user_name' => 'Zaki', 'last_message_at' => $sent,
+        ]);
+        $original->messages()->create(['sender_type' => 'user', 'message_text' => '3', 'sent_at' => $sent]);
+        $original->messages()->create(['sender_type' => 'bot', 'message_text' => 'Menu bot', 'sent_at' => $sent, 'client_uuid' => 'u-1']);
+
+        $echo = Conversation::create([
+            'channel' => 'whatsapp', 'conversation_mode' => Conversation::MODE_HUMAN, 'bot_paused_until' => now()->addHour(),
+            'wa_chat_id' => '6285786470923@s.whatsapp.net', 'whatsapp_number' => '6285786470923', 'last_message_at' => $sent,
+        ]);
+        $echo->messages()->create(['sender_type' => 'petugas', 'message_text' => 'Menu bot', 'sent_at' => $sent, 'external_message_id' => 'E-1']);
+        $echo->messages()->create(['sender_type' => 'petugas', 'message_text' => 'Balasan asli dari HP', 'sent_at' => $sent, 'external_message_id' => 'E-2']);
+
+        $this->artisan('kancil:gabung-percakapan', ['--dry-run' => true])->assertSuccessful();
+        $this->assertSame(2, Conversation::count(), 'Dry run tidak mengubah data.');
+
+        $this->artisan('kancil:gabung-percakapan')->assertSuccessful();
+
+        $merged = Conversation::sole();
+        $this->assertSame($original->id, $merged->id);
+        $this->assertSame('111@lid', $merged->wa_chat_id);
+        $this->assertSame(['user', 'bot', 'petugas'], $merged->messages()->orderBy('id')->pluck('sender_type')->all());
+        $this->assertSame('E-1', Message::where('client_uuid', 'u-1')->value('external_message_id'));
+        $this->assertSame('Balasan asli dari HP', Message::where('sender_type', 'petugas')->value('message_text'));
+        $this->assertSame(Conversation::MODE_BOT, $merged->conversation_mode, 'Mode asli percakapan dipertahankan.');
+
+        $this->artisan('kancil:gabung-percakapan')->expectsOutputToContain('Tidak ada percakapan ganda.')->assertSuccessful();
+    }
+
     public function test_create_user_with_role(): void
     {
         $this->artisan('kancil:buat-user', ['username' => 'agus', '--role' => 'petugas', '--name' => 'Agus Setiawan', '--password' => 'rahasia123'])
@@ -97,8 +130,8 @@ class CommandsTest extends TestCase
         $this->seedFaqs();
         Http::fake();
 
-        $this->artisan('kancil:simulasi', ['pesan' => 'Halo'])->expectsOutputToContain('Selamat datang')->assertSuccessful();
-        $this->artisan('kancil:simulasi', ['pesan' => '0'])->expectsOutputToContain('Menu WNI')->assertSuccessful();
+        $this->artisan('kancil:simulasi', ['pesan' => 'Halo'])->expectsOutputToContain('Selamat Datang')->assertSuccessful();
+        $this->artisan('kancil:simulasi', ['pesan' => '1'])->expectsOutputToContain('Pelayanan Paspor WNI')->assertSuccessful();
 
         $conversation = Conversation::sole();
         $this->assertSame('simulasi', $conversation->channel);
@@ -106,7 +139,7 @@ class CommandsTest extends TestCase
         $this->assertNull(Message::where('sender_type', 'bot')->first()->delivery_status);
         Http::assertNothingSent();
 
-        $this->artisan('kancil:simulasi', ['pesan' => '1', '--reset' => true])->expectsOutputToContain('Selamat datang')->assertSuccessful();
+        $this->artisan('kancil:simulasi', ['pesan' => '1', '--reset' => true])->expectsOutputToContain('Selamat Datang')->assertSuccessful();
     }
 
     public function test_simulation_interactive_mode(): void

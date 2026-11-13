@@ -124,16 +124,17 @@ final class WebhookData
     public function sentAt(): Carbon
     {
         $ts = $this->data['timestamp'] ?? null;
+        $tz = config('app.timezone');
 
         if (is_numeric($ts) && (int) $ts > 0) {
             $ts = (int) $ts;
 
-            return Carbon::createFromTimestamp($ts > 9_999_999_999 ? intdiv($ts, 1000) : $ts);
+            return Carbon::createFromTimestamp($ts > 9_999_999_999 ? intdiv($ts, 1000) : $ts, $tz);
         }
 
         if (is_string($ts) && $ts !== '') {
             try {
-                return Carbon::parse($ts);
+                return Carbon::parse($ts)->setTimezone($tz);
             } catch (\Throwable) {
                 // pakai waktu terima
             }

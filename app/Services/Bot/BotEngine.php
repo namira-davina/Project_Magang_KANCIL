@@ -90,11 +90,34 @@ class BotEngine
             return $this->complaintStep($command, $text);
         }
 
+        if ($this->state['answer'] ?? null) {
+            return $this->answerAction($command, $text);
+        }
+
         return match (true) {
-            in_array($command, ['99', 'menu'], true) => [$this->goMainMenu()],
+            in_array($command, ['0', '99', 'menu'], true) => [$this->goMainMenu()],
             $command === '88' => [$this->escalate(viaMenu3: false)],
             $command === '9' => [$this->back()],
             ctype_digit($command) => $this->selectOption($command, $text),
+            $this->isGreeting($text) => [$this->goMainMenu(greet: true)],
+            default => $this->freeText($text),
+        };
+    }
+
+    /**
+     * Setelah jawaban tampil (gaya Bogor): 0 = kembali ke menu sebelumnya, 1 = hubungi Petugas.
+     * 99 / 88 / 9 tetap diterima sebagai jalan pintas.
+     *
+     * @return list<BotReply>
+     */
+    private function answerAction(string $command, string $text): array
+    {
+        return match (true) {
+            in_array($command, ['0', '9'], true) => [$this->back()],
+            in_array($command, ['1', '88'], true) => [$this->escalate(viaMenu3: false)],
+            in_array($command, ['99', 'menu'], true) => [$this->goMainMenu()],
+            ctype_digit($command) => [$this->invalidInput($text)],
+            $this->isGreeting($text) => [$this->goMainMenu(greet: true)],
             default => $this->freeText($text),
         };
     }
@@ -129,10 +152,10 @@ class BotEngine
         }
 
         if ($expired) {
-            return [$this->reply(BotScript::msg('MSG-06')."\n\n".$this->mainMenuText(), ['MSG-06', 'M-00'])];
+            return [$this->reply(BotScript::msg('MSG-06')."\n\n".$this->mainMenuText(greet: true), ['MSG-06', 'M-00'])];
         }
 
-        return [$this->reply($this->mainMenuText(), ['M-00'])];
+        return [$this->reply($this->mainMenuText(greet: true), ['M-00'])];
     }
 
     private static function freshState(): array
@@ -142,11 +165,11 @@ class BotEngine
 
     // ---------------------------------------------------------------- menu
 
-    private function goMainMenu(): BotReply
+    private function goMainMenu(bool $greet = false): BotReply
     {
         $this->state = self::freshState();
 
-        return $this->reply($this->mainMenuText(), ['M-00']);
+        return $this->reply($this->mainMenuText($greet), ['M-00']);
     }
 
     private function back(): BotReply
@@ -215,22 +238,22 @@ class BotEngine
 
         if ($introCode) {
             $faq = Faq::where('code', $introCode)->first();
-            $intro = $faq?->isPublished() ? "*{$faq->question}*\n{$faq->answer}" : null;
+            $intro = $faq && $this->canShow($faq) ? "*{$faq->question}*\n{$faq->answer}" : null;
         }
 
         return BotScript::menu($code, $intro);
     }
 
-    private function mainMenuText(): string
+    private function mainMenuText(bool $greet = false): string
     {
-        return BotScript::mainMenu($this->llm->isAvailable());
+        return BotScript::mainMenu($this->llm->isAvailable(), $this->conversation->user_name, $greet);
     }
 
     private function showAnswer(string $path): BotReply
     {
         $definition = BotScript::ANSWERS[$path];
         $faqs = $this->faqsByCode($definition['faqs']);
-        $published = $faqs->filter(fn (Faq $faq) => $faq->isPublished());
+        $published = $faqs->filter(fn (Faq $faq) => $this->canShow($faq));
         $held = collect($definition['faqs'])->reject(fn ($code) => $published->has($code))->values();
 
         $this->state['answer'] = $path;
@@ -247,7 +270,7 @@ class BotEngine
         if ($published->isEmpty()) {
             $this->tagIncoming($firstFaqId);
 
-            return $this->reply(BotScript::msg('MSG-05')."\n\n".BotScript::FOOTER, ['MSG-05'], $firstFaqId);
+            return $this->reply(BotScript::msg('MSG-05')."\n\n".BotScript::answerFooter(), ['MSG-05'], $firstFaqId);
         }
 
         $body = $published->count() === 1 && count($definition['faqs']) === 1
@@ -258,15 +281,26 @@ class BotEngine
             $body .= "\n\n".BotScript::msg('MSG-05');
         }
 
-        if ($definition['offer88']) {
-            $body .= "\n\n".BotScript::msg('OFFER-88');
+        if ($published->contains(fn (Faq $faq) => ! $faq->isPublished())) {
+            $body .= "\n\n".BotScript::msg('AI-DISCLAIMER');
         }
 
+        // offer88: tawaran menghubungi petugas kini selalu ada di penutup jawaban (Ketik 1).
         $primary = $published->first()->id;
         $this->tagIncoming($primary);
         $codes = $published->keys()->all();
 
-        return $this->reply($body."\n\n".BotScript::FOOTER, $held->isNotEmpty() ? [...$codes, 'MSG-05'] : $codes, $primary);
+        return $this->reply(BotScript::answer($body), $held->isNotEmpty() ? [...$codes, 'MSG-05'] : $codes, $primary);
+    }
+
+    /**
+     * BOT_FAQ_SCOPE=verified (bawaan): hanya FAQ Terverifikasi + Aktif.
+     * BOT_FAQ_SCOPE=all: semua FAQ non-draf (sementara, selama verifikasi belum selesai) + catatan "Informasi umum".
+     */
+    private function canShow(Faq $faq): bool
+    {
+        return $faq->isPublished()
+            || (config('kancil.faq_scope') === 'all' && $faq->verification_status !== 'draft');
     }
 
     /** @return Collection<string, Faq> urut sesuai daftar kode */
@@ -298,24 +332,33 @@ class BotEngine
             }
         }
 
-        $this->state['invalid'] = 0;
-        $this->state['after_msg03'] = false;
+        // Sesi menu dimulai ulang: setelah antrean selesai, pesan berikutnya kembali ke menu utama.
+        $this->state = self::freshState();
         $this->markWaitingHuman();
 
-        $text = BotScript::esk01();
+        return $this->reply($this->handoffText($codes), $codes);
+    }
+
+    /** Pesan antrean petugas (tanpa nomor/email kantor) + catatan di luar jam layanan. */
+    private function handoffText(array &$codes): string
+    {
+        $text = BotScript::handoff();
 
         if (config('kancil.outside_hours_notice') && ! $this->hours->isOpen()) {
             $text .= "\n\n".BotScript::msg('MSG-07', $this->hours->publicText());
             $codes[] = 'MSG-07';
         }
 
-        return $this->reply($text, $codes);
+        return $text;
     }
 
+    /** Masuk antrean petugas: bot diam sampai petugas membalas atau batas tunggu habis. */
     private function markWaitingHuman(): void
     {
         if (in_array($this->conversation->conversation_mode, [Conversation::MODE_BOT, Conversation::MODE_CLOSED, null], true)) {
             $this->conversation->conversation_mode = Conversation::MODE_WAITING;
+            $minutes = (int) config('kancil.waiting_minutes', 240);
+            $this->conversation->bot_paused_until = $minutes > 0 ? now()->addMinutes($minutes) : null;
         }
     }
 
@@ -365,15 +408,13 @@ class BotEngine
             }
 
             if ($answer !== null) {
-                $this->validInput();
                 $this->escalations->record($this->conversation, 'A1', 'AI: '.$text, null, 'AI');
+                $this->state = self::freshState();
                 $this->markWaitingHuman();
+                $codes = ['AI-UNKNOWN', 'ESK-01'];
+                $handoff = $this->handoffText($codes);
 
-                return [$this->reply(
-                    BotScript::msg('AI-UNKNOWN')."\n\n".BotScript::esk01()."\n\nKetik *99* untuk menu utama.",
-                    ['AI-UNKNOWN', 'ESK-01'],
-                    sender: 'ai',
-                )];
+                return [$this->reply(BotScript::msg('AI-UNKNOWN')."\n\n".$handoff, $codes, sender: 'ai')];
             }
         }
 
@@ -384,7 +425,7 @@ class BotEngine
     {
         $this->validInput();
         $path = BotScript::pathForFaq($answer->faqCodes[0]);
-        $this->state['answer'] = $path;
+        $this->state['answer'] = $path ?? 'AI';
         $this->state['shown'] = true;
         $this->tagIncoming($answer->primaryFaqId());
 
@@ -394,7 +435,7 @@ class BotEngine
             $text .= "\n\n".BotScript::msg('AI-DISCLAIMER');
         }
 
-        return $this->reply($text."\n\n".BotScript::msg('AI-FOOTER'), ['AI', ...$answer->faqCodes], $answer->primaryFaqId(), 'ai');
+        return $this->reply(BotScript::answer($text), ['AI', ...$answer->faqCodes], $answer->primaryFaqId(), 'ai');
     }
 
     // ---------------------------------------------------------------- media
@@ -425,7 +466,7 @@ class BotEngine
             return [$this->cancelComplaint()];
         }
 
-        if (in_array($command, ['99', 'menu'], true)) {
+        if (in_array($command, ['0', '99', 'menu'], true)) {
             $this->discardComplaint('Kembali ke menu utama saat mengisi pengaduan.');
 
             return [$this->goMainMenu()];
@@ -614,6 +655,10 @@ class BotEngine
     {
         if ($step = $this->state['pgd'] ?? null) {
             return $this->pgdPrompt($step);
+        }
+
+        if ($this->state['answer'] ?? null) {
+            return BotScript::answerFooter();
         }
 
         return $this->state['menu'] === 'M-00' ? $this->mainMenuText() : $this->menuText($this->state['menu']);

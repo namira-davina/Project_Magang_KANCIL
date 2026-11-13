@@ -40,6 +40,19 @@ document.addEventListener('DOMContentLoaded', function () {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"></polyline>
         </svg>`;
+    const ICON_BOT = `
+        <svg class="sender-inline-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+            <circle cx="12" cy="5" r="2"></circle>
+            <path d="M12 7v4"></path>
+            <line x1="8" y1="16" x2="8" y2="16"></line>
+            <line x1="16" y1="16" x2="16" y2="16"></line>
+        </svg>`;
+    const ICON_OFFICER = `
+        <svg class="sender-inline-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+        </svg>`;
 
     function url(name, id) {
         return (config.urls[name] || '').replace('__ID__', id);
@@ -201,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (m.sender_type === 'petugas') {
             row.className = 'chat-bubble-row sent';
             row.innerHTML = `
-                <div class="chat-bubble-sender text-right">${escapeHtml(m.sender)} <span class="bubble-timestamp">${escapeHtml(m.time)}</span></div>
+                <div class="chat-bubble-sender text-right">${ICON_OFFICER}${escapeHtml(m.sender)} <span class="bubble-timestamp">${escapeHtml(m.time)}</span></div>
                 <div class="chat-bubble-content official">
                     <p>${formatText(m.text)}</p>${attachment}
                     <div class="official-sent-status">${ICON_CHECK}<span>${escapeHtml(deliveryLabel(m))}</span></div>
@@ -212,10 +225,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="chat-bubble-sender">${escapeHtml(m.sender)} <span class="bubble-timestamp">${escapeHtml(m.time)}</span></div>
                 <div class="chat-bubble-content citizen">${formatText(m.text)}${attachment}</div>`;
         } else {
-            row.className = 'chat-bubble-row received bot-response';
+            row.className = 'chat-bubble-row sent bot-response';
             const status = m.delivery_status === 'failed' ? `<p style="margin-top: 6px; color: #dc2626;">${escapeHtml(deliveryLabel(m))}</p>` : '';
             row.innerHTML = `
-                <div class="chat-bubble-sender">${escapeHtml(m.sender)}${m.faq_code ? ` • ${escapeHtml(m.faq_code)}` : ''} <span class="bubble-timestamp">${escapeHtml(m.time)}</span></div>
+                <div class="chat-bubble-sender text-right">${ICON_BOT}${escapeHtml(m.sender)}${m.faq_code ? ` • ${escapeHtml(m.faq_code)}` : ''} <span class="bubble-timestamp">${escapeHtml(m.time)}</span></div>
                 <div class="chat-bubble-content bot"><p>${formatText(m.text)}</p>${attachment}${status}</div>`;
         }
 

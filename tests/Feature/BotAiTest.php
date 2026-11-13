@@ -44,8 +44,8 @@ class BotAiTest extends TestCase
 
         $this->assertSame(['AI', 'PSP-001'], $reply->codes);
         $this->assertSame('ai', $reply->sender);
-        $this->assertStringStartsWith('Bapak/Ibu, syarat paspor baru', $reply->text);
-        $this->assertStringEndsWith(BotScript::msg('AI-FOOTER'), $reply->text);
+        $this->assertStringStartsWith("*Berikut ini adalah informasi dan solusi yang Anda cari:*\n\nBapak/Ibu, syarat paspor baru", $reply->text);
+        $this->assertStringEndsWith(BotScript::answerFooter(), $reply->text);
         $psp001 = Faq::where('code', 'PSP-001')->value('id');
         $this->assertSame($psp001, $reply->faqId);
         $this->assertSame($psp001, Message::where('sender_type', 'user')->latest('id')->value('faq_id'));
@@ -84,7 +84,7 @@ class BotAiTest extends TestCase
     public function test_greeting_mid_session_shows_main_menu(): void
     {
         $this->fakeApis();
-        $this->conversation(['Halo', '0']);
+        $this->conversation(['Halo', '1']);
 
         $this->assertSame(['M-00'], $this->reply('selamat pagi min')->codes);
         $this->assertSame(0, LlmLog::count());
@@ -106,7 +106,8 @@ class BotAiTest extends TestCase
         $reply = $this->reply('alamat kantor imigrasi di mana ya?');
 
         $this->assertSame(['AI-UNKNOWN', 'ESK-01'], $reply->codes);
-        $this->assertStringContainsString('081217000900', $reply->text);
+        $this->assertStringContainsString(BotScript::handoff(), $reply->text);
+        $this->assertStringNotContainsString('081217000900', $reply->text);
         $log = EscalationLog::sole();
         $this->assertSame('A1', $log->escalation_code);
         $this->assertStringContainsString('alamat kantor', $log->reason);
@@ -185,14 +186,14 @@ class BotAiTest extends TestCase
     public function test_numbers_still_drive_menu_without_ai(): void
     {
         $this->fakeApis();
-        $this->assertSame(['M-01'], $this->conversation(['Halo', '0'])->codes);
+        $this->assertSame(['M-01'], $this->conversation(['Halo', '1'])->codes);
         $this->assertSame(0, LlmLog::count());
     }
 
     public function test_ai_is_not_used_inside_complaint_flow(): void
     {
         $this->fakeApis($this->aiJson('x', ['PSP-001']));
-        $this->conversation(['Halo', '2', '1']);
+        $this->conversation(['Halo', '3', '1']);
 
         $this->assertSame(['PGD-03'], $this->reply('Budi Santoso')->codes);
         $this->assertSame(0, LlmLog::count());
@@ -220,7 +221,6 @@ class BotAiTest extends TestCase
                 && ! array_key_exists('temperature', $body)
                 && $body['messages'][0]['role'] === 'system'
                 && str_contains($body['messages'][0]['content'], '[PSP-001]')
-                && str_contains($body['messages'][0]['content'], '081217000900')
                 && ! str_contains($all, '3301234567890001')
                 && ! str_contains($all, 'budi@mail.com')
                 && end($body['messages'])['role'] === 'user';

@@ -66,7 +66,7 @@ class WhatsappPipelineTest extends TestCase
         $this->assertFalse($user->is_read);
 
         $bot = Message::where('sender_type', 'bot')->sole();
-        $this->assertStringContainsString('Selamat datang', $bot->message_text);
+        $this->assertStringContainsString('Selamat Datang di Layanan Informasi dan Pengaduan', $bot->message_text);
         $this->assertSame(['codes' => ['M-00']], $bot->meta);
         $this->assertSame('sent', $bot->delivery_status);
         $this->assertSame('OUT-1', $bot->external_message_id);
@@ -84,7 +84,7 @@ class WhatsappPipelineTest extends TestCase
 
     public function test_full_menu_conversation_over_webhook(): void
     {
-        foreach (['Halo', '0', '1', '1'] as $i => $text) {
+        foreach (['Halo', '1', '1', '1'] as $i => $text) {
             $this->postWebhook($this->incomingPayload(['message_id' => "IN-{$i}", 'message_body' => $text]));
         }
 
@@ -150,14 +150,14 @@ class WhatsappPipelineTest extends TestCase
         $this->assertSame('JPEGDATA', Storage::disk('local')->get($media->attachment_path));
         $this->assertSame(['media_mime' => 'image/jpeg', 'media_name' => 'foto.jpg'], $media->meta);
 
-        $this->assertStringContainsString('bot hanya menerima pesan teks', Message::where('sender_type', 'bot')->latest('id')->value('message_text'));
+        $this->assertStringContainsString('hanya menerima pesan teks', Message::where('sender_type', 'bot')->latest('id')->value('message_text'));
     }
 
     public function test_complaint_attachment_over_webhook_is_saved_on_ticket(): void
     {
         Storage::fake('local');
 
-        foreach (['Halo', '2', '1', 'Budi', '1', 'Petugas parkir kantor meminta uang tambahan.', '1'] as $i => $text) {
+        foreach (['Halo', '3', '1', 'Budi', '1', 'Petugas parkir kantor meminta uang tambahan.', '1'] as $i => $text) {
             $this->postWebhook($this->incomingPayload(['message_id' => "C-{$i}", 'message_body' => $text]));
         }
         $this->postWebhook($this->incomingPayload([
@@ -182,6 +182,19 @@ class WhatsappPipelineTest extends TestCase
 
         $this->assertSame(1, Message::where('sender_type', 'bot')->count());
         $this->assertSame(2, Message::where('sender_type', 'user')->count());
+    }
+
+    public function test_rate_limit_stops_bot_spam_in_same_minute(): void
+    {
+        config(['kancil.rate_limit_per_minute' => 2]);
+
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '1']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '1']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '2']));
+
+        $this->assertSame(4, Message::where('sender_type', 'user')->count());
+        $this->assertSame(2, Message::where('sender_type', 'bot')->count());
     }
 
     public function test_bot_resumes_after_handoff_expires(): void
@@ -299,6 +312,23 @@ class WhatsappPipelineTest extends TestCase
         $this->assertSame('sent', $bot->fresh()->delivery_status);
     }
 
+    public function test_echo_is_still_matched_when_gateway_strips_dash_divider(): void
+    {
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
+        $bot = Message::where('sender_type', 'bot')->sole();
+        $bot->update(['external_message_id' => null]);
+
+        $strippedBody = str_replace("\n------------\n", "\n", (string) $bot->message_text);
+        $this->assertNotSame($bot->message_text, $strippedBody);
+
+        $this->postWebhook($this->incomingPayload(['message_id' => 'ECHO-STRIP', 'message_body' => $strippedBody], 'outgoing_chat'));
+
+        $this->assertSame(2, Message::count());
+        $this->assertSame('ECHO-STRIP', $bot->fresh()->external_message_id);
+        $this->assertSame('BOT_ACTIVE', Conversation::sole()->conversation_mode);
+        $this->assertSame(0, Message::where('sender_type', 'petugas')->count());
+    }
+
     public function test_echo_with_known_external_id_is_ignored(): void
     {
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
@@ -319,6 +349,56 @@ class WhatsappPipelineTest extends TestCase
         $conversation = Conversation::sole();
         $this->assertSame('HUMAN_HANDLING', $conversation->conversation_mode);
         $this->assertTrue($conversation->bot_paused_until->isFuture());
+    }
+
+    public function test_bot_echo_with_different_chat_id_joins_same_conversation(): void
+    {
+        // Pesan masuk memakai LID, echo balasan bot memakai JID nomor: tetap satu percakapan.
+        $this->postWebhook($this->incomingPayload(['chat_id' => '99887766@lid', 'message_body' => 'Halo']));
+        $bot = $this->lastBotMessage();
+
+        $this->postWebhook($this->incomingPayload([
+            'chat_id' => '6281234567890@s.whatsapp.net', 'message_id' => 'ECHO-1', 'message_body' => $bot->message_text,
+        ], 'outgoing_chat'));
+
+        $conversation = Conversation::sole();
+        $this->assertSame('99887766@lid', $conversation->wa_chat_id);
+        $this->assertSame('BOT_ACTIVE', $conversation->conversation_mode, 'Echo bot tidak dianggap petugas mengambil alih.');
+        $this->assertSame(0, Message::where('sender_type', 'petugas')->count());
+        $this->assertSame(['user', 'bot'], Message::orderBy('id')->pluck('sender_type')->all());
+    }
+
+    public function test_bot_stays_silent_while_waiting_for_officer_then_resumes(): void
+    {
+        config(['kancil.waiting_minutes' => 240]);
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '4']));
+
+        $this->assertStringContainsString('masuk antrean', $this->lastBotMessage()->message_text);
+        $this->assertSame('WAITING_HUMAN', Conversation::sole()->conversation_mode);
+        $botCount = Message::where('sender_type', 'bot')->count();
+
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Pak, paspor saya hilang di Jakarta']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '1']));
+        $this->assertSame($botCount, Message::where('sender_type', 'bot')->count(), 'Selama antrean bot diam.');
+        $this->assertSame(4, Message::where('sender_type', 'user')->count(), 'Pesan pemohon tetap tercatat untuk petugas.');
+
+        Carbon::setTestNow(now()->addMinutes(241));
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
+
+        $this->assertSame('BOT_ACTIVE', Conversation::sole()->conversation_mode);
+        $this->assertSame($botCount + 1, Message::where('sender_type', 'bot')->count());
+        Carbon::setTestNow();
+    }
+
+    public function test_officer_reply_while_waiting_takes_over(): void
+    {
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '4']));
+
+        $this->postWebhook($this->incomingPayload(['message_id' => 'HP-9', 'message_body' => 'Halo kak, ada yang bisa kami bantu?'], 'outgoing_chat'));
+
+        $this->assertSame('HUMAN_HANDLING', Conversation::sole()->conversation_mode);
     }
 
     public function test_option_a_outgoing_is_recorded_as_ai_reply(): void

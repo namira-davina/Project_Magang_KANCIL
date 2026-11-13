@@ -111,13 +111,37 @@ class ProcessOutgoingChat implements ShouldQueue
             return null;
         }
 
-        return $conversation->messages()
+        $candidates = $conversation->messages()
             ->whereIn('sender_type', ['bot', 'ai', 'petugas', 'system'])
-            ->whereNull('external_message_id')
             ->whereNotNull('client_uuid')
-            ->where('message_text', $body)
             ->where('sent_at', '>=', now()->subMinutes(10))
-            ->orderBy('id')
-            ->first();
+            ->orderByRaw('external_message_id IS NULL DESC')
+            ->orderByDesc('id')
+            ->get();
+
+        // Utamakan kecocokan persis; bila BalesOtomatis/WA menghapus garis pemisah (---) atau ubah baris kosong,
+        // cocokkan teks ternormalisasi agar echo bot tidak disangka balasan petugas dari HP.
+        if ($exact = $candidates->firstWhere('message_text', $body)) {
+            return $exact;
+        }
+
+        $normalizedBody = $this->normalizeEchoText($body);
+
+        if ($normalizedBody === '') {
+            return null;
+        }
+
+        return $candidates->first(
+            fn (Message $message) => $this->normalizeEchoText((string) $message->message_text) === $normalizedBody
+        );
+    }
+
+    private function normalizeEchoText(string $text): string
+    {
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+        $text = preg_replace('/^\s*-{3,}\s*$/m', '', $text) ?? $text;
+        $text = preg_replace('/\n{2,}/', "\n", $text) ?? $text;
+
+        return trim($text);
     }
 }

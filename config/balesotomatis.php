@@ -29,6 +29,9 @@ return [
     // Aktifkan indikator "mengetik" saat bot membalas.
     'enable_typing' => (bool) env('BALESOTOMATIS_ENABLE_TYPING', false),
 
+    // Jeda natural (ms) sebelum kirim lewat WA non-resmi agar tidak membalas instan < 1 detik.
+    'reply_delay_ms' => (int) env('BALESOTOMATIS_REPLY_DELAY_MS', 1200),
+
     // Hapus webhook_events lebih lama dari N hari.
     'retention_days' => (int) env('BALESOTOMATIS_RETENTION_DAYS', 30),
 ];

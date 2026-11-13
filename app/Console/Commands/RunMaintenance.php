@@ -19,7 +19,7 @@ class RunMaintenance extends Command
 
     public function handle(ComplaintService $complaints): int
     {
-        $released = Conversation::where('conversation_mode', Conversation::MODE_HUMAN)
+        $released = Conversation::whereIn('conversation_mode', [Conversation::MODE_HUMAN, Conversation::MODE_WAITING])
             ->whereNotNull('bot_paused_until')
             ->where('bot_paused_until', '<=', now())
             ->update(['conversation_mode' => Conversation::MODE_BOT, 'bot_paused_until' => null]);

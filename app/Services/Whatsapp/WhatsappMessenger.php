@@ -58,8 +58,10 @@ class WhatsappMessenger
 
         $conversation = $chatId ? Conversation::where('wa_chat_id', $chatId)->first() : null;
 
+        // Satu kontak bisa datang dengan chat_id berbeda (pesan masuk @lid, echo keluar @s.whatsapp.net).
+        // Cocokkan lewat nomor agar tidak terbentuk percakapan ganda.
         if (! $conversation && $phone) {
-            $conversation = Conversation::whereNull('wa_chat_id')->where('whatsapp_number', $phone)->latest('id')->first();
+            $conversation = Conversation::where('whatsapp_number', $phone)->oldest('id')->first();
         }
 
         $conversation ??= new Conversation([

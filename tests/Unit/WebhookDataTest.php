@@ -79,6 +79,10 @@ class WebhookDataTest extends TestCase
         $this->assertTrue((new WebhookData(['timestamp' => 'bukan tanggal']))->sentAt()->equalTo(now()));
         $this->assertTrue((new WebhookData([]))->sentAt()->equalTo(now()));
 
+        config(['app.timezone' => 'Asia/Jakarta']);
+        $this->assertSame('Asia/Jakarta', (new WebhookData(['timestamp' => 1762833600]))->sentAt()->timezoneName);
+        $this->assertSame('15:00:00', (new WebhookData(['timestamp' => '2026-11-10T08:00:00Z']))->sentAt()->format('H:i:s'));
+
         Carbon::setTestNow();
     }
 

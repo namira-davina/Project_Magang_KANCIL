@@ -12,6 +12,7 @@ use App\Services\Whatsapp\WhatsappMessenger;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Throwable;
 
 /**
@@ -107,13 +108,26 @@ class ProcessIncomingChat implements ShouldQueue
 
     private function runBot(Conversation $conversation, Message $message, $previousInbound, BotEngine $engine, WhatsappMessenger $messenger): void
     {
-        if ($conversation->isHumanHandling()) {
+        // Petugas menangani atau pemohon masih di antrean: bot diam, pesan cukup tercatat di dashboard.
+        if ($conversation->isHumanHandling() || $conversation->isWaitingForOfficer()) {
             return;
         }
 
-        if ($conversation->conversation_mode === Conversation::MODE_HUMAN) {
-            // Masa ambil alih habis: bot aktif lagi.
+        if (in_array($conversation->conversation_mode, [Conversation::MODE_HUMAN, Conversation::MODE_WAITING], true)) {
+            // Masa ambil alih / antrean habis: bot aktif lagi.
             $conversation->update(['conversation_mode' => Conversation::MODE_BOT, 'bot_paused_until' => null]);
+        }
+
+        $limit = (int) config('kancil.rate_limit_per_minute', 10);
+
+        if ($limit > 0) {
+            $key = 'bot-reply:'.$conversation->id;
+
+            if (RateLimiter::tooManyAttempts($key, $limit)) {
+                return;
+            }
+
+            RateLimiter::hit($key, 60);
         }
 
         foreach ($engine->handle($conversation, $message, $previousInbound) as $reply) {

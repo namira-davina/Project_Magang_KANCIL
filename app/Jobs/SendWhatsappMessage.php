@@ -48,6 +48,13 @@ class SendWhatsappMessage implements ShouldQueue
             return;
         }
 
+        if (! $client->isWaba() && ! app()->runningUnitTests()) {
+            $delayMs = (int) config('balesotomatis.reply_delay_ms', 0);
+            if ($delayMs > 0) {
+                usleep(($delayMs + random_int(0, 600)) * 1000);
+            }
+        }
+
         try {
             $externalId = $client->sendText($phone, (string) $message->message_text, $message->client_uuid);
         } catch (BalesOtomatisException $e) {
