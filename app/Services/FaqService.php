@@ -45,12 +45,14 @@ class FaqService
     {
         DB::transaction(function () use ($faq, $data, $userId) {
             $verified = $data['status'] === self::STATUS_VERIFIED;
+            $active = isset($data['aktif']) ? (bool) $data['aktif'] : (bool) $faq->is_active;
 
             DB::table('faqs')->where('id', $faq->id)->update([
                 ...$this->attributes($data),
                 'verified_by' => $verified ? $userId : null,
                 'verified_at' => $verified ? ($faq->verified_at ?? now()) : null,
-                'is_active' => $verified ? $faq->is_active : 0,
+                // Hanya FAQ terverifikasi yang boleh aktif; centang "Aktif" di form edit mengaturnya.
+                'is_active' => $verified && $active ? 1 : 0,
                 'updated_by' => $userId,
                 'updated_at' => now(),
             ]);

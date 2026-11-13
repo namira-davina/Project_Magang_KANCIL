@@ -126,7 +126,7 @@ class FaqTest extends TestCase
             'question too long' => [['pertanyaan' => str_repeat('a', 256)], 'pertanyaan'],
             'missing keywords' => [['kata_kunci' => ''], 'kata_kunci'],
             'missing answer' => [['jawaban' => ''], 'jawaban'],
-            'answer too long' => [['jawaban' => str_repeat('a', 1001)], 'jawaban'],
+            'answer too long' => [['jawaban' => str_repeat('a', 1601)], 'jawaban'],
             'invalid url' => [['tautan' => 'bukan-url'], 'tautan'],
             'url too long' => [['tautan' => 'https://x.id/'.str_repeat('a', 260)], 'tautan'],
         ];
@@ -151,7 +151,7 @@ class FaqTest extends TestCase
 
         $this->post(route('faq.store'), $this->validFaqPayload($cat->id, [
             'pertanyaan' => str_repeat('a', 255),
-            'jawaban' => str_repeat('b', 1000),
+            'jawaban' => str_repeat('b', 1600),
         ]))->assertSessionHasNoErrors();
 
         $this->assertDatabaseCount('faqs', 1);

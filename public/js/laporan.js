@@ -4,14 +4,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnExportPDF = document.getElementById('btnExportPDF');
     const btnTampilkan = document.getElementById('btnTampilkanLaporan');
 
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt'];
-    const values = [820, 910, 990, 870, 1040, 1120, 1080, 1190, 1150, 1250];
+    const data = window.KANCIL_LAPORAN || { labels: [], values: [], selectedIndex: -1, periodLabel: '', url: '' };
+    const months = data.labels;
+    const values = data.values;
+    const fileSuffix = (data.periodLabel || '').replace(/\s+/g, '-');
 
-    // Background color: lighter blue for Jan-Sep, dark navy for Okt
-    const barColors = [
-        '#b3cbe8', '#b3cbe8', '#b3cbe8', '#b3cbe8', '#b3cbe8',
-        '#b3cbe8', '#b3cbe8', '#b3cbe8', '#b3cbe8', '#0b1a30'
-    ];
+    // Bulan terpilih navy gelap, bulan lain biru muda
+    const barColors = months.map((_, i) => i === data.selectedIndex ? '#0b1a30' : '#b3cbe8');
+    const maxValue = Math.max(5, ...values);
 
     let laporanChart = null;
 
@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 scales: {
                     y: {
                         display: false,
-                        max: 1400
+                        max: Math.ceil(maxValue * 1.15)
                     },
                     x: {
                         grid: { display: false },
@@ -87,9 +87,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (btnTampilkan) {
         btnTampilkan.addEventListener('click', function () {
-            const bulan = document.getElementById('filterBulan')?.value || 'Oktober';
-            const tahun = document.getElementById('filterTahun')?.value || '2025';
-            alert(`Laporan untuk periode ${bulan} ${tahun} berhasil diperbarui.`);
+            const bulan = document.getElementById('filterBulan')?.value;
+            const tahun = document.getElementById('filterTahun')?.value;
+            const params = new URLSearchParams({ bulan: bulan, tahun: tahun });
+            window.location.href = `${data.url}?${params.toString()}`;
         });
     }
 
@@ -103,7 +104,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const ws = XLSX.utils.table_to_sheet(table);
 
             XLSX.utils.book_append_sheet(wb, ws, 'FAQ Populer');
-            XLSX.writeFile(wb, 'Laporan-KANCIL-SAPA.xlsx');
+
+            const tableEskalasi = document.getElementById('tableEskalasiLaporan');
+            if (tableEskalasi) {
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(tableEskalasi), 'Eskalasi per Kode');
+            }
+
+            XLSX.writeFile(wb, `Laporan-KANCIL-SAPA-${fileSuffix}.xlsx`);
         });
     }
 
@@ -116,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function () {
             doc.setFontSize(16);
             doc.text('Laporan Bulanan KANCIL SAPA', 14, 18);
             doc.setFontSize(10);
-            doc.text('Kantor Imigrasi Kelas I TPI Cilacap - Rekap Layanan Informasi', 14, 25);
+            doc.text(`Kantor Imigrasi Kelas I TPI Cilacap - Rekap Layanan Informasi (${data.periodLabel})`, 14, 25);
 
             if (typeof doc.autoTable === 'function') {
                 doc.autoTable({
@@ -125,9 +132,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     styles: { font: 'helvetica', fontSize: 9 },
                     headStyles: { fillColor: [11, 26, 48], textColor: 255 }
                 });
+
+                if (document.getElementById('tableEskalasiLaporan')) {
+                    doc.autoTable({
+                        html: '#tableEskalasiLaporan',
+                        startY: doc.lastAutoTable.finalY + 10,
+                        styles: { font: 'helvetica', fontSize: 9 },
+                        headStyles: { fillColor: [11, 26, 48], textColor: 255 }
+                    });
+                }
             }
 
-            doc.save('Laporan-KANCIL-SAPA.pdf');
+            doc.save(`Laporan-KANCIL-SAPA-${fileSuffix}.pdf`);
         });
     }
 });

@@ -36,6 +36,7 @@
             <span>Percakapan</span>
         </a>
 
+        @if (auth()->user()?->hasRole('admin'))
         <a href="{{ route('faq.index') }}"
            class="menu-item {{ request()->routeIs('faq.*') ? 'active' : '' }}">
             <span class="menu-icon">
@@ -47,7 +48,9 @@
             </span>
             <span>Database FAQ</span>
         </a>
+        @endif
 
+        @if (auth()->user()?->hasRole('admin'))
         <a href="{{ route('kategori-faq.index') }}"
            class="menu-item {{ request()->routeIs('kategori-faq*') ? 'active' : '' }}">
             <span class="menu-icon">
@@ -58,6 +61,7 @@
             </span>
             <span>Kategori FAQ</span>
         </a>
+        @endif
 
         <a href="{{ route('pengaduan') }}"
            class="menu-item {{ request()->routeIs('pengaduan') ? 'active' : '' }}">
@@ -71,6 +75,7 @@
             <span>Pengaduan</span>
         </a>
 
+        @if (auth()->user()?->hasRole('admin', 'pimpinan'))
         <a href="{{ route('laporan') }}"
            class="menu-item {{ request()->routeIs('laporan') ? 'active' : '' }}">
             <span class="menu-icon">
@@ -82,6 +87,7 @@
             </span>
             <span>Laporan</span>
         </a>
+        @endif
 
         <a href="{{ route('pengaturan') }}"
            class="menu-item {{ request()->routeIs('pengaturan') ? 'active' : '' }}">

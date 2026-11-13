@@ -18,7 +18,8 @@ class FaqRequest extends FormRequest
             'status' => ['required', 'in:draft,perlu_verifikasi,terverifikasi'],
             'pertanyaan' => ['required', 'string', 'max:255'],
             'kata_kunci' => ['required', 'string'],
-            'jawaban' => ['required', 'string', 'max:1000'],
+            'jawaban' => ['required', 'string', 'max:1600'],
+            'aktif' => ['nullable', 'boolean'],
             'tautan' => ['nullable', 'url', 'max:255'],
         ];
     }

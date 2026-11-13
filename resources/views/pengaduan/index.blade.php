@@ -41,7 +41,7 @@
                     </svg>
                 </span>
             </div>
-            <div class="stat-metric-value" id="totalPengaduan">100</div>
+            <div class="stat-metric-value" id="totalPengaduan">{{ number_format($stats['total'], 0, ',', '.') }}</div>
         </div>
 
         <div class="stat-metric-card">
@@ -56,7 +56,7 @@
                     </svg>
                 </span>
             </div>
-            <div class="stat-metric-value" id="totalMenunggu">12</div>
+            <div class="stat-metric-value" id="totalMenunggu">{{ number_format($stats['menunggu'], 0, ',', '.') }}</div>
         </div>
 
         <div class="stat-metric-card">
@@ -69,7 +69,7 @@
                     </svg>
                 </span>
             </div>
-            <div class="stat-metric-value" id="totalDiproses">18</div>
+            <div class="stat-metric-value" id="totalDiproses">{{ number_format($stats['diproses'], 0, ',', '.') }}</div>
         </div>
 
         <div class="stat-metric-card">
@@ -82,7 +82,7 @@
                     </svg>
                 </span>
             </div>
-            <div class="stat-metric-value" id="totalSelesai">70</div>
+            <div class="stat-metric-value" id="totalSelesai">{{ number_format($stats['selesai'], 0, ',', '.') }}</div>
         </div>
 
     </div>
@@ -109,10 +109,9 @@
                 <div class="select-dropdown-box">
                     <select id="pengaduanKategoriFilter">
                         <option value="">Semua Kategori</option>
-                        <option value="Biaya Denda Paspor">Biaya Denda Paspor</option>
-                        <option value="Kuota M-Paspor">Kuota M-Paspor</option>
-                        <option value="Informasi Izin Tinggal">Informasi Izin Tinggal</option>
-                        <option value="Berkas Paspor Anak">Berkas Paspor Anak</option>
+                        @foreach ($categories as $category)
+                            <option value="{{ $category }}">{{ $category }}</option>
+                        @endforeach
                     </select>
                 </div>
 
@@ -162,15 +161,9 @@
             </p>
 
             <div class="table-pagination-footer">
-                <span class="pagination-info" id="pengaduanPaginationInfo">Menampilkan 4 dari 100 tiket</span>
+                <span class="pagination-info" id="pengaduanPaginationInfo">Menampilkan 0 dari {{ $stats['total'] }} tiket</span>
 
-                <div class="pagination-buttons">
-                    <button type="button" class="btn-page-nav" disabled>&lt;</button>
-                    <button type="button" class="btn-page-num active">1</button>
-                    <button type="button" class="btn-page-num">2</button>
-                    <button type="button" class="btn-page-num">3</button>
-                    <button type="button" class="btn-page-nav">&gt;</button>
-                </div>
+                <div class="pagination-buttons" id="pengaduanPagination"></div>
             </div>
 
         </div>
@@ -186,37 +179,44 @@
                     </svg>
                     <h3>Tindak Lanjut Pengaduan</h3>
                 </div>
-                <span class="badge-status-pill waiting" id="detailStatusBadge">Menunggu</span>
+                <span class="badge-status-pill waiting" id="detailStatusBadge">-</span>
             </div>
 
             <div class="detail-meta-list">
                 <div class="detail-meta-item">
                     <span class="meta-label">Nomor Tiket</span>
-                    <strong class="meta-value" id="detailTiket">#PGD-2025-014</strong>
+                    <strong class="meta-value" id="detailTiket">-</strong>
                 </div>
 
                 <div class="detail-meta-item">
                     <span class="meta-label">Nama Pemohon</span>
-                    <strong class="meta-value" id="detailNama">Hendro Wibowo</strong>
+                    <strong class="meta-value" id="detailNama">-</strong>
                 </div>
 
                 <div class="detail-meta-item">
                     <span class="meta-label">No. WhatsApp</span>
-                    <strong class="meta-value text-muted" id="detailNomor">+62 813-8821-4920</strong>
+                    <strong class="meta-value text-muted" id="detailNomor">-</strong>
+                </div>
+
+                <div class="detail-meta-item">
+                    <span class="meta-label">Prioritas</span>
+                    <strong class="meta-value" id="detailPrioritas">-</strong>
                 </div>
 
                 <div class="detail-complaint-box">
                     <span class="complaint-label">Isi Pengaduan:</span>
-                    <p class="complaint-text" id="detailIsi">“Pemohon menanyakan kepastian prosedur BAP dan rincian denda paspor rusak akibat genangan air banjir, serta konfirmasi jadwal wawancara di loket 3.”</p>
+                    <p class="complaint-text" id="detailIsi">Belum ada pengaduan yang dipilih.</p>
+                    <p class="complaint-text text-muted" id="detailTanggapanLama" style="display: none;"></p>
+                    <a href="#" id="detailPercakapanLink" class="panel-text-link" style="display: none;">Buka percakapan WhatsApp →</a>
                 </div>
             </div>
 
-            <div class="detail-form-section">
+            <div class="detail-form-section" @unless ($canUpdate) style="display: none;" @endunless>
                 <div class="form-group-custom">
                     <label for="ubahStatusPengaduan">Ubah Status Tiket</label>
                     <select id="ubahStatusPengaduan" class="form-select-clean">
                         <option value="Menunggu">Menunggu</option>
-                        <option value="Diproses" selected>Diproses</option>
+                        <option value="Diproses">Diproses</option>
                         <option value="Selesai">Selesai</option>
                     </select>
                 </div>
@@ -252,6 +252,13 @@
 @endsection
 
 @push('scripts')
+<script>
+    window.KANCIL_PENGADUAN = {
+        items: @json($complaints),
+        canUpdate: @json($canUpdate),
+        perPage: 10,
+    };
+</script>
 <script src="{{ asset('js/pengaduan.js') }}"></script>
 @endpush
 

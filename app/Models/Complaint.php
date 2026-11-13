@@ -21,11 +21,25 @@ class Complaint extends Model
         'response_text',
         'submitted_at',
         'resolved_at',
+        'priority',
+        'escalation_level',
+        'attachments',
+        'first_response_at',
+    ];
+
+    /** Nama status untuk pemohon (Dokumen Skenario memakai "Baru"). */
+    public const STATUS_LABEL_FOR_USER = [
+        'Menunggu' => 'Baru',
+        'Diproses' => 'Diproses',
+        'Selesai' => 'Selesai',
     ];
 
     protected $casts = [
         'submitted_at' => 'datetime',
         'resolved_at' => 'datetime',
+        'first_response_at' => 'datetime',
+        'attachments' => 'array',
+        'escalation_level' => 'integer',
     ];
 
     public function conversation(): BelongsTo

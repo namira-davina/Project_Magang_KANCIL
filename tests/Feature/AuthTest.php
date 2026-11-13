@@ -100,14 +100,17 @@ class AuthTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_non_admin_role_cannot_login(): void
+    public function test_petugas_and_pimpinan_can_login(): void
     {
-        $this->makeUser(['role' => 'petugas']);
+        foreach (['petugas', 'pimpinan'] as $role) {
+            $user = $this->makeUser(['role' => $role, 'username' => $role, 'email' => "{$role}@example.com"]);
 
-        $this->post('/login', ['username' => 'admin', 'password' => 'password'])
-            ->assertSessionHas('message');
+            $this->post('/login', ['username' => $role, 'password' => 'password'])
+                ->assertRedirect(route('admin.dashboard'));
 
-        $this->assertGuest();
+            $this->assertAuthenticatedAs($user);
+            $this->post('/logout');
+        }
     }
 
     public function test_login_requires_both_fields(): void

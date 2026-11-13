@@ -19,27 +19,18 @@
         <div class="filter-group-inline">
             <label for="filterBulan">BULAN:</label>
             <select id="filterBulan" class="select-clean-inline">
-                <option value="Januari">Januari</option>
-                <option value="Februari">Februari</option>
-                <option value="Maret">Maret</option>
-                <option value="April">April</option>
-                <option value="Mei">Mei</option>
-                <option value="Juni">Juni</option>
-                <option value="Juli">Juli</option>
-                <option value="Agustus">Agustus</option>
-                <option value="September">September</option>
-                <option value="Oktober" selected>Oktober</option>
-                <option value="November">November</option>
-                <option value="Desember">Desember</option>
+                @foreach ($monthNames as $number => $name)
+                    <option value="{{ $number }}" @selected($number === $month)>{{ $name }}</option>
+                @endforeach
             </select>
         </div>
 
         <div class="filter-group-inline">
             <label for="filterTahun">TAHUN:</label>
             <select id="filterTahun" class="select-clean-inline">
-                <option value="2024">2024</option>
-                <option value="2025" selected>2025</option>
-                <option value="2026">2026</option>
+                @foreach ($years as $option)
+                    <option value="{{ $option }}" @selected($option === $year)>{{ $option }}</option>
+                @endforeach
             </select>
         </div>
 
@@ -71,7 +62,7 @@
                     </svg>
                 </span>
             </div>
-            <div class="stat-metric-value" id="laporanPercakapan">1.250</div>
+            <div class="stat-metric-value" id="laporanPercakapan">{{ number_format($totalPertanyaan, 0, ',', '.') }}</div>
         </div>
 
         <div class="stat-metric-card">
@@ -85,7 +76,7 @@
                     </svg>
                 </span>
             </div>
-            <div class="stat-metric-value text-green" id="laporanFaq">980</div>
+            <div class="stat-metric-value text-green" id="laporanFaq">{{ number_format($terjawabOtomatis, 0, ',', '.') }}</div>
         </div>
 
         <div class="stat-metric-card">
@@ -98,7 +89,7 @@
                     </svg>
                 </span>
             </div>
-            <div class="stat-metric-value text-orange" id="laporanEskalasi">170</div>
+            <div class="stat-metric-value text-orange" id="laporanEskalasi">{{ number_format($totalEskalasi, 0, ',', '.') }}</div>
         </div>
 
         <div class="stat-metric-card">
@@ -112,7 +103,7 @@
                     </svg>
                 </span>
             </div>
-            <div class="stat-metric-value" id="laporanPengaduan">100</div>
+            <div class="stat-metric-value" id="laporanPengaduan">{{ number_format($totalPengaduan, 0, ',', '.') }}</div>
         </div>
 
     </div>
@@ -122,9 +113,9 @@
         <div class="panel-heading-row">
             <div>
                 <h3>Grafik Batang Jumlah Pertanyaan per Bulan</h3>
-                <p>Tren volume konsultasi dan pertanyaan masyarakat (Tahun 2025)</p>
+                <p>Tren volume konsultasi dan pertanyaan masyarakat (Tahun {{ $year }})</p>
             </div>
-            <span class="panel-badge-pill">Tahun 2025</span>
+            <span class="panel-badge-pill">Tahun {{ $year }}</span>
         </div>
 
         <div class="chart-wrapper-canvas large-height">
@@ -137,7 +128,7 @@
         <div class="panel-heading-row">
             <div>
                 <h3>Daftar Pertanyaan Paling Sering Ditanyakan</h3>
-                <p>Topik informasi yang paling banyak dikonsultasikan oleh pemohon</p>
+                <p>Topik informasi yang paling banyak dikonsultasikan oleh pemohon ({{ $periodLabel }})</p>
             </div>
         </div>
 
@@ -152,36 +143,50 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @forelse ($topFaq as $i => $faq)
+                        <tr>
+                            <td>{{ $i + 1 }}</td>
+                            <td class="font-medium">{{ $faq->question }}@if ($faq->code) <span class="text-muted">({{ $faq->code }})</span>@endif</td>
+                            <td class="text-muted">{{ $faq->category ?? 'Tanpa Kategori' }}</td>
+                            <td style="text-align: right;" class="font-medium">{{ number_format($faq->jumlah, 0, ',', '.') }} kali</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="text-muted" style="text-align: center; padding: 24px;">
+                                Belum ada pertanyaan pada periode ini.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <div class="panel-heading-row" style="margin-top: 28px;">
+            <div>
+                <h3>Rekap Eskalasi per Kode</h3>
+                <p>Matriks Eskalasi A1–C6 ({{ $periodLabel }}) • Tiket selesai {{ $tiket['selesai'] }} (tepat waktu {{ $tiket['tepatWaktu'] }}) • Naik ke Pimpinan {{ $tiket['level2'] }}</p>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="clean-data-table" id="tableEskalasiLaporan">
+                <thead>
                     <tr>
-                        <td>1</td>
-                        <td class="font-medium">Syarat permohonan paspor baru WNI</td>
-                        <td class="text-muted">Paspor</td>
-                        <td style="text-align: right;" class="font-medium">450 kali</td>
+                        <th width="70">KODE</th>
+                        <th>KETERANGAN</th>
+                        <th width="160">PRIORITAS</th>
+                        <th width="180" style="text-align: right;">JUMLAH</th>
                     </tr>
-                    <tr>
-                        <td>2</td>
-                        <td class="font-medium">Biaya paspor biasa dan e-paspor</td>
-                        <td class="text-muted">Biaya dan Pembayaran</td>
-                        <td style="text-align: right;" class="font-medium">280 kali</td>
-                    </tr>
-                    <tr>
-                        <td>3</td>
-                        <td class="font-medium">Prosedur perpanjangan ITAS TKA</td>
-                        <td class="text-muted">Izin Tinggal</td>
-                        <td style="text-align: right;" class="font-medium">145 kali</td>
-                    </tr>
-                    <tr>
-                        <td>4</td>
-                        <td class="font-medium">Jam operasional pelayanan tatap muka</td>
-                        <td class="text-muted">Jadwal Pelayanan</td>
-                        <td style="text-align: right;" class="font-medium">95 kali</td>
-                    </tr>
-                    <tr>
-                        <td>5</td>
-                        <td class="font-medium">Alur pengaduan petugas loket</td>
-                        <td class="text-muted">Pengaduan</td>
-                        <td style="text-align: right;" class="font-medium">60 kali</td>
-                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($eskalasiPerKode as $row)
+                        <tr>
+                            <td class="font-medium">{{ $row->kode }}</td>
+                            <td>{{ $row->keterangan }}</td>
+                            <td class="text-muted">{{ $row->prioritas }}</td>
+                            <td style="text-align: right;" class="font-medium">{{ number_format($row->jumlah, 0, ',', '.') }}</td>
+                        </tr>
+                    @endforeach
                 </tbody>
             </table>
         </div>
@@ -216,6 +221,15 @@
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    window.KANCIL_LAPORAN = {
+        labels: @json($chart['labels']),
+        values: @json($chart['values']),
+        selectedIndex: {{ $month - 1 }},
+        periodLabel: @json($periodLabel),
+        url: @json(route('laporan')),
+    };
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>

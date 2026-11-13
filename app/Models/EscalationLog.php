@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -21,6 +22,10 @@ class EscalationLog extends Model
         'escalated_at',
         'taken_at',
         'completed_at',
+        'escalation_code',
+        'faq_id',
+        'priority',
+        'menu_path',
     ];
 
     protected $casts = [
@@ -32,6 +37,17 @@ class EscalationLog extends Model
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class, 'conversation_id');
+    }
+
+    /** Eskalasi sebenarnya: B0 (pengaduan terputus) tidak dihitung. */
+    public function scopeEscalations(Builder $query): Builder
+    {
+        return $query->where(fn ($q) => $q->whereNull('escalation_code')->orWhere('escalation_code', '!=', 'B0'));
+    }
+
+    public function faq(): BelongsTo
+    {
+        return $this->belongsTo(Faq::class, 'faq_id');
     }
 
     public function handler(): BelongsTo

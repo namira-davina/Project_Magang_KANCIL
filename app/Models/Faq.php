@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,6 +12,8 @@ class Faq extends Model
     protected $table = 'faqs';
 
     protected $fillable = [
+        'code',
+        'menu_path',
         'category_id',
         'question',
         'answer',
@@ -28,6 +31,17 @@ class Faq extends Model
         'verified_at' => 'datetime',
         'is_active' => 'boolean',
     ];
+
+    /** Boleh ditampilkan bot: terverifikasi dan aktif. */
+    public function scopePublished(Builder $query): Builder
+    {
+        return $query->where('verification_status', 'terverifikasi')->where('is_active', 1);
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->verification_status === 'terverifikasi' && $this->is_active;
+    }
 
     public function category(): BelongsTo
     {

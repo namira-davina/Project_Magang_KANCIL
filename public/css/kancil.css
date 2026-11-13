@@ -1710,6 +1710,12 @@ button {
     text-align: right;
 }
 
+.sender-inline-icon {
+    display: inline-block;
+    vertical-align: -2px;
+    margin-right: 4px;
+}
+
 .bubble-timestamp {
     font-weight: 400;
     color: var(--text-light);
@@ -1730,9 +1736,10 @@ button {
 }
 
 .chat-bubble-content.bot {
-    background-color: #ffffff;
-    border: 1px solid #bfdbfe;
+    background-color: #eff6ff;
+    border: 1px solid #93c5fd;
     color: var(--text-primary);
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
 }
 
 .chat-bubble-content.official {

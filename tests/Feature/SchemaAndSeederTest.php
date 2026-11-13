@@ -24,8 +24,10 @@ class SchemaAndSeederTest extends TestCase
         $this->seed();
 
         $this->assertSame(8, DB::table('faq_categories')->count());
-        $this->assertSame(5, DB::table('complaint_categories')->count());
-        $this->assertSame(['bot_name', 'working_days', 'working_hours_end', 'working_hours_start'],
+        // Kategori pengaduan PGD-03 (Dokumen Skenario FAQ).
+        $this->assertSame(['Layanan paspor', 'Layanan WNA / izin tinggal', 'Pelayanan petugas', 'Lainnya'],
+            DB::table('complaint_categories')->orderBy('id')->pluck('name')->all());
+        $this->assertSame(['bot_name', 'service_hours_text', 'working_days', 'working_hours_end', 'working_hours_start'],
             DB::table('bot_settings')->orderBy('setting_key')->pluck('setting_key')->all());
         $this->assertSame('admin', DB::table('users')->value('username'));
     }
@@ -36,6 +38,8 @@ class SchemaAndSeederTest extends TestCase
         $this->seed();
 
         $this->assertSame(8, DB::table('faq_categories')->count());
+        $this->assertSame(4, DB::table('complaint_categories')->count());
+        $this->assertSame(61, DB::table('faqs')->count());
         $this->assertSame(1, DB::table('users')->count());
     }
 
