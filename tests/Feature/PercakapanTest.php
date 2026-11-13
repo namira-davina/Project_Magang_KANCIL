@@ -54,7 +54,7 @@ class PercakapanTest extends TestCase
         $this->assertSame('Pesan terakhir Siti', $threads[1]['preview']);
         $this->assertSame(1, $threads[1]['unread']);
         $this->assertSame('#KS-'.str_pad((string) $a->id, 5, '0', STR_PAD_LEFT), $threads[1]['code']);
-        $this->assertSame(['all' => 2, 'bot' => 1, 'human' => 1], $response->viewData('counts'));
+        $this->assertSame(['all' => 2, 'bot' => 1, 'human' => 1, 'queue' => 0], $response->viewData('counts'));
         $this->assertTrue($response->viewData('canReply'));
 
         $response->assertSee('Monitoring Percakapan WhatsApp')->assertDontSee('Hendro Wibowo');
@@ -222,5 +222,21 @@ class PercakapanTest extends TestCase
 
         $this->assertSame('failed', Message::sole()->delivery_status);
         $this->assertSame('1@lid', Conversation::sole()->recipientPhone() ?? '1@lid');
+    }
+
+    public function test_thread_list_keeps_old_conversations_waiting_for_officer(): void
+    {
+        $this->actingAsAdmin();
+        $old = $this->startChat(['wa_chat_id' => 'lama', 'whatsapp_number' => '6280000000000', 'conversation_mode' => 'WAITING_HUMAN', 'last_message_at' => now()->subDays(3)]);
+
+        for ($i = 1; $i <= 100; $i++) {
+            Conversation::create(['wa_chat_id' => "c{$i}", 'channel' => 'whatsapp', 'conversation_mode' => 'BOT_ACTIVE',
+                'started_at' => now(), 'last_message_at' => now()->subMinutes($i)]);
+        }
+
+        $ids = collect($this->getJson(route('percakapan.data'))->assertOk()->json('threads'))->pluck('id');
+
+        $this->assertCount(101, $ids);
+        $this->assertContains($old->id, $ids);
     }
 }

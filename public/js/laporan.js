@@ -110,6 +110,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(tableEskalasi), 'Eskalasi per Kode');
             }
 
+            const tableAntrean = document.getElementById('tableAntreanLaporan');
+            if (tableAntrean) {
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(tableAntrean), 'Antrean Petugas');
+            }
+
             XLSX.writeFile(wb, `Laporan-KANCIL-SAPA-${fileSuffix}.xlsx`);
         });
     }
@@ -136,6 +141,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (document.getElementById('tableEskalasiLaporan')) {
                     doc.autoTable({
                         html: '#tableEskalasiLaporan',
+                        startY: doc.lastAutoTable.finalY + 10,
+                        styles: { font: 'helvetica', fontSize: 9 },
+                        headStyles: { fillColor: [11, 26, 48], textColor: 255 }
+                    });
+                }
+
+                if (document.getElementById('tableAntreanLaporan')) {
+                    doc.autoTable({
+                        html: '#tableAntreanLaporan',
                         startY: doc.lastAutoTable.finalY + 10,
                         styles: { font: 'helvetica', fontSize: 9 },
                         headStyles: { fillColor: [11, 26, 48], textColor: 255 }

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Complaint;
 use App\Models\Conversation;
+use App\Models\EscalationLog;
 use App\Models\Message;
 use App\Models\User;
 use App\Models\WebhookEvent;
@@ -105,7 +106,7 @@ class CommandsTest extends TestCase
         $manual = $this->startChat(['wa_chat_id' => 'c', 'conversation_mode' => 'HUMAN_HANDLING', 'bot_paused_until' => null]);
 
         $this->artisan('kancil:pemeliharaan')
-            ->expectsOutputToContain('Dikembalikan ke bot: 1; tiket naik ke Pimpinan: 1; webhook dihapus: 1.')
+            ->expectsOutputToContain('Dikembalikan ke bot: 1; antrean kedaluwarsa: 0; tiket naik ke Pimpinan: 1; webhook dihapus: 1.')
             ->assertSuccessful();
 
         $this->assertSame('BOT_ACTIVE', $expired->fresh()->conversation_mode);
@@ -205,5 +206,23 @@ class CommandsTest extends TestCase
         $this->artisan('kancil:balesotomatis-info')
             ->expectsOutputToContain('belum diisi')
             ->assertFailed();
+    }
+
+    public function test_maintenance_release_clears_officer_and_closes_taken_escalations(): void
+    {
+        $officer = User::factory()->create(['role' => 'petugas']);
+        $chat = $this->startChat(['conversation_mode' => 'HUMAN_HANDLING', 'assigned_to' => $officer->id, 'bot_paused_until' => now()->subMinute()]);
+        $taken = EscalationLog::create(['conversation_id' => $chat->id, 'escalation_type' => 'user_request', 'status' => 'Diambil', 'handled_by' => $officer->id]);
+        $waiting = $this->startChat(['wa_chat_id' => 'w', 'whatsapp_number' => '6280000000001', 'conversation_mode' => 'WAITING_HUMAN', 'bot_paused_until' => now()->subMinute()]);
+        $unanswered = EscalationLog::create(['conversation_id' => $waiting->id, 'escalation_type' => 'user_request', 'status' => 'Menunggu']);
+
+        $this->artisan('kancil:pemeliharaan')->expectsOutputToContain('Dikembalikan ke bot: 2;')->assertSuccessful();
+
+        $this->assertNull($chat->fresh()->assigned_to);
+        $this->assertSame('Selesai', $taken->fresh()->status);
+        $this->assertNotNull($taken->fresh()->completed_at);
+        // Belum pernah diambil petugas: tetap tercatat menunggu (tidak terlayani).
+        $this->assertSame('Menunggu', $unanswered->fresh()->status);
+        $this->assertSame('BOT_ACTIVE', $waiting->fresh()->conversation_mode);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Conversation;
+use App\Models\ServiceTicket;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -63,9 +64,17 @@ class MergeDuplicateConversations extends Command
 
     private function mergeInto(Conversation $target, Conversation $source): void
     {
-        foreach (['messages', 'escalation_logs', 'complaints', 'llm_logs'] as $table) {
+        foreach (['messages', 'escalation_logs', 'complaints', 'llm_logs', 'service_tickets'] as $table) {
             DB::table($table)->where('conversation_id', $source->id)->update(['conversation_id' => $target->id]);
         }
+
+        // Satu percakapan hanya boleh punya satu tiket antrean terbuka: pertahankan yang paling awal masuk.
+        $open = $target->serviceTickets()->open()->fifo()->get();
+        $open->skip(1)->each(fn (ServiceTicket $ticket) => $ticket->update([
+            'status' => ServiceTicket::CANCELLED,
+            'resolved_at' => now(),
+            'close_reason' => 'Digabung dengan tiket '.$open->first()->ticket_number.'.',
+        ]));
 
         $target->fill([
             'user_name' => $target->user_name ?: $source->user_name,
@@ -124,6 +133,13 @@ class MergeDuplicateConversations extends Command
         // Mode "Sedang Ditangani" yang hanya dipicu echo bot dikembalikan ke bot.
         if ($target->conversation_mode === Conversation::MODE_HUMAN && ! $realOfficerReply && ! $target->assigned_to) {
             $target->conversation_mode = Conversation::MODE_BOT;
+            $target->bot_paused_until = null;
+        }
+
+        // Tiket antrean yang masih menunggu: pemohon tetap di antrean.
+        if ($target->conversation_mode === Conversation::MODE_BOT
+            && $target->serviceTickets()->where('status', ServiceTicket::WAITING)->exists()) {
+            $target->conversation_mode = Conversation::MODE_WAITING;
             $target->bot_paused_until = null;
         }
 

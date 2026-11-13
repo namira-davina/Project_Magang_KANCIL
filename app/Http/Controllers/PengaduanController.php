@@ -54,6 +54,7 @@ class PengaduanController extends Controller
 
         $response = trim((string) ($validated['tanggapan'] ?? ''));
         $status = $validated['status'];
+        $statusChanged = $status !== $complaint->status;
 
         $complaint->fill([
             'status' => $status,
@@ -67,15 +68,19 @@ class PengaduanController extends Controller
         }
 
         $complaint->save();
+        $this->complaints->syncEscalationLog($complaint, $request->user()->id);
 
         $notified = false;
         $conversation = $complaint->conversation;
 
-        if ($response !== '' && $conversation && $conversation->channel === 'whatsapp') {
+        // Pelapor diberi tahu bila ada tanggapan baru atau statusnya berubah (mis. langsung Selesai tanpa tanggapan).
+        if (($response !== '' || $statusChanged) && $conversation && $conversation->channel === 'whatsapp') {
             $label = Complaint::STATUS_LABEL_FOR_USER[$status] ?? $status;
             $messenger->queue(
                 $conversation,
-                "Tanggapan atas pengaduan *{$complaint->ticket_number}* (status: *{$label}*):\n{$response}",
+                $response !== ''
+                    ? "Tanggapan atas pengaduan *{$complaint->ticket_number}* (status: *{$label}*):\n{$response}"
+                    : "Status pengaduan *{$complaint->ticket_number}* kini: *{$label}*.",
                 'petugas',
                 $request->user()->id,
                 meta: ['codes' => ['PGD-10'], 'complaint_id' => $complaint->id],
@@ -120,7 +125,13 @@ class PengaduanController extends Controller
             'prioritas' => $c->priority,
             'level' => (int) $c->escalation_level,
             'terlambat' => $this->complaints->isOverdue($c),
+            // Matriks 5.3: batas respon awal (Tinggi/Sedang 1, Rendah 2 hari kerja) untuk tiket yang belum disentuh.
+            'terlambat_respon' => $this->complaints->isOverdue($c, 0),
             'lampiran' => count($c->attachments ?? []),
+            'lampiran_list' => collect($c->attachments ?? [])->values()->map(fn ($a, $i) => [
+                'nama' => $a['name'] ?? 'Lampiran '.($i + 1),
+                'url' => ! empty($a['message_id']) && ! empty($a['path']) ? route('lampiran', $a['message_id']) : null,
+            ])->all(),
             'percakapan_url' => $c->conversation_id ? route('percakapan', ['id' => $c->conversation_id]) : null,
             'update_url' => route('pengaduan.update', $c),
         ];

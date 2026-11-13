@@ -105,10 +105,24 @@ document.addEventListener('DOMContentLoaded', function () {
         return btn ? btn.getAttribute('data-filter') : 'all';
     }
 
+    // Filter "Perlu Petugas": tiket menunggu urut FIFO (paling awal masuk di atas), lalu yang sedang ditangani.
+    function orderedThreads() {
+        if (activeFilter() !== 'human') return threads;
+        const waiting = threads.filter(t => t.ticket && t.ticket.status === 'Menunggu')
+            .sort((a, b) => (a.ticket.queued_ts - b.ticket.queued_ts) || (a.ticket.id - b.ticket.id));
+        return waiting.concat(threads.filter(t => !waiting.includes(t)));
+    }
+
+    function ticketTag(t) {
+        if (!t.ticket) return '';
+        const position = t.ticket.position ? ` • antrean ke-${t.ticket.position}` : (t.ticket.status === 'Ditangani' ? ' • ditangani' : '');
+        return `<span class="thread-queue-tag">${escapeHtml(t.ticket.number)}${escapeHtml(position)}</span>`;
+    }
+
     function renderThreads() {
         threadList.querySelectorAll('.chat-thread-item').forEach(el => el.remove());
 
-        threads.forEach(function (t) {
+        orderedThreads().forEach(function (t) {
             const item = document.createElement('div');
             item.className = 'chat-thread-item' + (t.id === selectedId ? ' active' : '');
             item.dataset.id = t.id;
@@ -125,7 +139,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="thread-footer-row">
                     <span class="badge-status-pill ${escapeHtml(t.badge_class)}">${escapeHtml(t.badge)}</span>
                     <span class="thread-ticket-id">${escapeHtml(t.code)}</span>
-                </div>`;
+                </div>
+                ${t.ticket ? `<div class="thread-footer-row">${ticketTag(t)}</div>` : ''}`;
             item.addEventListener('click', function () {
                 selectThread(t.id);
             });
@@ -141,6 +156,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const el = document.querySelector(`[data-count="${key}"]`);
             if (el && counts && counts[key] !== undefined) el.textContent = Number(counts[key]).toLocaleString('id-ID');
         });
+
+        const badge = document.querySelector('[data-queue-badge]');
+        if (badge && counts && counts.queue !== undefined) {
+            badge.textContent = counts.queue;
+            badge.style.display = counts.queue ? '' : 'none';
+        }
     }
 
     function applyFilters() {
@@ -163,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', function () {
             filterButtons.forEach(b => b.classList.remove('active'));
             this.classList.add('active');
-            applyFilters();
+            renderThreads();
         });
     });
 
@@ -174,7 +195,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderHeader(conv) {
         if (!conv) return;
         chatContactName.textContent = conv.name;
-        chatContactStatus.textContent = conv.phone + (conv.paused_until ? ` • bot jeda s.d. ${conv.paused_until}` : '');
+        const ticket = conv.ticket
+            ? ` • Tiket ${conv.ticket.number}` + (conv.ticket.position ? ` (antrean ke-${conv.ticket.position})` : '')
+            : '';
+        const officer = conv.mode === 'HUMAN_HANDLING' && conv.assigned_name ? ` • ditangani ${conv.assigned_name}` : '';
+        chatContactStatus.textContent = conv.phone + ticket + officer + (conv.paused_until ? ` • bot jeda s.d. ${conv.paused_until}` : '');
         chatAvatar.textContent = conv.initial;
         chatModeBadge.style.display = '';
         chatModeBadge.textContent = conv.header_badge;
@@ -185,6 +210,10 @@ document.addEventListener('DOMContentLoaded', function () {
             takeoverButton.disabled = false;
             takeoverButton.classList.toggle('btn-active-state', handling);
             takeoverButton.innerHTML = handling ? ICON_RELEASE : ICON_TAKEOVER;
+            const label = takeoverButton.querySelector('span');
+            if (label && conv.ticket) {
+                label.textContent = handling ? 'Selesaikan Tiket & Kembalikan ke Bot' : 'Ambil Tiket Antrean';
+            }
         }
 
         if (chatReplyInput) {
@@ -299,6 +328,10 @@ document.addEventListener('DOMContentLoaded', function () {
         takeoverButton.addEventListener('click', async function () {
             if (!selectedId || !currentConversation) return;
             const handling = currentConversation.mode === 'HUMAN_HANDLING';
+            if (handling && currentConversation.ticket
+                && !window.confirm(`Selesaikan tiket ${currentConversation.ticket.number}? Pemohon akan diberi tahu dan bot aktif kembali.`)) {
+                return;
+            }
             takeoverButton.disabled = true;
             try {
                 const data = await request('POST', url(handling ? 'kembalikan' : 'ambilAlih', selectedId));

@@ -10,11 +10,13 @@ use App\Models\Complaint;
 use App\Models\Conversation;
 use App\Models\EscalationLog;
 use App\Models\Message;
+use App\Models\ServiceTicket;
 use App\Models\WebhookEvent;
 use App\Services\BalesOtomatis\BalesOtomatisClient;
 use App\Services\BalesOtomatis\BalesOtomatisException;
 use App\Services\Bot\BotEngine;
 use App\Services\Bot\EscalationRecorder;
+use App\Services\Tickets\TicketQueueService;
 use App\Services\Whatsapp\WhatsappMessenger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -245,7 +247,7 @@ class WhatsappPipelineTest extends TestCase
         $engine->shouldReceive('handle')->andThrow(new \RuntimeException('meledak'));
 
         try {
-            (new ProcessIncomingChat($event->id))->handle(app(WhatsappMessenger::class), $engine, app(EscalationRecorder::class));
+            (new ProcessIncomingChat($event->id))->handle(app(WhatsappMessenger::class), $engine, app(EscalationRecorder::class), app(TicketQueueService::class));
             $this->fail('Exception harus diteruskan agar job tercatat gagal.');
         } catch (\RuntimeException) {
             $this->assertSame('meledak', $event->fresh()->error);
@@ -256,7 +258,7 @@ class WhatsappPipelineTest extends TestCase
     public function test_missing_or_processed_event_is_skipped(): void
     {
         (new ProcessIncomingChat(999))->handle(...$this->incomingDeps());
-        (new ProcessOutgoingChat(999))->handle(app(WhatsappMessenger::class));
+        (new ProcessOutgoingChat(999))->handle(app(WhatsappMessenger::class), app(TicketQueueService::class));
         (new UpdateMessageStatus(999))->handle();
 
         $event = WebhookEvent::create(['type' => 'incoming_chat', 'payload' => $this->incomingPayload(), 'processed_at' => now()]);
@@ -368,26 +370,54 @@ class WhatsappPipelineTest extends TestCase
         $this->assertSame(['user', 'bot'], Message::orderBy('id')->pluck('sender_type')->all());
     }
 
-    public function test_bot_stays_silent_while_waiting_for_officer_then_resumes(): void
+    public function test_queue_keeps_bot_quiet_with_throttled_reminders_commands_and_cancel(): void
     {
-        config(['kancil.waiting_minutes' => 240]);
+        Carbon::setTestNow(Carbon::parse('2026-11-11 10:00', 'Asia/Jakarta'));
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
         $this->postWebhook($this->incomingPayload(['message_body' => '4']));
 
-        $this->assertStringContainsString('masuk antrean', $this->lastBotMessage()->message_text);
+        $handoff = $this->lastBotMessage()->message_text;
+        $this->assertStringContainsString('masuk antrean', $handoff);
+        $this->assertStringContainsString('LYN-20261111-001', $handoff);
         $this->assertSame('WAITING_HUMAN', Conversation::sole()->conversation_mode);
+        $ticket = ServiceTicket::sole();
+        $this->assertSame('Menunggu', $ticket->status);
         $botCount = Message::where('sender_type', 'bot')->count();
 
+        // Pesan biasa tepat setelah masuk antrean: bot diam (pengingat baru dikirim saat handoff).
         $this->postWebhook($this->incomingPayload(['message_body' => 'Pak, paspor saya hilang di Jakarta']));
         $this->postWebhook($this->incomingPayload(['message_body' => '1']));
         $this->assertSame($botCount, Message::where('sender_type', 'bot')->count(), 'Selama antrean bot diam.');
         $this->assertSame(4, Message::where('sender_type', 'user')->count(), 'Pesan pemohon tetap tercatat untuk petugas.');
 
-        Carbon::setTestNow(now()->addMinutes(241));
-        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
-
-        $this->assertSame('BOT_ACTIVE', Conversation::sole()->conversation_mode);
+        // Lewat 15 menit: pesan biasa dibalas pengingat posisi satu kali.
+        Carbon::setTestNow(now()->addMinutes(16));
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo, masih lama?']));
         $this->assertSame($botCount + 1, Message::where('sender_type', 'bot')->count());
+        $this->assertStringContainsString('Anda masih dalam antrean', $this->lastBotMessage()->message_text);
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo?']));
+        $this->assertSame($botCount + 1, Message::where('sender_type', 'bot')->count(), 'Pengingat tidak diulang dalam 15 menit.');
+
+        // Perintah "antrean": dijawab, dibatasi 1x per menit.
+        $this->postWebhook($this->incomingPayload(['message_body' => 'antrean']));
+        $this->assertSame($botCount + 1, Message::where('sender_type', 'bot')->count(), 'Perintah antrean dibatasi 1x per menit.');
+        Carbon::setTestNow(now()->addMinutes(2));
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Cek antrean']));
+        $this->assertSame($botCount + 2, Message::where('sender_type', 'bot')->count());
+        $this->assertStringContainsString('Posisi antrean Anda: *ke-1*', $this->lastBotMessage()->message_text);
+
+        // Tiket tidak lepas sendiri setelah berjam-jam (beda dengan batas tunggu lama).
+        Carbon::setTestNow(now()->addMinutes(241));
+        $this->artisan('kancil:pemeliharaan')->assertSuccessful();
+        $this->assertSame('WAITING_HUMAN', Conversation::sole()->conversation_mode);
+
+        $this->postWebhook($this->incomingPayload(['message_body' => 'batal']));
+        $this->assertStringContainsString('dibatalkan', $this->lastBotMessage()->message_text);
+        $this->assertSame('Batal', $ticket->fresh()->status);
+        $this->assertSame('BOT_ACTIVE', Conversation::sole()->conversation_mode);
+
+        $this->postWebhook($this->incomingPayload(['message_body' => '1']));
+        $this->assertStringContainsString('Pelayanan Paspor WNI', $this->lastBotMessage()->message_text, 'Setelah batal bot melayani menu lagi.');
         Carbon::setTestNow();
     }
 
@@ -530,6 +560,7 @@ class WhatsappPipelineTest extends TestCase
             app(WhatsappMessenger::class),
             app(BotEngine::class),
             app(EscalationRecorder::class),
+            app(TicketQueueService::class),
         ];
     }
 }

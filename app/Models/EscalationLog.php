@@ -45,6 +45,12 @@ class EscalationLog extends Model
         return $query->where(fn ($q) => $q->whereNull('escalation_code')->orWhere('escalation_code', '!=', 'B0'));
     }
 
+    /** Log yang ikut status percakapan (ambil alih/kembali ke bot). B1 mengikuti status tiket pengaduan. */
+    public function scopeChatHandoff(Builder $query): Builder
+    {
+        return $query->where(fn ($q) => $q->whereNull('escalation_code')->orWhere('escalation_code', '!=', 'B1'));
+    }
+
     public function faq(): BelongsTo
     {
         return $this->belongsTo(Faq::class, 'faq_id');

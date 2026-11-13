@@ -8,6 +8,7 @@ use App\Models\WebhookEvent;
 use App\Services\BalesOtomatis\WebhookData;
 use App\Services\Bot\BotEngine;
 use App\Services\Bot\EscalationRecorder;
+use App\Services\Tickets\TicketQueueService;
 use App\Services\Whatsapp\WhatsappMessenger;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -31,7 +32,7 @@ class ProcessIncomingChat implements ShouldQueue
 
     public function __construct(public readonly int $eventId) {}
 
-    public function handle(WhatsappMessenger $messenger, BotEngine $engine, EscalationRecorder $escalations): void
+    public function handle(WhatsappMessenger $messenger, BotEngine $engine, EscalationRecorder $escalations, TicketQueueService $tickets): void
     {
         $event = WebhookEvent::find($this->eventId);
 
@@ -95,7 +96,7 @@ class ProcessIncomingChat implements ShouldQueue
             if (config('kancil.bot_engine') === 'laravel') {
                 $this->runBot($conversation, $message, $previousInbound, $engine, $messenger);
             } else {
-                $this->detectHumanRequest($conversation, $message, $escalations);
+                $this->detectHumanRequest($conversation, $message, $escalations, $tickets);
             }
 
             $event->update(['processed_at' => now(), 'error' => null]);
@@ -108,14 +109,17 @@ class ProcessIncomingChat implements ShouldQueue
 
     private function runBot(Conversation $conversation, Message $message, $previousInbound, BotEngine $engine, WhatsappMessenger $messenger): void
     {
-        // Petugas menangani atau pemohon masih di antrean: bot diam, pesan cukup tercatat di dashboard.
-        if ($conversation->isHumanHandling() || $conversation->isWaitingForOfficer()) {
+        // Petugas menangani: bot diam, pesan cukup tercatat di dashboard.
+        if ($conversation->isHumanHandling()) {
             return;
         }
 
-        if (in_array($conversation->conversation_mode, [Conversation::MODE_HUMAN, Conversation::MODE_WAITING], true)) {
+        // Di antrean petugas (tiket terbuka): bot hanya melayani "antrean"/"batal" dan pengingat posisi.
+        $queued = $conversation->isWaitingForOfficer() && $conversation->serviceTickets()->open()->exists();
+
+        if (! $queued && in_array($conversation->conversation_mode, [Conversation::MODE_HUMAN, Conversation::MODE_WAITING], true)) {
             // Masa ambil alih / antrean habis: bot aktif lagi.
-            $conversation->update(['conversation_mode' => Conversation::MODE_BOT, 'bot_paused_until' => null]);
+            $conversation->returnToBot();
         }
 
         $limit = (int) config('kancil.rate_limit_per_minute', 10);
@@ -130,12 +134,14 @@ class ProcessIncomingChat implements ShouldQueue
             RateLimiter::hit($key, 60);
         }
 
-        foreach ($engine->handle($conversation, $message, $previousInbound) as $reply) {
+        $replies = $queued ? $engine->handleQueued($conversation, $message) : $engine->handle($conversation, $message, $previousInbound);
+
+        foreach ($replies as $reply) {
             $messenger->queue($conversation, $reply->text, $reply->sender, null, $reply->faqId, ['codes' => $reply->codes]);
         }
     }
 
-    private function detectHumanRequest(Conversation $conversation, Message $message, EscalationRecorder $escalations): void
+    private function detectHumanRequest(Conversation $conversation, Message $message, EscalationRecorder $escalations, TicketQueueService $tickets): void
     {
         if ($conversation->conversation_mode !== Conversation::MODE_BOT || $message->message_type !== 'text') {
             return;
@@ -145,8 +151,10 @@ class ProcessIncomingChat implements ShouldQueue
         $words = preg_split('/\s+/', $text) ?: [];
 
         if ($text === '88' || array_intersect($words, self::HUMAN_KEYWORDS) !== []) {
-            $escalations->record($conversation, 'A2', 'Permintaan petugas: '.mb_substr((string) $message->message_text, 0, 200));
+            $log = $escalations->record($conversation, 'A2', 'Permintaan petugas: '.mb_substr((string) $message->message_text, 0, 200));
             $conversation->update(['conversation_mode' => Conversation::MODE_WAITING]);
+            // Opsi A: tiket dicatat tanpa pesan ke pemohon (AI BalesOtomatis yang membalas).
+            $tickets->open($conversation, $log, $message->message_text);
         }
     }
 }

@@ -206,6 +206,7 @@
                 <div class="detail-complaint-box">
                     <span class="complaint-label">Isi Pengaduan:</span>
                     <p class="complaint-text" id="detailIsi">Belum ada pengaduan yang dipilih.</p>
+                    <div class="complaint-attachments" id="detailLampiran" style="display: none;"></div>
                     <p class="complaint-text text-muted" id="detailTanggapanLama" style="display: none;"></p>
                     <a href="#" id="detailPercakapanLink" class="panel-text-link" style="display: none;">Buka percakapan WhatsApp →</a>
                 </div>

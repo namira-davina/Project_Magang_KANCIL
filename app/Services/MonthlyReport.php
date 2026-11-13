@@ -7,6 +7,7 @@ use App\Models\EscalationLog;
 use App\Models\Message;
 use App\Services\Bot\BotScript;
 use App\Services\Bot\BusinessHours;
+use App\Services\Tickets\TicketStats;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,10 @@ class MonthlyReport
 
     public const SHORT_MONTHS = [1 => 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
-    public function __construct(private readonly BusinessHours $hours) {}
+    public function __construct(
+        private readonly BusinessHours $hours,
+        private readonly TicketStats $tickets,
+    ) {}
 
     /** @return array<string, mixed> */
     public function build(int $month, int $year): array
@@ -49,6 +53,7 @@ class MonthlyReport
                 'selesai' => $complaints->where('status', 'Selesai')->count(),
                 'level2' => $complaints->where('escalation_level', 2)->count(),
             ],
+            'antrean' => $this->tickets->period($start, $end),
         ];
     }
 

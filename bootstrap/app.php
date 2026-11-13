@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureRole;
+use App\Services\Tickets\TicketException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -24,5 +25,6 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Penolakan aksi tiket (bentrok antar petugas, tiket sudah ditutup) bukan galat sistem.
+        $exceptions->dontReport(TicketException::class);
     })->create();
