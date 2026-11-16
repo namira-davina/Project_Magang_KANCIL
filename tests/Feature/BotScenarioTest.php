@@ -2,12 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Models\BotSetting;
 use App\Models\Complaint;
 use App\Models\Conversation;
 use App\Models\EscalationLog;
-use App\Models\Faq;
-use App\Models\Message;
+use App\Models\ServiceTicket;
 use App\Services\Bot\BotScript;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -16,7 +14,8 @@ use Tests\Concerns\BotHelpers;
 use Tests\TestCase;
 
 /**
- * Skenario 1–58 Dokumen Skenario FAQ + kode Matriks Eskalasi, dijalankan langsung pada BotEngine.
+ * Menu bot meniru layanan WhatsApp Imigrasi Bogor (tanpa Drive Thru dan persyaratan berdasarkan tujuan),
+ * ditambah status hari ini, eskalasi Matriks Eskalasi, dan alur pengaduan PGD (dormant: tidak ada di menu utama).
  */
 class BotScenarioTest extends TestCase
 {
@@ -37,162 +36,214 @@ class BotScenarioTest extends TestCase
     }
 
     /**
-     * Skenario 1–43: jalur menu → jawaban FAQ, tawaran 88, dan kode eskalasi saat 88 diketik.
+     * Jalur menu => potongan teks jawaban, jalur internal, dan kode eskalasi saat "Ketik 1".
      *
-     * @return array<string, array{list<string>, list<string>, ?string}>
+     * @return array<string, array{list<string>, string, string, ?string}>
      */
-    public static function faqScenarios(): array
+    public static function answerScenarios(): array
     {
         return [
-            'S1 paspor baru' => [['1', '1', '1'], ['PSP-001'], null],
-            'S2 penggantian' => [['1', '1', '2'], ['PSP-002'], 'A4'],
-            'S3 wisata' => [['1', '1', '3', '1'], ['PSP-003'], null],
-            'S4 belajar' => [['1', '1', '3', '2'], ['PSP-004'], null],
-            'S5 berobat' => [['1', '1', '3', '3'], ['PSP-005'], null],
-            'S6 CPMI' => [['1', '1', '3', '4'], ['PSP-006'], null],
-            'S7 pelaut' => [['1', '1', '3', '5'], ['PSP-007'], null],
-            'S8 umrah' => [['1', '1', '3', '6'], ['PSP-008'], null],
-            'S9 haji' => [['1', '1', '3', '7'], ['PSP-009'], null],
-            'S10 magang' => [['1', '1', '3', '8'], ['PSP-010'], null],
-            'S11 paspor hilang' => [['1', '1', '5'], ['PSP-011'], 'C1'],
-            'S12 affidavit' => [['1', '1', '6'], ['PSP-012'], 'C3'],
-            'S13 anak syarat umum' => [['1', '1', '4', '1'], ['ANK-001', 'ANK-002', 'ANK-003', 'ANK-004'], null],
-            'S14 orang tua cerai' => [['1', '1', '4', '2'], ['ANK-005'], 'C2'],
-            'S15 orang tua meninggal' => [['1', '1', '4', '3'], ['ANK-006', 'ANK-007', 'ANK-008'], 'C2'],
-            'S16 adopsi' => [['1', '1', '4', '4'], ['ANK-009'], 'C2'],
-            'S17 ATM' => [['1', '2', '1'], ['BYR-001'], null],
-            'S18 m-banking' => [['1', '2', '2'], ['BYR-002'], null],
-            'S19 aplikasi' => [['1', '2', '3'], ['BYR-003'], null],
-            'S20 pos/minimarket' => [['1', '2', '4'], ['BYR-004'], null],
-            'S21 ambil sendiri' => [['1', '3', '1'], ['AMB-001'], null],
-            'S22 diwakilkan satu KK' => [['1', '3', '2'], ['AMB-002'], null],
-            'S23 diwakilkan beda KK' => [['1', '3', '3'], ['AMB-003'], null],
-            'S24 cek status' => [['1', '4'], ['AMB-009'], null],
-            'S25 pengiriman pos' => [['1', '7'], ['AMB-004', 'AMB-005', 'AMB-006', 'AMB-007', 'AMB-008'], 'C5'],
-            'S26 tarif paspor' => [['1', '6'], ['TRF-001', 'TRF-002', 'TRF-003', 'TRF-004', 'TRF-011'], 'A4'],
-            'S27 re-entry' => [['2', '1', '1'], ['TRF-005', 'TRF-011'], null],
-            'S28 ITK' => [['2', '1', '2'], ['TRF-006', 'TRF-011'], null],
-            'S29 ITAS' => [['2', '1', '3'], ['TRF-007', 'TRF-011'], null],
-            'S30 ITAP' => [['2', '1', '4'], ['TRF-008', 'TRF-011'], null],
-            'S31 exit permit' => [['2', '1', '5'], ['TRF-009', 'TRF-011'], null],
-            'S32 visa beberapa kali' => [['2', '1', '6'], ['TRF-010', 'TRF-011'], null],
-            'S34 KANCIL NARI' => [['1', '5', '1'], ['LYK-002'], null],
-            'S35 KANCIL PERSAMI' => [['1', '5', '2'], ['LYK-003'], 'A4'],
-            'S36 KANCIL PESAT' => [['1', '5', '3'], ['LYK-004', 'LYK-005'], 'C4'],
-            'S37 Eazy Paspor' => [['1', '5', '4'], ['LYK-006', 'LYK-007', 'LYK-008'], null],
-            'S38 KANCIL NGAPAK' => [['1', '5', '5'], ['LYK-009'], 'A4'],
-            'S39 HOTS' => [['1', '5', '6'], ['LYK-010', 'LYK-011'], null],
-            'S40 WNA meninggal: pelapor' => [['2', '2', '1'], ['WNA-001', 'WNA-002'], 'C6'],
-            'S41 WNA meninggal: dokumen' => [['2', '2', '2'], ['WNA-003'], 'C6'],
-            'S42 WNA meninggal: alur' => [['2', '2', '3'], ['WNA-004'], 'C6'],
+            'biaya paspor' => [['1', '1'], 'PNBP Paspor Elektronik 5 Tahun : Rp 650.000', '0>1', null],
+            'paspor baru' => [['1', '2'], 'Dokumen persyaratan Paspor Baru:', '0>2', null],
+            'penggantian paspor' => [['1', '3'], 'Dokumen persyaratan Penggantian Paspor:', '0>3', null],
+            'paspor anak' => [['1', '4'], 'Persyaratan Paspor Anak (Orang Tua Bercerai):', '0>4', 'C2'],
+            'pendaftaran m-paspor' => [['1', '5'], 'Silakan unduh aplikasi M-Paspor:', '0>5', null],
+            'layanan prioritas' => [['1', '6'], 'Layanan prioritas diperuntukkan bagi:', '0>6', null],
+            'paspor hilang' => [['1', '7'], 'Surat Kehilangan dari Kepolisian', '0>7', 'C1'],
+            'paspor rusak' => [['1', '8'], 'Paspor Lama yang rusak', '0>8', null],
+            'penambahan nama' => [['1', '9'], 'Persyaratan Penambahan Nama:', '0>9', null],
+            'lokasi kami' => [['2', '3'], 'Jl. Urip Sumoharjo No.249', '1>3', null],
         ];
     }
 
-    #[DataProvider('faqScenarios')]
-    public function test_faq_scenario(array $path, array $faqCodes, ?string $escalationCode): void
+    #[DataProvider('answerScenarios')]
+    public function test_answer_scenario(array $path, string $fragment, string $internalPath, ?string $escalationCode): void
     {
         $this->assertSame(['M-00'], $this->reply('Halo')->codes);
 
         $answer = $this->conversation($path);
 
-        $this->assertSame($faqCodes, $answer->codes);
-        $faqs = Faq::whereIn('code', $faqCodes)->get()->keyBy('code');
-
-        foreach ($faqCodes as $code) {
-            $this->assertStringContainsString($faqs[$code]->answer, $answer->text, $code);
-        }
-
-        if (count($faqCodes) > 1) {
-            $this->assertStringContainsString('*'.$faqs[$faqCodes[0]]->question.'*', $answer->text);
-        }
-
+        $this->assertSame(['ANS-'.$internalPath], $answer->codes);
+        $this->assertStringContainsString($fragment, $answer->text);
         $this->assertStringStartsWith('*Berikut ini adalah informasi dan solusi yang Anda cari:*', $answer->text);
         $this->assertStringEndsWith(BotScript::answerFooter(), $answer->text);
-        $this->assertSame($faqs[$faqCodes[0]]->id, $answer->faqId);
-        $this->assertSame($faqs[$faqCodes[0]]->id, Message::where('sender_type', 'user')->latest('id')->value('faq_id'));
 
         $esk = $this->reply('1');
         $this->assertSame(['ESK-01', 'LYN'], $esk->codes, 'Ketik 1 setelah jawaban = hubungi Petugas.');
-        $this->assertStringStartsWith(BotScript::handoff(), $esk->text);
-        $this->assertStringNotContainsString('081217000900', $esk->text);
-        $this->assertStringNotContainsString('cilacap@imigrasi.go.id', $esk->text);
+        $this->assertSame(BotScript::handoff(), $esk->text);
 
         $log = EscalationLog::latest('id')->first();
-        $expected = $escalationCode ?? 'A2';
-        $this->assertSame($expected, $log->escalation_code);
-        $this->assertSame(BotScript::PRIORITY[$expected], $log->priority);
+        $this->assertSame($escalationCode ?? 'A2', $log->escalation_code);
+        $this->assertSame(BotScript::PRIORITY[$escalationCode ?? 'A2'], $log->priority);
 
         if ($escalationCode) {
-            $this->assertSame($faqs[$faqCodes[0]]->id, $log->faq_id);
-            // Jalur internal tetap memakai nomor lama (WNI = 0, WNA = 1).
-            $internal = [...[$path[0] === '1' ? '0' : '1'], ...array_slice($path, 1)];
-            $this->assertSame(implode('>', $internal), $log->menu_path);
+            $this->assertSame($internalPath, $log->menu_path);
         }
 
         $this->assertSame(Conversation::MODE_WAITING, $this->chat->fresh()->conversation_mode);
         $this->assertSame(['M-00'], $this->reply('99')->codes);
     }
 
-    public function test_main_menu_text_matches_document(): void
+    public function test_main_menu_matches_bogor_with_cilacap_identity_and_status(): void
     {
         $text = $this->reply('Halo')->text;
 
-        $this->assertMatchesRegularExpression('/^Selamat (Pagi|Siang|Sore|Malam), Halo/', $text);
-        $this->assertStringContainsString('Selamat Datang di Layanan Informasi dan Pengaduan *Kantor Imigrasi Kelas I TPI Cilacap*.', $text);
-        $this->assertStringContainsString("Silakan pilih menu di bawah ini:\n\nKetik *1* Pelayanan Paspor WNI\nKetik *2* Pelayanan Izin Tinggal (For Foreigners)\nKetik *3* Layanan Pengaduan (Complaint Support)\nKetik *4* Hubungi Petugas (Contact Officer)", $text);
-        $this->assertStringEndsWith("Ketik angka pilihan Anda, lalu ikuti petunjuk selanjutnya\n------------\n_Type your selection, then follow the instructions_", $text);
-        $this->assertStringNotContainsString('88', $text);
-        $this->assertStringNotContainsString('langsung mengetik pertanyaan', $text, 'Tanpa AI tidak ada petunjuk tanya bebas.');
+        $this->assertSame(
+            "Selamat Pagi, Halo *Budi*\n\n"
+            ."Selamat Datang , di Layanan Informasi dan Pengaduan Kantor Imigrasi Kelas I TPI Cilacap.\n\n"
+            ."*Status Hari Ini: BUKA*\nWaktu pelayanan tersedia setiap hari Senin–Jumat pukul 08.00–16.00 WIB.\n\n"
+            ."Silakan pilih menu di bawah ini:\n\n"
+            ."Ketik *1* Pelayanan Paspor WNI\nKetik *2* Pelayanan Izin Tinggal (For Foreigners)\nKetik *3* Layanan Pengaduan (Complaint Support)\n\n"
+            ."Ketik angka pilihan Anda, lalu ikuti petunjuk selanjutnya\n------------\n_Type your selection, then follow the instructions_",
+            $text,
+        );
+        $this->assertStringNotContainsString('Bogor', $text);
+        $this->assertStringNotContainsString('langsung mengetik pertanyaan', $text);
     }
 
-    public function test_every_menu_lists_its_options_and_footer(): void
+    public function test_passport_menu_matches_bogor_without_drive_thru_and_purpose(): void
     {
         $this->reply('Halo');
+        $reply = $this->reply('1');
 
-        foreach ([['1', 'M-01'], ['1', 'M-02'], ['3', 'M-03'], ['9', 'M-02'], ['4', 'M-04'], ['9', 'M-02'], ['9', 'M-01'],
-            ['2', 'M-05'], ['9', 'M-01'], ['3', 'M-06'], ['9', 'M-01'], ['5', 'M-07'], ['0', 'M-00'],
-            ['2', 'M-08'], ['1', 'M-09'], ['9', 'M-08'], ['2', 'M-10']] as [$input, $menu]) {
-            $reply = $this->reply($input);
-            $this->assertSame([$menu], $reply->codes, "input {$input}");
+        $this->assertSame(['M-01'], $reply->codes);
+        $this->assertSame(
+            "Silakan pilih topik yang ingin Anda ketahui lebih lanjut:\n\n"
+            ."Ketik *0* untuk kembali ke menu utama\n"
+            ."Ketik *1* Biaya Paspor\nKetik *2* Persyaratan Paspor Baru\nKetik *3* Persyaratan Penggantian Paspor\n"
+            ."Ketik *4* Persyaratan Paspor Anak\nKetik *5* Pendaftaran Paspor (M-Paspor)\nKetik *6* Layanan Prioritas Ramah HAM\n"
+            ."Ketik *7* Permohonan Paspor Hilang\nKetik *8* Permohonan Paspor Rusak\nKetik *9* Penambahan Nama pada Paspor\n"
+            ."Ketik *10* Cek Status Paspor\nKetik *11* untuk kembali ke menu sebelumnya",
+            $reply->text,
+        );
+        $this->assertStringNotContainsString('Drive Thru', $reply->text);
+        $this->assertStringNotContainsString('Tujuan', $reply->text);
+        $this->assertStringNotContainsString('Affidavit', $reply->text);
 
-            if ($menu !== 'M-00') {
-                $this->assertStringStartsWith('*'.BotScript::MENUS[$menu]['title'].'*', $reply->text);
-                $this->assertStringContainsString("Silakan pilih topik yang ingin Anda ketahui lebih lanjut:\n\nKetik *0* untuk kembali ke menu utama\n", $reply->text);
-                $this->assertSame(BotScript::MENUS[$menu]['parent'] !== 'M-00', str_ends_with($reply->text, 'Ketik *9* untuk kembali ke menu sebelumnya'), $menu);
-                foreach (BotScript::MENUS[$menu]['options'] as $key => [$label]) {
-                    $this->assertStringContainsString("Ketik *{$key}* {$label}", $reply->text);
-                }
-            }
+        foreach (BotScript::ANSWERS as $answer) {
+            $this->assertStringNotContainsString('Drive Thru', (string) $answer['text']);
         }
     }
 
-    public function test_s33_special_services_menu_shows_lyk_001_intro_when_published(): void
-    {
-        $reply = $this->conversation(['Halo', '1', '5']);
-
-        $this->assertSame(['M-07'], $reply->codes);
-        $this->assertStringContainsString('KANCIL NARI (layanan prioritas)', $reply->text);
-
-        $this->holdFaq('LYK-001');
-        $this->reply('9');
-        $this->assertStringNotContainsString('layanan prioritas', $this->reply('5')->text);
-    }
-
-    public function test_s43_menu_hubungi_petugas_queues_without_contact_and_logs_a2_with_ktk_001(): void
+    public function test_foreigner_menu_matches_bogor(): void
     {
         $this->reply('Halo');
-        $reply = $this->reply('4');
+        $reply = $this->reply('2');
 
-        $this->assertSame(['KTK-001', 'ESK-01', 'LYN'], $reply->codes);
-        $this->assertStringStartsWith(BotScript::handoff(), $reply->text);
-        $this->assertStringContainsString('masuk antrean', $reply->text);
-        $this->assertStringNotContainsString('081217000900', $reply->text);
+        $this->assertSame(['M-08'], $reply->codes);
+        $this->assertSame(
+            "Silakan pilih topik yang ingin Anda ketahui lebih lanjut:\n\nKetik *0* untuk kembali ke menu utama\n"
+            ."Ketik *1* Izin Tinggal (Residence Permit)\nKetik *2* Pengaduan Orang Asing (Foreigner Complaint)\n"
+            ."Ketik *3* Lokasi Kami\nKetik *4* untuk kembali ke menu sebelumnya",
+            $reply->text,
+        );
+
+        foreach (['1' => '1>1', '2' => '1>2'] as $key => $path) {
+            $this->reply('99');
+            $this->reply('2');
+            $queued = $this->reply($key);
+            $this->assertSame(['ESK-01', 'LYN'], $queued->codes);
+            $this->assertSame("Terima kasih atas pesan Anda.\n\nMohon menunggu, pesan Anda telah diterima dan masuk antrean.", $queued->text);
+            $this->assertSame($path, EscalationLog::latest('id')->first()->menu_path);
+            $this->chat->update(['conversation_mode' => Conversation::MODE_BOT]);
+        }
+    }
+
+    public function test_location_uses_cilacap_identity(): void
+    {
+        $text = $this->conversation(['Halo', '2', '3'])->text;
+
+        $this->assertStringContainsString('📍 Kantor Imigrasi Kelas I TPI Cilacap', $text);
+        $this->assertStringContainsString('Pantusan, Gumilir', $text);
+        $this->assertStringNotContainsString('Bogor', $text);
+        $this->assertStringNotContainsString('Tanah Sareal', $text);
+    }
+
+    public function test_menu_3_queues_officer_like_bogor_and_logs_a2(): void
+    {
+        $this->reply('Halo');
+        $reply = $this->reply('3');
+
+        $this->assertSame(['ESK-01', 'LYN'], $reply->codes);
+        $this->assertSame(BotScript::handoff(), $reply->text);
         $this->assertSame(Conversation::MODE_WAITING, $this->chat->fresh()->conversation_mode);
         $this->assertNull($this->chat->fresh()->bot_paused_until, 'Antrean tiket: bot diam sampai tiket ditutup.');
+
         $log = EscalationLog::sole();
         $this->assertSame('A2', $log->escalation_code);
-        $this->assertSame('Rendah', $log->priority);
-        $this->assertSame(Faq::where('code', 'KTK-001')->value('id'), $log->faq_id);
+        $this->assertSame('3', $log->menu_path);
+        $this->assertSame(1, ServiceTicket::count());
+    }
+
+    public function test_zero_after_answer_and_back_options_return_to_main_menu_with_greeting(): void
+    {
+        $this->conversation(['Halo', '1', '2']);
+        $afterAnswer = $this->reply('0');
+        $this->assertSame(['M-00'], $afterAnswer->codes, '0 setelah jawaban menampilkan menu utama (perilaku Bogor).');
+        $this->assertStringStartsWith('Selamat Pagi, Halo *Budi*', $afterAnswer->text);
+
+        $this->reply('1');
+        $this->assertSame(['M-00'], $this->reply('11')->codes, '11 = kembali ke menu sebelumnya (menu utama).');
+
+        $this->reply('2');
+        $this->assertSame(['M-00'], $this->reply('4')->codes);
+
+        $this->reply('1');
+        $this->assertSame(['M-00'], $this->reply('0')->codes, '0 di submenu = menu utama.');
+    }
+
+    public function test_status_hari_ini_follows_day_and_time(): void
+    {
+        $cases = [
+            '2026-11-14 10:00:00' => '*Status Hari Ini: LIBUR (Akhir Pekan)*',
+            '2026-11-15 10:00:00' => '*Status Hari Ini: LIBUR (Akhir Pekan)*',
+            '2026-12-25 10:00:00' => '*Status Hari Ini: LIBUR (Hari Raya Natal)*',
+            '2027-03-10 10:00:00' => '*Status Hari Ini: LIBUR (Hari Raya Idul Fitri 1448 H)*',
+            '2027-05-19 10:00:00' => '*Status Hari Ini: LIBUR (Cuti Bersama Waisak)*',
+            '2026-11-13 07:59:00' => '*Status Hari Ini: TUTUP (di luar jam pelayanan)*',
+            '2026-11-13 16:00:00' => '*Status Hari Ini: TUTUP (di luar jam pelayanan)*',
+            '2026-11-13 15:59:00' => '*Status Hari Ini: BUKA*',
+        ];
+
+        foreach ($cases as $at => $expected) {
+            Carbon::setTestNow(Carbon::parse($at, 'Asia/Jakarta'));
+            $this->chat = null;
+            $this->startChat(['wa_chat_id' => 'c'.md5($at), 'whatsapp_number' => '62'.random_int(100000000, 999999999)]);
+
+            $text = $this->reply('Halo')->text;
+            $this->assertStringContainsString($expected."\nWaktu pelayanan tersedia setiap hari Senin–Jumat pukul 08.00–16.00 WIB.", $text, $at);
+        }
+    }
+
+    public function test_handoff_text_is_same_outside_hours(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-14 20:00:00', 'Asia/Jakarta'));
+
+        $this->reply('Halo');
+        $this->assertSame(BotScript::handoff(), $this->reply('3')->text);
+    }
+
+    public function test_cek_status_asks_number_then_queues_officer_with_the_number(): void
+    {
+        $prompt = $this->conversation(['Halo', '1', '10']);
+
+        $this->assertSame(['STATUS'], $prompt->codes);
+        $this->assertSame("Silakan ketik *Nomor Permohonan* paspor Anda.\nContoh: 1498000000012345\n\nKetik *0* untuk kembali ke menu utama.", $prompt->text);
+
+        $this->assertSame(['MSG-01', 'M-01'], $this->reply('bukan nomor')->codes);
+
+        $queued = $this->reply('1498 0000 0001 2345');
+        $this->assertSame(['STATUS', 'LYN'], $queued->codes);
+        $this->assertSame(BotScript::handoff(), $queued->text);
+        $this->assertStringContainsString('1498000000012345', ServiceTicket::sole()->question_text);
+        $this->assertSame(Conversation::MODE_WAITING, $this->chat->fresh()->conversation_mode);
+    }
+
+    public function test_cek_status_zero_returns_to_main_menu(): void
+    {
+        $this->conversation(['Halo', '1', '10']);
+        $this->assertSame(['M-00'], $this->reply('0')->codes);
+        $this->assertSame(0, ServiceTicket::count());
     }
 
     public function test_s44_three_invalid_inputs_then_88_logs_a1_once(): void
@@ -237,22 +288,26 @@ class BotScenarioTest extends TestCase
         $this->reply('y');
         $this->assertSame(['M-01'], $this->reply('1')->codes);
         $this->assertSame(['MSG-01', 'M-01'], $this->reply('z')->codes, 'Hitungan salah input mulai dari awal.');
-        $this->assertSame(['MSG-02', 'M-01'], $this->reply('8')->codes, 'Angka di luar pilihan juga salah input.');
+        $this->assertSame(['MSG-02', 'M-01'], $this->reply('12')->codes, 'Angka di luar pilihan juga salah input.');
+    }
+
+    public function test_9_is_a_normal_option_not_a_back_command(): void
+    {
+        $this->reply('Halo');
+        $this->assertSame(['MSG-01', 'M-00'], $this->reply('9')->codes, '9 tidak ada di menu utama.');
+        $this->reply('1');
+        $this->assertSame(['ANS-0>9'], $this->reply('9')->codes, '9 di menu paspor = Penambahan Nama pada Paspor.');
     }
 
     public function test_after_answer_only_0_and_1_are_valid(): void
     {
-        $this->conversation(['Halo', '1', '1', '1']);
+        $this->conversation(['Halo', '1', '2']);
 
         $invalid = $this->reply('abc');
-        $this->assertSame(['MSG-01', 'M-02'], $invalid->codes);
+        $this->assertSame(['MSG-01', 'M-01'], $invalid->codes);
         $this->assertStringEndsWith(BotScript::answerFooter(), $invalid->text, 'Salah input setelah jawaban mengulang pilihan 0/1.');
-        $this->assertSame(['MSG-02', 'M-02'], $this->reply('2')->codes, 'Setelah jawaban, angka lain tidak memilih menu.');
-        $this->assertSame(['M-02'], $this->reply('0')->codes, '0 setelah jawaban kembali ke menu jawaban.');
-        $this->assertSame(['PSP-002'], $this->reply('2')->codes);
-        $this->assertSame(['M-02'], $this->reply('9')->codes, '9 tetap diterima sebagai kembali.');
-        $this->assertSame(['M-01'], $this->reply('9')->codes);
-        $this->assertSame(['M-00'], $this->reply('0')->codes, '0 di menu = menu utama.');
+        $this->assertSame(['MSG-02', 'M-01'], $this->reply('3')->codes, 'Setelah jawaban, angka lain tidak memilih menu.');
+        $this->assertSame(['M-00'], $this->reply('0')->codes);
     }
 
     public function test_s45_photo_outside_attachment_step_gets_msg_04(): void
@@ -270,55 +325,21 @@ class BotScenarioTest extends TestCase
         $this->assertSame(['M-00'], $this->reply('', 'image')->codes);
     }
 
-    public function test_s46_unpublished_answer_shows_msg_05_and_logs_a3(): void
+    public function test_answers_do_not_depend_on_faq_verification(): void
     {
-        $this->holdFaq('PSP-001');
-        $reply = $this->conversation(['Halo', '1', '1', '1']);
+        $this->holdFaq('PSP-001', 'PSP-011');
 
-        $this->assertSame(['MSG-05'], $reply->codes);
-        $this->assertSame(BotScript::msg('MSG-05')."\n\n".BotScript::answerFooter(), $reply->text);
-        $this->assertStringNotContainsString('081217000900', $reply->text);
-        $log = EscalationLog::sole();
-        $this->assertSame('A3', $log->escalation_code);
-        $this->assertSame('Sedang', $log->priority);
-        $this->assertSame(Faq::where('code', 'PSP-001')->value('id'), $log->faq_id);
-        $this->assertSame('0>1>1', $log->menu_path);
-    }
-
-    public function test_faq_scope_all_shows_unverified_answer_with_note(): void
-    {
-        $this->holdFaq('PSP-001');
-        config(['kancil.faq_scope' => 'all']);
-
-        $reply = $this->conversation(['Halo', '1', '1', '1']);
-
-        $this->assertSame(['PSP-001'], $reply->codes);
-        $this->assertStringContainsString(Faq::where('code', 'PSP-001')->value('answer'), $reply->text);
-        $this->assertStringContainsString(BotScript::msg('AI-DISCLAIMER'), $reply->text);
-
-        Faq::where('code', 'PSP-002')->update(['verification_status' => 'draft']);
+        $this->assertSame(['ANS-0>2'], $this->conversation(['Halo', '1', '2'])->codes);
         $this->reply('0');
-        $this->assertSame(['MSG-05'], $this->reply('2')->codes, 'Draf tetap tidak tampil.');
+        $this->assertSame(['ANS-0>7'], $this->conversation(['1', '7'])->codes);
     }
 
-    public function test_88_after_held_special_answer_logs_a2_not_c_code(): void
+    public function test_88_after_special_answer_logs_matrix_code(): void
     {
-        $this->holdFaq('PSP-011');
-        $this->conversation(['Halo', '1', '1', '5']);
+        $this->conversation(['Halo', '1', '7']);
         $this->reply('1');
 
-        $this->assertSame(['A3', 'A2'], EscalationLog::orderBy('id')->pluck('escalation_code')->all());
-    }
-
-    public function test_partially_published_answer_shows_published_part_and_msg_05(): void
-    {
-        $this->holdFaq('ANK-003');
-        $reply = $this->conversation(['Halo', '1', '1', '4', '1']);
-
-        $this->assertSame(['ANK-001', 'ANK-002', 'ANK-004', 'MSG-05'], $reply->codes);
-        $this->assertStringContainsString(BotScript::msg('MSG-05'), $reply->text);
-        $this->assertStringNotContainsString(Faq::where('code', 'ANK-003')->value('answer'), $reply->text);
-        $this->assertSame('A3', EscalationLog::sole()->escalation_code);
+        $this->assertSame(['C1'], EscalationLog::pluck('escalation_code')->all());
     }
 
     public function test_s47_session_expires_after_30_minutes(): void
@@ -340,19 +361,16 @@ class BotScenarioTest extends TestCase
         $this->reply('1');
 
         Carbon::setTestNow(now()->addMinutes(29));
-        $this->assertSame(['M-02'], $this->reply('1')->codes);
+        $this->assertSame(['ANS-0>1'], $this->reply('1')->codes);
     }
 
-    public function test_s48_navigation_with_9_and_99(): void
+    public function test_navigation_with_99_and_menu(): void
     {
-        $this->conversation(['Halo', '1', '1', '3']);
+        $this->conversation(['Halo', '1', '3']);
 
-        $this->assertSame(['M-02'], $this->reply('9')->codes);
         $this->assertSame(['M-00'], $this->reply('99')->codes);
         $this->reply('1');
-        $this->assertSame(['M-00'], $this->reply('0')->codes, '0 = menu utama.');
         $this->assertSame(['M-00'], $this->reply('menu')->codes, '"menu" sama dengan 99.');
-        $this->assertSame(['M-00'], $this->reply('9')->codes, '9 di menu utama tetap di menu utama.');
     }
 
     public function test_commands_tolerate_spaces_and_punctuation(): void
@@ -362,45 +380,29 @@ class BotScenarioTest extends TestCase
         $this->assertSame(['M-00'], $this->reply('MENU!')->codes);
     }
 
-    public function test_s49_outside_office_hours_adds_msg_07(): void
+    public function test_session_state_and_current_menu_are_persisted(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-11-14 20:00:00', 'Asia/Jakarta')); // Sabtu malam
+        $this->conversation(['Halo', '1']);
+        $conversation = $this->chat->fresh();
 
-        $this->reply('Halo');
-        $menu4 = $this->reply('4');
-        $this->assertSame(['KTK-001', 'ESK-01', 'LYN', 'MSG-07'], $menu4->codes);
-        $this->assertStringStartsWith(BotScript::handoff(), $menu4->text);
-        $this->assertStringContainsString('Saat ini di luar jam layanan petugas.', $menu4->text);
-        $this->assertStringNotContainsString('jam layanan:', $menu4->text, 'Jam layanan belum dikonfirmasi, jadi tidak disebut.');
-
-        $this->reply('1');
-        $this->assertSame(['ESK-01', 'LYN', 'MSG-07'], $this->reply('88')->codes);
+        $this->assertSame('M-01', $conversation->current_menu);
+        $this->assertSame('M-01', $conversation->session_state['menu']);
     }
 
-    public function test_msg_07_mentions_service_hours_once_confirmed(): void
+    public function test_escalation_moves_bot_conversation_to_waiting_but_keeps_human_mode(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-11-11 17:30:00', 'Asia/Jakarta'));
-        BotSetting::where('setting_key', 'service_hours_text')->update(['setting_value' => 'Senin–Jumat 08.00–16.00 WIB']);
-
+        $this->startChat(['conversation_mode' => Conversation::MODE_HUMAN]);
         $this->reply('Halo');
-        $this->assertStringContainsString('jam layanan: Senin–Jumat 08.00–16.00 WIB._', $this->reply('88')->text);
-    }
+        $this->reply('88');
 
-    public function test_msg_07_can_be_disabled(): void
-    {
-        config(['kancil.outside_hours_notice' => false]);
-        Carbon::setTestNow(Carbon::parse('2026-11-15 10:00:00', 'Asia/Jakarta'));
-
-        $this->reply('Halo');
-        $this->assertSame(['ESK-01', 'LYN'], $this->reply('88')->codes);
+        $this->assertSame(Conversation::MODE_HUMAN, $this->chat->fresh()->conversation_mode);
     }
 
     // ------------------------------------------------------------ pengaduan
 
     public function test_s50_complaint_without_attachment(): void
     {
-        $this->reply('Halo');
-        $this->assertSame(['PGD-01'], $this->reply('3')->codes);
+        $this->complaintFlow();
         $this->assertSame(['PGD-02'], $this->reply('1')->codes);
         $this->assertSame(['PGD-03'], $this->reply('Budi Santoso')->codes);
         $this->assertSame(['PGD-04'], $this->reply('1')->codes);
@@ -434,7 +436,7 @@ class BotScenarioTest extends TestCase
 
     public function test_s51_complaint_with_attachments_max_three(): void
     {
-        $this->conversation(['Halo', '3', '1', 'Siti', '3', 'Petugas loket bersikap tidak ramah saat melayani.']);
+        $this->complaintFlow(['1', 'Siti', '3', 'Petugas loket bersikap tidak ramah saat melayani.']);
         $this->assertSame(['PGD-06'], $this->reply('1')->codes);
 
         foreach ([1, 2, 3] as $n) {
@@ -459,7 +461,7 @@ class BotScenarioTest extends TestCase
 
     public function test_s52_short_complaint_text_is_rejected(): void
     {
-        $this->conversation(['Halo', '3', '1', 'Budi', '4']);
+        $this->complaintFlow(['1', 'Budi', '4']);
 
         $short = $this->reply('lambat sekali');
         $this->assertSame(['PGD-04'], $short->codes);
@@ -470,7 +472,7 @@ class BotScenarioTest extends TestCase
 
     public function test_s53_cancel_mid_complaint(): void
     {
-        $this->conversation(['Halo', '3', '1', 'Budi']);
+        $this->complaintFlow(['1', 'Budi']);
         $reply = $this->reply('batal');
 
         $this->assertSame(['MSG-08', 'M-00'], $reply->codes);
@@ -482,14 +484,14 @@ class BotScenarioTest extends TestCase
 
     public function test_s54_cancel_on_summary(): void
     {
-        $this->conversation(['Halo', '3', '1', 'Budi', '1', 'Isi pengaduan yang cukup panjang untuk diterima.', '2']);
+        $this->complaintFlow(['1', 'Budi', '1', 'Isi pengaduan yang cukup panjang untuk diterima.', '2']);
         $this->assertSame(['MSG-08', 'M-00'], $this->reply('2')->codes);
         $this->assertSame(0, Complaint::count());
     }
 
     public function test_s55_three_invalid_inputs_in_complaint_discard_draft(): void
     {
-        $this->conversation(['Halo', '3', '1', 'Budi']);
+        $this->complaintFlow(['1', 'Budi']);
 
         $this->assertSame(['MSG-01', 'PGD-03'], $this->reply('abc')->codes);
         $this->assertSame(['MSG-02', 'PGD-03'], $this->reply('xyz')->codes);
@@ -507,7 +509,7 @@ class BotScenarioTest extends TestCase
             'whatsapp_number' => '6281234567890', 'complaint_text' => 'x', 'status' => 'Diproses', 'response_text' => 'Sedang kami cek.',
         ]);
 
-        $this->conversation(['Halo', '3']);
+        $this->complaintFlow();
         $this->assertSame(['PGD-09'], $this->reply('2')->codes);
         $reply = $this->reply(' adu-202611-0007 ');
 
@@ -528,7 +530,7 @@ class BotScenarioTest extends TestCase
             'complaint_text' => 'x', 'status' => 'Selesai',
         ]);
 
-        $this->conversation(['Halo', '3', '2']);
+        $this->complaintFlow(['2']);
         $this->assertStringContainsString('*Selesai*', $this->reply('ADU-202610-0001')->text);
     }
 
@@ -539,7 +541,7 @@ class BotScenarioTest extends TestCase
             'complaint_text' => 'rahasia', 'status' => 'Diproses', 'response_text' => 'jangan bocor',
         ]);
 
-        $this->conversation(['Halo', '3', '2']);
+        $this->complaintFlow(['2']);
         $reply = $this->reply('ADU-202611-0009');
 
         $this->assertSame(['PGD-10'], $reply->codes);
@@ -550,7 +552,7 @@ class BotScenarioTest extends TestCase
 
     public function test_s58_session_expires_before_complaint_sent(): void
     {
-        $this->conversation(['Halo', '3', '1', 'Budi']);
+        $this->complaintFlow(['1', 'Budi']);
         Carbon::setTestNow(now()->addMinutes(45));
 
         $reply = $this->reply('1');
@@ -562,10 +564,10 @@ class BotScenarioTest extends TestCase
 
     public function test_complaint_back_navigation_with_9(): void
     {
-        $this->conversation(['Halo', '3']);
+        $this->complaintFlow();
         $this->assertSame(['M-00'], $this->reply('9')->codes, '9 di PGD-01 kembali ke menu utama.');
 
-        $this->conversation(['3', '1', 'Budi', '1']);
+        $this->complaintFlow(['1', 'Budi', '1']);
         $this->assertSame(['PGD-03'], $this->reply('9')->codes);
         $this->assertSame(['PGD-02'], $this->reply('9')->codes);
         $this->assertSame(['PGD-01'], $this->reply('9')->codes);
@@ -575,18 +577,18 @@ class BotScenarioTest extends TestCase
 
     public function test_88_and_99_inside_complaint_discard_draft(): void
     {
-        $this->conversation(['Halo', '3', '1', 'Budi']);
+        $this->complaintFlow(['1', 'Budi']);
         $this->assertSame(['ESK-01', 'LYN'], $this->reply('88')->codes);
         $this->assertSame(['B0', 'A2'], EscalationLog::orderBy('id')->pluck('escalation_code')->all());
 
-        $this->conversation(['99', '3', '1', 'Budi']);
+        $this->complaintFlow(['1', 'Budi']);
         $this->assertSame(['M-00'], $this->reply('99')->codes);
         $this->assertSame(2, EscalationLog::where('escalation_code', 'B0')->count());
     }
 
     public function test_cancel_without_draft_does_not_log_b0(): void
     {
-        $this->conversation(['Halo', '3']);
+        $this->complaintFlow();
         $this->assertSame(['MSG-08', 'M-00'], $this->reply('batal')->codes);
         $this->assertSame(0, EscalationLog::count());
     }
@@ -594,7 +596,7 @@ class BotScenarioTest extends TestCase
     public function test_complaint_numbering_and_repeat_goes_to_level_2(): void
     {
         foreach (['ADU-202611-0001', 'ADU-202611-0002'] as $expected) {
-            $this->conversation(['99', '3', '1', 'Budi', '4', 'Isi pengaduan yang cukup panjang untuk diterima.', '2']);
+            $this->complaintFlow(['1', 'Budi', '4', 'Isi pengaduan yang cukup panjang untuk diterima.', '2']);
             $this->assertStringContainsString($expected, $this->reply('1')->text);
         }
 
@@ -606,39 +608,13 @@ class BotScenarioTest extends TestCase
 
     public function test_media_in_non_attachment_complaint_step_gets_msg_04_with_prompt(): void
     {
-        $this->conversation(['Halo', '3', '1']);
+        $this->complaintFlow(['1']);
         $this->assertSame(['MSG-04', 'PGD-02'], $this->reply('', 'image')->codes);
     }
 
     public function test_empty_name_is_asked_again(): void
     {
-        $this->conversation(['Halo', '3', '1']);
+        $this->complaintFlow(['1']);
         $this->assertSame(['PGD-02'], $this->reply('  ')->codes);
-    }
-
-    public function test_session_state_and_current_menu_are_persisted(): void
-    {
-        $this->conversation(['Halo', '1', '1']);
-        $conversation = $this->chat->fresh();
-
-        $this->assertSame('M-02', $conversation->current_menu);
-        $this->assertSame('M-02', $conversation->session_state['menu']);
-    }
-
-    public function test_escalation_moves_bot_conversation_to_waiting_but_keeps_human_mode(): void
-    {
-        $this->startChat(['conversation_mode' => Conversation::MODE_HUMAN]);
-        $this->reply('Halo');
-        $this->reply('88');
-
-        $this->assertSame(Conversation::MODE_HUMAN, $this->chat->fresh()->conversation_mode);
-    }
-
-    public function test_bot_works_when_faq_rows_are_missing(): void
-    {
-        Faq::where('code', 'PSP-001')->delete();
-
-        $reply = $this->conversation(['Halo', '1', '1', '1']);
-        $this->assertSame(['MSG-05'], $reply->codes);
     }
 }

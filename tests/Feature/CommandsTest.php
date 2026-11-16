@@ -132,7 +132,7 @@ class CommandsTest extends TestCase
         Http::fake();
 
         $this->artisan('kancil:simulasi', ['pesan' => 'Halo'])->expectsOutputToContain('Selamat Datang')->assertSuccessful();
-        $this->artisan('kancil:simulasi', ['pesan' => '1'])->expectsOutputToContain('Pelayanan Paspor WNI')->assertSuccessful();
+        $this->artisan('kancil:simulasi', ['pesan' => '1'])->expectsOutputToContain('Persyaratan Paspor Baru')->assertSuccessful();
 
         $conversation = Conversation::sole();
         $this->assertSame('simulasi', $conversation->channel);

@@ -71,7 +71,9 @@ class BalesOtomatisWebhookController extends Controller
         }
 
         match ($type) {
-            'incoming_chat' => ProcessIncomingChat::dispatch($event->id),
+            'incoming_chat' => config('kancil.reply_inline') && config('kancil.bot_engine') === 'laravel'
+                ? ProcessIncomingChat::dispatchAfterResponse($event->id)
+                : ProcessIncomingChat::dispatch($event->id),
             'outgoing_chat' => ProcessOutgoingChat::dispatch($event->id),
             'message_status' => UpdateMessageStatus::dispatch($event->id),
             default => $event->update(['processed_at' => now(), 'error' => 'Tipe event tidak ditangani.']),

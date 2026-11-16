@@ -7,6 +7,7 @@ use App\Services\BalesOtomatis\BalesOtomatisClient;
 use App\Services\BalesOtomatis\BalesOtomatisException;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Jobs\SyncJob;
 use Throwable;
 
 /**
@@ -58,9 +59,18 @@ class SendWhatsappMessage implements ShouldQueue
         try {
             $externalId = $client->sendText($phone, (string) $message->message_text, $message->client_uuid);
         } catch (BalesOtomatisException $e) {
+            $sync = $this->job === null || $this->job instanceof SyncJob;
+
             if ($e->retryable && $this->attempts() < $this->tries) {
                 $message->update(['delivery_error' => $e->getMessage()]);
-                $this->release($this->backoff()[$this->attempts() - 1] ?? 90);
+                $delay = $this->backoff()[$this->attempts() - 1] ?? 90;
+
+                if (! $sync) {
+                    $this->release($delay);
+                } elseif (config('queue.default') !== 'sync') {
+                    // Dikirim langsung (tanpa worker): ulangi lewat antrean agar tidak hilang.
+                    static::dispatch($this->messageId)->delay($delay);
+                }
 
                 return;
             }

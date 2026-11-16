@@ -57,10 +57,10 @@ class BotAiTest extends TestCase
         $this->assertSame('gpt-5-nano', $log->model);
     }
 
-    public function test_main_menu_mentions_free_questions_when_ai_is_on(): void
+    public function test_main_menu_is_identical_to_bogor_even_when_ai_is_on(): void
     {
         $this->fakeApis();
-        $this->assertStringContainsString('Anda juga dapat langsung mengetik pertanyaan.', $this->reply('Halo')->text);
+        $this->assertStringNotContainsString('langsung mengetik pertanyaan', $this->reply('Halo')->text);
     }
 
     public function test_first_message_question_is_answered_directly(): void
@@ -193,7 +193,7 @@ class BotAiTest extends TestCase
     public function test_ai_is_not_used_inside_complaint_flow(): void
     {
         $this->fakeApis($this->aiJson('x', ['PSP-001']));
-        $this->conversation(['Halo', '3', '1']);
+        $this->complaintFlow(['1']);
 
         $this->assertSame(['PGD-03'], $this->reply('Budi Santoso')->codes);
         $this->assertSame(0, LlmLog::count());

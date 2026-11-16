@@ -119,7 +119,7 @@ class AntreanTest extends TestCase
 
         $handled = $this->ticket(['status' => 'Ditangani', 'assigned_to' => $officer->id, 'taken_at' => now()]);
         Carbon::setTestNow(now()->addMinutes(10));
-        $first = $this->ticket(['menu_path' => '0>1>5', 'escalation_code' => 'C1', 'priority' => 'Tinggi']);
+        $first = $this->ticket(['menu_path' => '0>7', 'escalation_code' => 'C1', 'priority' => 'Tinggi']);
         Carbon::setTestNow(now()->addMinutes(10));
         $second = $this->ticket();
         $doneToday = $this->ticket(['status' => 'Selesai', 'resolved_at' => now(), 'close_reason' => 'Diselesaikan petugas.']);
@@ -132,7 +132,7 @@ class AntreanTest extends TestCase
         $this->assertSame([1, 2, null], array_column($json['tickets'], 'posisi'));
         $row = $json['tickets'][0];
         $this->assertSame($first->ticket_number, $row['nomor']);
-        $this->assertSame('Persyaratan Paspor › Paspor Hilang', $row['topik']);
+        $this->assertSame('Pelayanan Paspor WNI › Permohonan Paspor Hilang', $row['topik']);
         $this->assertSame('C1', $row['kode']);
         $this->assertSame('Tinggi', $row['prioritas']);
         $this->assertSame('Pertanyaan 2', $row['pertanyaan']);

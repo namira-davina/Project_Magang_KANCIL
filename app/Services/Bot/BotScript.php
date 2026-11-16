@@ -6,11 +6,10 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
 /**
- * Teks menu, jawaban, dan pesan standar sesuai Dokumen Skenario FAQ
- * (M-00..M-10, MSG-01..09, ESK-01, PGD-01..10) dan Matriks Eskalasi (A1..C6).
- * Format tampilan mengikuti layanan WhatsApp Kantor Imigrasi Bogor: "Ketik *N* ...",
- * 0 = menu utama, 9 = menu sebelumnya; di jawaban 0 = kembali, 1 = hubungi Petugas.
- * Jalur internal (0>1>5 dst.) tetap memakai nomor lama agar log eskalasi tidak berubah.
+ * Teks menu, jawaban, dan pesan standar. Menu dan jawaban paspor/izin tinggal meniru persis layanan WhatsApp
+ * Kantor Imigrasi Kelas I Khusus Non TPI Bogor (kecuali Drive Thru dan persyaratan berdasarkan tujuan);
+ * hanya identitas kantor (nama, alamat, jam, lokasi) memakai data Cilacap. Pilihan "Ketik *N* ...", 0 = menu utama;
+ * setelah jawaban 0 = menu utama, 1 = hubungi Petugas. Pesan MSG/PGD/eskalasi mengikuti Matriks Eskalasi (A1..C6).
  */
 final class BotScript
 {
@@ -21,133 +20,62 @@ final class BotScript
     public const QUEUE_HELP = 'Ketik *antrean* untuk cek posisi, atau *batal* untuk membatalkan antrean.';
 
     /**
-     * Menu: judul, jalur, induk, pilihan (angka => [label, tujuan]).
-     * Tujuan: kode menu (M-xx), "ANS:<jalur>", "PGD-01", atau "ESK".
+     * Menu: judul (hanya untuk label petugas), jalur, induk, pilihan (angka => [label, tujuan]).
+     * Tujuan: kode menu (M-xx), "ANS:<jalur>", "STATUS:<jalur>", "ESK:<jalur>" (masuk antrean petugas),
+     * "BACK" (menu sebelumnya) atau "PGD-01" (alur pengaduan bot, tidak dipakai di menu utama gaya Bogor).
+     * Urutan dan teks mengikuti layanan WhatsApp Imigrasi Bogor, tanpa Drive Thru dan tanpa persyaratan berdasarkan tujuan.
      */
     public const MENUS = [
         'M-00' => ['title' => null, 'path' => '', 'parent' => null, 'options' => [
             '1' => ['Pelayanan Paspor WNI', 'M-01'],
             '2' => ['Pelayanan Izin Tinggal (For Foreigners)', 'M-08'],
-            '3' => ['Layanan Pengaduan (Complaint Support)', 'PGD-01'],
-            '4' => ['Hubungi Petugas (Contact Officer)', 'ESK'],
+            '3' => ['Layanan Pengaduan (Complaint Support)', 'ESK:3'],
         ]],
         'M-01' => ['title' => 'Pelayanan Paspor WNI', 'path' => '0', 'parent' => 'M-00', 'options' => [
-            '1' => ['Persyaratan Paspor', 'M-02'],
-            '2' => ['Cara Pembayaran Paspor', 'M-05'],
-            '3' => ['Pengambilan Paspor', 'M-06'],
-            '4' => ['Cek Status Permohonan', 'ANS:0>4'],
-            '5' => ['Layanan Khusus', 'M-07'],
-            '6' => ['Tarif Paspor', 'ANS:0>6'],
-            '7' => ['Pengiriman Paspor via Pos', 'ANS:0>7'],
-        ]],
-        'M-02' => ['title' => 'Persyaratan Paspor', 'path' => '0>1', 'parent' => 'M-01', 'options' => [
-            '1' => ['Paspor Baru', 'ANS:0>1>1'],
-            '2' => ['Penggantian Paspor', 'ANS:0>1>2'],
-            '3' => ['Berdasarkan Tujuan', 'M-03'],
-            '4' => ['Paspor Anak', 'M-04'],
-            '5' => ['Paspor Hilang', 'ANS:0>1>5'],
-            '6' => ['Affidavit', 'ANS:0>1>6'],
-        ]],
-        'M-03' => ['title' => 'Paspor Berdasarkan Tujuan', 'path' => '0>1>3', 'parent' => 'M-02', 'options' => [
-            '1' => ['Wisata', 'ANS:0>1>3>1'],
-            '2' => ['Belajar', 'ANS:0>1>3>2'],
-            '3' => ['Berobat', 'ANS:0>1>3>3'],
-            '4' => ['CPMI', 'ANS:0>1>3>4'],
-            '5' => ['Pelaut', 'ANS:0>1>3>5'],
-            '6' => ['Umrah', 'ANS:0>1>3>6'],
-            '7' => ['Haji', 'ANS:0>1>3>7'],
-            '8' => ['Magang', 'ANS:0>1>3>8'],
-        ]],
-        'M-04' => ['title' => 'Paspor Anak', 'path' => '0>1>4', 'parent' => 'M-02', 'options' => [
-            '1' => ['Syarat Umum', 'ANS:0>1>4>1'],
-            '2' => ['Orang Tua Bercerai', 'ANS:0>1>4>2'],
-            '3' => ['Orang Tua Meninggal / Yatim Piatu', 'ANS:0>1>4>3'],
-            '4' => ['Anak Adopsi', 'ANS:0>1>4>4'],
-        ]],
-        'M-05' => ['title' => 'Cara Pembayaran Paspor', 'path' => '0>2', 'parent' => 'M-01', 'options' => [
-            '1' => ['ATM', 'ANS:0>2>1'],
-            '2' => ['M-Banking', 'ANS:0>2>2'],
-            '3' => ['Aplikasi', 'ANS:0>2>3'],
-            '4' => ['Kantor Pos / Indomaret / Alfamart', 'ANS:0>2>4'],
-        ]],
-        'M-06' => ['title' => 'Pengambilan Paspor', 'path' => '0>3', 'parent' => 'M-01', 'options' => [
-            '1' => ['Diambil Sendiri', 'ANS:0>3>1'],
-            '2' => ['Diwakilkan (satu KK)', 'ANS:0>3>2'],
-            '3' => ['Diwakilkan (beda KK)', 'ANS:0>3>3'],
-        ]],
-        'M-07' => ['title' => 'Layanan Khusus', 'path' => '0>5', 'parent' => 'M-01', 'intro_faq' => 'LYK-001', 'options' => [
-            '1' => ['KANCIL NARI', 'ANS:0>5>1'],
-            '2' => ['KANCIL PERSAMI', 'ANS:0>5>2'],
-            '3' => ['KANCIL PESAT', 'ANS:0>5>3'],
-            '4' => ['Eazy Paspor', 'ANS:0>5>4'],
-            '5' => ['KANCIL NGAPAK', 'ANS:0>5>5'],
-            '6' => ['HOTS', 'ANS:0>5>6'],
+            '1' => ['Biaya Paspor', 'ANS:0>1'],
+            '2' => ['Persyaratan Paspor Baru', 'ANS:0>2'],
+            '3' => ['Persyaratan Penggantian Paspor', 'ANS:0>3'],
+            '4' => ['Persyaratan Paspor Anak', 'ANS:0>4'],
+            '5' => ['Pendaftaran Paspor (M-Paspor)', 'ANS:0>5'],
+            '6' => ['Layanan Prioritas Ramah HAM', 'ANS:0>6'],
+            '7' => ['Permohonan Paspor Hilang', 'ANS:0>7'],
+            '8' => ['Permohonan Paspor Rusak', 'ANS:0>8'],
+            '9' => ['Penambahan Nama pada Paspor', 'ANS:0>9'],
+            '10' => ['Cek Status Paspor', 'STATUS:0>10'],
+            '11' => ['untuk kembali ke menu sebelumnya', 'BACK'],
         ]],
         'M-08' => ['title' => 'Pelayanan Izin Tinggal (For Foreigners)', 'path' => '1', 'parent' => 'M-00', 'options' => [
-            '1' => ['Tarif Izin Tinggal dan Visa', 'M-09'],
-            '2' => ['Pelaporan WNA Meninggal di Indonesia', 'M-10'],
-        ]],
-        'M-09' => ['title' => 'Tarif Izin Tinggal dan Visa', 'path' => '1>1', 'parent' => 'M-08', 'options' => [
-            '1' => ['Izin Masuk Kembali', 'ANS:1>1>1'],
-            '2' => ['Izin Tinggal Kunjungan', 'ANS:1>1>2'],
-            '3' => ['Izin Tinggal Terbatas', 'ANS:1>1>3'],
-            '4' => ['Izin Tinggal Tetap', 'ANS:1>1>4'],
-            '5' => ['Exit Permit Only', 'ANS:1>1>5'],
-            '6' => ['Visa Kunjungan Beberapa Kali', 'ANS:1>1>6'],
-        ]],
-        'M-10' => ['title' => 'Pelaporan WNA Meninggal', 'path' => '1>2', 'parent' => 'M-08', 'options' => [
-            '1' => ['Pelapor dan Batas Waktu', 'ANS:1>2>1'],
-            '2' => ['Dokumen', 'ANS:1>2>2'],
-            '3' => ['Alur Pelaporan', 'ANS:1>2>3'],
+            '1' => ['Izin Tinggal (Residence Permit)', 'ESK:1>1'],
+            '2' => ['Pengaduan Orang Asing (Foreigner Complaint)', 'ESK:1>2'],
+            '3' => ['Lokasi Kami', 'ANS:1>3'],
+            '4' => ['untuk kembali ke menu sebelumnya', 'BACK'],
         ]],
     ];
 
     /**
-     * Jawaban per jalur (Bab 4): FAQ, tawaran 88, dan kode eskalasi bila 88 diketik.
-     * Kode C1–C6 = kasus khusus; A4 = jawaban belum lengkap di materi.
+     * Jawaban per jalur. 'text' = isi jawaban (null = dinamis, lihat locationText()).
+     * 'code' = kode Matriks Eskalasi bila pemohon memilih "hubungi Petugas" setelah jawaban itu (C1 = paspor hilang, C2 = anak).
      */
     public const ANSWERS = [
-        '0>1>1' => ['faqs' => ['PSP-001'], 'offer88' => false, 'code' => null],
-        '0>1>2' => ['faqs' => ['PSP-002'], 'offer88' => true, 'code' => 'A4'],
-        '0>1>3>1' => ['faqs' => ['PSP-003'], 'offer88' => false, 'code' => null],
-        '0>1>3>2' => ['faqs' => ['PSP-004'], 'offer88' => false, 'code' => null],
-        '0>1>3>3' => ['faqs' => ['PSP-005'], 'offer88' => false, 'code' => null],
-        '0>1>3>4' => ['faqs' => ['PSP-006'], 'offer88' => false, 'code' => null],
-        '0>1>3>5' => ['faqs' => ['PSP-007'], 'offer88' => false, 'code' => null],
-        '0>1>3>6' => ['faqs' => ['PSP-008'], 'offer88' => false, 'code' => null],
-        '0>1>3>7' => ['faqs' => ['PSP-009'], 'offer88' => false, 'code' => null],
-        '0>1>3>8' => ['faqs' => ['PSP-010'], 'offer88' => false, 'code' => null],
-        '0>1>4>1' => ['faqs' => ['ANK-001', 'ANK-002', 'ANK-003', 'ANK-004'], 'offer88' => false, 'code' => null],
-        '0>1>4>2' => ['faqs' => ['ANK-005'], 'offer88' => true, 'code' => 'C2'],
-        '0>1>4>3' => ['faqs' => ['ANK-006', 'ANK-007', 'ANK-008'], 'offer88' => true, 'code' => 'C2'],
-        '0>1>4>4' => ['faqs' => ['ANK-009'], 'offer88' => true, 'code' => 'C2'],
-        '0>1>5' => ['faqs' => ['PSP-011'], 'offer88' => true, 'code' => 'C1'],
-        '0>1>6' => ['faqs' => ['PSP-012'], 'offer88' => true, 'code' => 'C3'],
-        '0>2>1' => ['faqs' => ['BYR-001'], 'offer88' => false, 'code' => null],
-        '0>2>2' => ['faqs' => ['BYR-002'], 'offer88' => false, 'code' => null],
-        '0>2>3' => ['faqs' => ['BYR-003'], 'offer88' => false, 'code' => null],
-        '0>2>4' => ['faqs' => ['BYR-004'], 'offer88' => false, 'code' => null],
-        '0>3>1' => ['faqs' => ['AMB-001'], 'offer88' => false, 'code' => null],
-        '0>3>2' => ['faqs' => ['AMB-002'], 'offer88' => false, 'code' => null],
-        '0>3>3' => ['faqs' => ['AMB-003'], 'offer88' => false, 'code' => null],
-        '0>4' => ['faqs' => ['AMB-009'], 'offer88' => false, 'code' => null],
-        '0>5>1' => ['faqs' => ['LYK-002'], 'offer88' => false, 'code' => null],
-        '0>5>2' => ['faqs' => ['LYK-003'], 'offer88' => true, 'code' => 'A4'],
-        '0>5>3' => ['faqs' => ['LYK-004', 'LYK-005'], 'offer88' => true, 'code' => 'C4'],
-        '0>5>4' => ['faqs' => ['LYK-006', 'LYK-007', 'LYK-008'], 'offer88' => false, 'code' => null],
-        '0>5>5' => ['faqs' => ['LYK-009'], 'offer88' => true, 'code' => 'A4'],
-        '0>5>6' => ['faqs' => ['LYK-010', 'LYK-011'], 'offer88' => false, 'code' => null],
-        '0>6' => ['faqs' => ['TRF-001', 'TRF-002', 'TRF-003', 'TRF-004', 'TRF-011'], 'offer88' => true, 'code' => 'A4'],
-        '0>7' => ['faqs' => ['AMB-004', 'AMB-005', 'AMB-006', 'AMB-007', 'AMB-008'], 'offer88' => true, 'code' => 'C5'],
-        '1>1>1' => ['faqs' => ['TRF-005', 'TRF-011'], 'offer88' => false, 'code' => null],
-        '1>1>2' => ['faqs' => ['TRF-006', 'TRF-011'], 'offer88' => false, 'code' => null],
-        '1>1>3' => ['faqs' => ['TRF-007', 'TRF-011'], 'offer88' => false, 'code' => null],
-        '1>1>4' => ['faqs' => ['TRF-008', 'TRF-011'], 'offer88' => false, 'code' => null],
-        '1>1>5' => ['faqs' => ['TRF-009', 'TRF-011'], 'offer88' => false, 'code' => null],
-        '1>1>6' => ['faqs' => ['TRF-010', 'TRF-011'], 'offer88' => false, 'code' => null],
-        '1>2>1' => ['faqs' => ['WNA-001', 'WNA-002'], 'offer88' => true, 'code' => 'C6'],
-        '1>2>2' => ['faqs' => ['WNA-003'], 'offer88' => true, 'code' => 'C6'],
-        '1>2>3' => ['faqs' => ['WNA-004'], 'offer88' => true, 'code' => 'C6'],
+        '0>1' => ['text' => "Sesuai dengan PP No. 45 Tahun 2024\n\nPNBP Paspor Elektronik 5 Tahun : Rp 650.000\nPNBP Paspor Elektronik 10 Tahun : Rp 950.000\n\nPNBP Percepatan Paspor Elektronik:\n\n* 5 Tahun : Rp 1.650.000\n* 10 Tahun : Rp 1.950.000\n\nPNBP Denda:\n\n* Paspor Hilang : Rp 1.000.000\n* Paspor Rusak : Rp 500.000\n\nKhusus paspor hilang dan rusak:\n\n* Tidak dapat mengajukan permohonan secara online\n* Tidak dapat mengajukan permohonan paspor baru\n* Pemohon wajib datang langsung ke Kantor Imigrasi", 'code' => null],
+        '0>2' => ['text' => "Dokumen persyaratan Paspor Baru:\n\n* e-KTP\n* Kartu Keluarga\n* Akta Lahir / Ijazah / Buku Nikah\n* Materai Rp 10.000\n\nSebelum datang ke Kantor Imigrasi,\nwajib melakukan pendaftaran terlebih dahulu melalui aplikasi M-Paspor.", 'code' => null],
+        '0>3' => ['text' => "Dokumen persyaratan Penggantian Paspor:\n\n* e-KTP\n* Paspor Lama\n* Materai Rp 10.000\n\nSebelum datang ke Kantor Imigrasi,\nwajib melakukan pendaftaran melalui aplikasi M-Paspor.\n\nPastikan paspor lama masih tersedia dan dalam kondisi baik.", 'code' => null],
+        '0>4' => ['text' => "Persyaratan Paspor Anak (Usia di bawah 17 tahun):\n\n* Akta Lahir Anak\n* e-KTP kedua Orang Tua\n* Kartu Keluarga\n* Buku Nikah / Akta Perkawinan\n* Paspor kedua Orang Tua (masih berlaku)\n* Paspor Lama Anak (jika ada)\n* Materai Rp 10.000\n\n---------------\n\nPersyaratan Paspor Anak (Orang Tua Bercerai):\n\n* Akta Lahir Anak\n* e-KTP kedua Orang Tua\n* Kartu Keluarga\n* Akta Perceraian\n* Paspor Orang Tua (masih berlaku)\n* Surat Penetapan Hak Asuh dari Pengadilan\n* Paspor Lama Anak (jika ada)\n* Materai Rp 10.000\n\n---------------\n\nPersyaratan Paspor Anak (Berstatus Anak Ibu):\n\n* Akta Lahir Anak (mencantumkan nama Ibu)\n* e-KTP Ibu\n* Kartu Keluarga\n* Paspor Lama Anak (jika ada)\n* Materai Rp 10.000\n\n---------------\n\nSebelum datang ke Kantor Imigrasi,\nwajib melakukan pendaftaran melalui aplikasi M-Paspor.", 'code' => 'C2'],
+        '0>5' => ['text' => "Silakan unduh aplikasi M-Paspor:\n\nAndroid:\nhttps://play.google.com/store/apps/details?id=id.go.imigrasi.paspor_online\n\niOS:\nhttps://apps.apple.com/id/app/m-paspor/id1576336459\n\nLangkah pendaftaran:\n✅ Daftar dan login akun\n✅ Lengkapi data diri\n✅ Pilih jenis paspor, tanggal, dan lokasi\n✅ Lakukan pembayaran\n\nBatas waktu pembayaran adalah 120 menit\nsetelah kode billing diterbitkan.\n\n⚠️ PERHATIAN ⚠️\nKesalahan pengisian data dapat menyebabkan\npermohonan dibatalkan dan biaya tidak dapat dikembalikan.", 'code' => null],
+        '0>6' => ['text' => "Layanan prioritas diperuntukkan bagi:\n\n* Lansia (usia 60 tahun ke atas)\n* Balita (usia 5 tahun ke bawah)\n* Ibu Hamil\n* Ibu Menyusui\n* Penyandang Disabilitas\n\nPemohon dapat datang langsung ke Kantor Imigrasi\npada jam layanan dengan membawa dokumen asli.\n\nBiaya Paspor Elektronik:\n\n* 5 Tahun : Rp 650.000\n* 10 Tahun : Rp 950.000", 'code' => null],
+        '0>7' => ['text' => "Permohonan paspor hilang tidak melalui aplikasi M-Paspor.\nPemohon wajib datang langsung ke Kantor Imigrasi.\n\nPersyaratan:\n✅ e-KTP\n✅ Kartu Keluarga\n✅ Akta Lahir / Buku Nikah / Ijazah\n✅ Salinan Paspor Lama\n✅ Surat Kehilangan dari Kepolisian\n✅ Materai Rp 10.000\n\nPNBP:\n\n* 5 Tahun  : Rp 1.650.000\n* 10 Tahun : Rp 1.950.000\n  (Termasuk denda paspor hilang Rp 1.000.000)", 'code' => 'C1'],
+        '0>8' => ['text' => "Permohonan paspor rusak tidak melalui aplikasi M-Paspor.\nPemohon wajib datang langsung ke Kantor Imigrasi.\n\nPersyaratan:\n✅ e-KTP\n✅ Kartu Keluarga\n✅ Akta Lahir / Buku Nikah / Ijazah\n✅ Paspor Lama yang rusak\n✅ Materai Rp 10.000\n\nPNBP:\n\n* 5 Tahun  : Rp 1.150.000\n* 10 Tahun : Rp 1.450.000", 'code' => null],
+        '0>9' => ['text' => "Persyaratan Penambahan Nama:\n\n▪ Paspor masih aktif\n▪ e-KTP\n▪ Kartu Keluarga\n▪ Akta Lahir / Buku Nikah / Ijazah\n▪ Surat rekomendasi travel (Umrah) atau BPIH (Haji)\n▪ Materai Rp 10.000\n\nPemohon wajib datang langsung ke Kantor Imigrasi\ndengan membawa dokumen asli dan fotokopi A4 utuh.", 'code' => null],
+        '1>3' => ['text' => null, 'code' => null],
+    ];
+
+    /** Kode Matriks Eskalasi bila pemohon minta Petugas setelah AI menjawab dari FAQ ini (kode FAQ pertama yang dipakai). */
+    public const FAQ_ESCALATION = [
+        'PSP-002' => 'A4', 'PSP-011' => 'C1', 'PSP-012' => 'C3',
+        'ANK-005' => 'C2', 'ANK-006' => 'C2', 'ANK-007' => 'C2', 'ANK-008' => 'C2', 'ANK-009' => 'C2',
+        'LYK-003' => 'A4', 'LYK-004' => 'C4', 'LYK-005' => 'C4', 'LYK-009' => 'A4', 'TRF-001' => 'A4',
+        'AMB-004' => 'C5', 'AMB-005' => 'C5', 'AMB-006' => 'C5', 'AMB-007' => 'C5', 'AMB-008' => 'C5',
+        'WNA-001' => 'C6', 'WNA-002' => 'C6', 'WNA-003' => 'C6', 'WNA-004' => 'C6',
     ];
 
     /** Prioritas per kode eskalasi (Matriks Eskalasi Bagian 1). */
@@ -164,19 +92,15 @@ final class BotScript
         '4' => ['Lainnya', 'Rendah'],
     ];
 
-    public static function mainMenu(bool $aiHint = false, ?string $name = null, bool $greet = false): string
+    /** Menu utama: sapaan + identitas kantor + status hari ini + pilihan (format Imigrasi Bogor). */
+    public static function mainMenu(?string $name = null, string $status = ''): string
     {
-        $text = $greet
-            ? self::greeting($name)."\n\nSelamat Datang di Layanan Informasi dan Pengaduan *Kantor Imigrasi Kelas I TPI Cilacap*.\n\n"
-            : "*Menu Utama*\n";
+        $office = (string) config('kancil.office.name', 'Kantor Imigrasi Kelas I TPI Cilacap');
 
-        $text .= "Silakan pilih menu di bawah ini:\n\n".self::optionLines('M-00');
-
-        if ($aiHint) {
-            $text .= "\n\nAnda juga dapat langsung mengetik pertanyaan.";
-        }
-
-        return $text."\n\nKetik angka pilihan Anda, lalu ikuti petunjuk selanjutnya\n------------\n_Type your selection, then follow the instructions_";
+        return self::greeting($name)."\n\nSelamat Datang , di Layanan Informasi dan Pengaduan {$office}.\n\n"
+            .($status !== '' ? $status."\n\n" : '')
+            ."Silakan pilih menu di bawah ini:\n\n".self::optionLines('M-00')
+            ."\n\nKetik angka pilihan Anda, lalu ikuti petunjuk selanjutnya\n------------\n_Type your selection, then follow the instructions_";
     }
 
     /** "Selamat Siang, Halo *Nama*" sesuai jam Asia/Jakarta. */
@@ -196,24 +120,12 @@ final class BotScript
         return "Selamat {$part}, Halo".($name !== '' ? " *{$name}*" : '');
     }
 
-    public static function menu(string $code, ?string $intro = null): string
+    /** Submenu tanpa judul, persis seperti Bogor: "Silakan pilih topik ..." lalu daftar pilihan. */
+    public static function menu(string $code): string
     {
-        $menu = self::MENUS[$code];
-        $text = '*'.$menu['title']."*\n";
-
-        if ($intro) {
-            $text .= $intro."\n\n";
-        }
-
-        $text .= "Silakan pilih topik yang ingin Anda ketahui lebih lanjut:\n\n"
+        return "Silakan pilih topik yang ingin Anda ketahui lebih lanjut:\n\n"
             ."Ketik *0* untuk kembali ke menu utama\n"
             .self::optionLines($code);
-
-        if (($menu['parent'] ?? 'M-00') !== 'M-00') {
-            $text .= "\nKetik *9* untuk kembali ke menu sebelumnya";
-        }
-
-        return $text;
     }
 
     public static function optionLines(string $code): string
@@ -223,7 +135,26 @@ final class BotScript
             ->implode("\n");
     }
 
-    /** Jawaban FAQ dengan pembuka dan penutup gaya layanan informasi. */
+    /** Prompt nomor permohonan untuk Cek Status Paspor. */
+    public static function statusPrompt(): string
+    {
+        return "Silakan ketik *Nomor Permohonan* paspor Anda.\nContoh: 1498000000012345\n\nKetik *0* untuk kembali ke menu utama.";
+    }
+
+    /** Lokasi Kami: identitas kantor Cilacap (config kancil.office). */
+    public static function locationText(): string
+    {
+        $office = config('kancil.office');
+        $lines = ["📍 {$office['name']}\n{$office['address']}\n{$office['maps']}"];
+
+        foreach ($office['other_locations'] ?? [] as $name => $maps) {
+            $lines[] = "📍 {$name}\n{$maps}";
+        }
+
+        return implode("\n\n", $lines);
+    }
+
+    /** Jawaban dengan pembuka dan penutup gaya layanan informasi. */
     public static function answer(string $body): string
     {
         return "*Berikut ini adalah informasi dan solusi yang Anda cari:*\n\n".$body."\n\n".self::answerFooter();
@@ -237,17 +168,10 @@ final class BotScript
             .'*Terima kasih.*';
     }
 
-    /** Pemohon dimasukkan ke antrean petugas; petugas membalas di chat yang sama. */
-    public static function handoff(?string $ticket = null, ?int $queueNo = null, ?int $position = null): string
+    /** Pemohon masuk antrean petugas (teks sama dengan Imigrasi Bogor); nomor tiket tetap dicatat di dashboard. */
+    public static function handoff(): string
     {
-        $text = "Baik, mohon menunggu sebentar.\n\nPermintaan Anda sedang kami hubungkan dengan *Petugas* dan masuk antrean.";
-
-        if ($ticket === null) {
-            return $text;
-        }
-
-        return $text."\n\n".self::queueLines($ticket, $queueNo, $position)
-            ."\n\nPetugas akan membalas di chat ini sesuai urutan antrean.\n".self::QUEUE_HELP;
+        return "Terima kasih atas pesan Anda.\n\nMohon menunggu, pesan Anda telah diterima dan masuk antrean.";
     }
 
     /** Balasan perintah "antrean" atau pengingat saat pemohon mengirim pesan selama menunggu. */
@@ -362,12 +286,12 @@ final class BotScript
         }
 
         if ($path === '3') {
-            return 'Hubungi Petugas (menu utama)';
+            return 'Layanan Pengaduan (menu utama)';
         }
 
         foreach (self::MENUS as $menu) {
             foreach ($menu['options'] as $option) {
-                if ($option[1] === 'ANS:'.$path) {
+                if (str_ends_with($option[1], ':'.$path)) {
                     return ($menu['title'] ? $menu['title'].' › ' : '').$option[0];
                 }
             }
@@ -380,17 +304,5 @@ final class BotScript
         }
 
         return $path;
-    }
-
-    /** Kode jawaban (jalur) yang memuat FAQ tertentu. */
-    public static function pathForFaq(string $faqCode): ?string
-    {
-        foreach (self::ANSWERS as $path => $answer) {
-            if (in_array($faqCode, $answer['faqs'], true)) {
-                return $path;
-            }
-        }
-
-        return null;
     }
 }

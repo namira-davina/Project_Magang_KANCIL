@@ -24,16 +24,28 @@ class BotScriptTest extends TestCase
             foreach ($menu['options'] as $key => [$label, $target]) {
                 $valid = isset(BotScript::MENUS[$target])
                     || (str_starts_with($target, 'ANS:') && isset(BotScript::ANSWERS[substr($target, 4)]))
-                    || in_array($target, ['PGD-01', 'ESK'], true);
+                    || str_starts_with($target, 'ESK:') || str_starts_with($target, 'STATUS:')
+                    || in_array($target, ['PGD-01', 'BACK'], true);
 
                 $this->assertTrue($valid, "{$code} pilihan {$key} → {$target}");
                 $this->assertNotSame('', $label);
-                $this->assertNotContains((string) $key, ['0', '9', '99', '88'], 'Angka perintah tidak boleh dipakai sebagai pilihan.');
+                $this->assertNotContains((string) $key, ['0', '99', '88'], 'Angka perintah tidak boleh dipakai sebagai pilihan.');
             }
         }
     }
 
-    public function test_every_menu_reaches_main_menu_and_path_matches_parent(): void
+    public function test_options_are_numbered_sequentially_and_back_is_last(): void
+    {
+        foreach (BotScript::MENUS as $code => $menu) {
+            $this->assertSame(range(1, count($menu['options'])), array_map('intval', array_keys($menu['options'])), $code);
+
+            if ($code !== 'M-00') {
+                $this->assertSame('BACK', end($menu['options'])[1], "{$code}: pilihan terakhir = kembali ke menu sebelumnya");
+            }
+        }
+    }
+
+    public function test_every_menu_reaches_main_menu_and_paths_follow_numbering(): void
     {
         foreach (BotScript::MENUS as $code => $menu) {
             $seen = [];
@@ -44,15 +56,13 @@ class BotScriptTest extends TestCase
             $this->assertSame('M-00', end($seen));
         }
 
-        // M-xx yang dibuka dari induk memiliki jalur induk + pilihan.
-        // Menu utama tampil 1/2 (gaya Bogor), jalur internalnya tetap 0 (WNI) / 1 (WNA).
+        // Jalur internal: menu utama 1/2 = 0/1 (WNI/WNA), selebihnya jalur induk + nomor pilihan.
         foreach (BotScript::MENUS as $code => $menu) {
             foreach ($menu['options'] as $key => [, $target]) {
                 $key = $code === 'M-00' ? (string) ((int) $key - 1) : $key;
 
                 if (isset(BotScript::MENUS[$target])) {
-                    $expected = ltrim($menu['path'].'>'.$key, '>');
-                    $this->assertSame($expected, BotScript::MENUS[$target]['path'], $target);
+                    $this->assertSame(ltrim($menu['path'].'>'.$key, '>'), BotScript::MENUS[$target]['path'], $target);
                     $this->assertSame($code, BotScript::MENUS[$target]['parent'], $target);
                 } elseif (str_starts_with($target, 'ANS:')) {
                     $this->assertSame(ltrim($menu['path'].'>'.$key, '>'), substr($target, 4));
@@ -61,41 +71,25 @@ class BotScriptTest extends TestCase
         }
     }
 
-    public function test_answers_use_existing_faqs_and_match_inventory_menu_path(): void
+    public function test_answers_have_text_and_valid_escalation_codes(): void
     {
-        $faqs = $this->faqData();
-
         foreach (BotScript::ANSWERS as $path => $answer) {
-            $this->assertNotEmpty($answer['faqs']);
-            foreach ($answer['faqs'] as $code) {
-                $this->assertArrayHasKey($code, $faqs, "{$path} memakai {$code}");
+            if ($path !== '1>3') {
+                $this->assertNotEmpty($answer['text'], $path);
+                $this->assertLessThanOrEqual(1600, mb_strlen($answer['text']), "{$path}: muat di satu pesan WhatsApp");
             }
-            $this->assertSame($answer['code'] !== null, $answer['offer88'], "{$path}: tawaran 88 ⇔ kode eskalasi");
+
             if ($answer['code']) {
                 $this->assertArrayHasKey($answer['code'], BotScript::PRIORITY);
             }
         }
 
-        // Jalur menu di Inventarisasi (kolom "Jalur menu") sama dengan tabel jawaban.
-        foreach ($faqs as $code => $faq) {
-            $path = BotScript::pathForFaq($code);
-            if (in_array($code, ['LYK-001', 'KTK-001'], true)) {
-                $this->assertNull($path, "{$code} dipakai sebagai intro/kontak, bukan jawaban");
-
-                continue;
-            }
-            $this->assertNotNull($path, "{$code} harus bisa dijangkau dari menu");
-            if ($code !== 'TRF-011') {
-                $this->assertSame($faq['menu_path'], $path, $code);
-            }
-        }
+        $this->assertSame('C1', BotScript::ANSWERS['0>7']['code'], 'Paspor hilang = C1');
+        $this->assertSame('C2', BotScript::ANSWERS['0>4']['code'], 'Paspor anak = C2');
     }
 
-    public function test_escalation_codes_match_matrix(): void
+    public function test_escalation_priorities_match_matrix(): void
     {
-        $codes = collect(BotScript::ANSWERS)->pluck('code')->filter()->unique()->sort()->values()->all();
-        $this->assertSame(['A4', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6'], $codes);
-
         $this->assertSame('Tinggi', BotScript::PRIORITY['C1']);
         $this->assertSame('Tinggi', BotScript::PRIORITY['C4']);
         $this->assertSame('Tinggi', BotScript::PRIORITY['C6']);
@@ -110,15 +104,15 @@ class BotScriptTest extends TestCase
         $this->assertSame('Mohon maaf, pilihan Anda tidak tersedia. Silakan ketik angka sesuai menu di bawah ini.', BotScript::msg('MSG-01'));
         $this->assertSame('Sesi sebelumnya telah berakhir.', BotScript::msg('MSG-06'));
         $this->assertSame('Pengaduan dibatalkan. Anda dapat memulai kembali kapan saja.', BotScript::msg('MSG-08'));
-        $this->assertSame('_Saat ini di luar jam layanan petugas. Petugas akan membalas pesan Anda pada jam layanan berikutnya._', BotScript::msg('MSG-07'));
-        $this->assertStringEndsWith('jam layanan: 08-16._', BotScript::msg('MSG-07', '08-16'));
 
-        // Permintaan pengguna: bot tidak lagi menyebut nomor/email kantor; pemohon masuk antrean petugas.
+        // Bot tidak menyebut nomor/email kantor; pemohon masuk antrean petugas dengan teks yang sama seperti Imigrasi Bogor.
         foreach (['MSG-01', 'MSG-02', 'MSG-03', 'MSG-04', 'MSG-05', 'MSG-06', 'MSG-07', 'MSG-08', 'MSG-09', 'AI-UNKNOWN'] as $id) {
             $this->assertStringNotContainsString('081217000900', BotScript::msg($id), $id);
             $this->assertStringNotContainsString('cilacap@imigrasi.go.id', BotScript::msg($id), $id);
         }
-        $this->assertSame("Baik, mohon menunggu sebentar.\n\nPermintaan Anda sedang kami hubungkan dengan *Petugas* dan masuk antrean.", BotScript::handoff());
+        $this->assertSame('Terima kasih atas pesan Anda.
+
+Mohon menunggu, pesan Anda telah diterima dan masuk antrean.', BotScript::handoff());
     }
 
     public function test_answer_format_follows_bogor_style(): void
@@ -143,12 +137,19 @@ class BotScriptTest extends TestCase
         $this->assertSame('Selamat Malam, Halo *Budi*', BotScript::greeting('*Bu_di*', $at('02:00')), 'Format WhatsApp di nama dibuang.');
     }
 
-    public function test_main_menu_hint_toggle(): void
+    public function test_main_menu_has_greeting_office_status_and_no_officer_option(): void
     {
-        $this->assertStringNotContainsString('pertanyaan', BotScript::mainMenu(false));
-        $this->assertStringContainsString('Anda juga dapat langsung mengetik pertanyaan.', BotScript::mainMenu(true));
-        $this->assertStringStartsWith('*Menu Utama*', BotScript::mainMenu());
-        $this->assertStringStartsWith('Selamat ', BotScript::mainMenu(false, 'Budi', true));
+        $text = BotScript::mainMenu('Budi', '*Status Hari Ini: BUKA*');
+
+        $this->assertStringStartsWith('Selamat ', $text);
+        $this->assertStringContainsString('Halo *Budi*', $text);
+        $this->assertStringContainsString('Selamat Datang , di Layanan Informasi dan Pengaduan Kantor Imigrasi Kelas I TPI Cilacap.
+
+*Status Hari Ini: BUKA*
+
+Silakan pilih menu', $text);
+        $this->assertStringNotContainsString('Hubungi Petugas (Contact Officer)', $text);
+        $this->assertStringNotContainsString('pertanyaan', $text);
     }
 
     public function test_unknown_message_ids_throw(): void

@@ -5,7 +5,6 @@ namespace App\Services\Bot;
 use App\Models\Complaint;
 use App\Models\Conversation;
 use App\Models\EscalationLog;
-use App\Models\Faq;
 use App\Models\Message;
 use App\Models\ServiceTicket;
 use App\Services\ComplaintService;
@@ -13,16 +12,16 @@ use App\Services\Llm\LlmAnswer;
 use App\Services\Llm\LlmResponder;
 use App\Services\Tickets\TicketQueueService;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Collection;
 
 /**
  * Otak bot (Opsi B): menu rule-based sesuai Dokumen Skenario FAQ, alur pengaduan PGD,
  * pencatatan eskalasi sesuai Matriks Eskalasi, dan AI untuk pertanyaan bebas.
  *
  * Status sesi disimpan di conversations.session_state:
- *  menu        kode menu yang sedang aktif (M-00..M-10)
+ *  menu        kode menu yang sedang aktif (M-00, M-01, M-08)
  *  pgd         langkah pengaduan (PGD-01..PGD-09) atau null
- *  answer      jalur jawaban terakhir yang dibuka (mis. 0>1>5) atau null
+ *  status      menunggu nomor permohonan (Cek Status Paspor)
+ *  answer      jalur jawaban terakhir yang dibuka (mis. 0>7) atau null
  *  shown       jawaban terakhir benar-benar tampil (bukan MSG-05)
  *  invalid     jumlah salah input berturut-turut
  *  after_msg03 MSG-03 baru dikirim (88 berikutnya tidak dicatat dua kali)
@@ -94,34 +93,36 @@ class BotEngine
             return $this->complaintStep($command, $text);
         }
 
+        if ($this->state['status'] ?? false) {
+            return $this->statusStep($command, $text);
+        }
+
         if ($this->state['answer'] ?? null) {
             return $this->answerAction($command, $text);
         }
 
         return match (true) {
             in_array($command, ['0', '99', 'menu'], true) => [$this->goMainMenu()],
-            $command === '88' => [$this->escalate(viaMenu3: false)],
-            $command === '9' => [$this->back()],
+            $command === '88' => [$this->escalate(viaMenu: false)],
             ctype_digit($command) => $this->selectOption($command, $text),
-            $this->isGreeting($text) => [$this->goMainMenu(greet: true)],
+            $this->isGreeting($text) => [$this->goMainMenu()],
             default => $this->freeText($text),
         };
     }
 
     /**
-     * Setelah jawaban tampil (gaya Bogor): 0 = kembali ke menu sebelumnya, 1 = hubungi Petugas.
-     * 99 / 88 / 9 tetap diterima sebagai jalan pintas.
+     * Setelah jawaban tampil (persis Bogor): 0 = menu utama, 1 = hubungi Petugas.
+     * 99 / 88 / menu tetap diterima sebagai jalan pintas.
      *
      * @return list<BotReply>
      */
     private function answerAction(string $command, string $text): array
     {
         return match (true) {
-            in_array($command, ['0', '9'], true) => [$this->back()],
-            in_array($command, ['1', '88'], true) => [$this->escalate(viaMenu3: false)],
-            in_array($command, ['99', 'menu'], true) => [$this->goMainMenu()],
+            in_array($command, ['0', '99', 'menu'], true) => [$this->goMainMenu()],
+            in_array($command, ['1', '88'], true) => [$this->escalate(viaMenu: false)],
             ctype_digit($command) => [$this->invalidInput($text)],
-            $this->isGreeting($text) => [$this->goMainMenu(greet: true)],
+            $this->isGreeting($text) => [$this->goMainMenu()],
             default => $this->freeText($text),
         };
     }
@@ -156,35 +157,31 @@ class BotEngine
         }
 
         if ($expired) {
-            return [$this->reply(BotScript::msg('MSG-06')."\n\n".$this->mainMenuText(greet: true), ['MSG-06', 'M-00'])];
+            return [$this->reply(BotScript::msg('MSG-06')."\n\n".$this->mainMenuText(), ['MSG-06', 'M-00'])];
         }
 
-        return [$this->reply($this->mainMenuText(greet: true), ['M-00'])];
+        return [$this->reply($this->mainMenuText(), ['M-00'])];
     }
 
     private static function freshState(): array
     {
-        return ['menu' => 'M-00', 'pgd' => null, 'answer' => null, 'shown' => false, 'invalid' => 0, 'after_msg03' => false, 'complaint' => null];
+        return ['menu' => 'M-00', 'pgd' => null, 'status' => false, 'answer' => null, 'shown' => false, 'invalid' => 0, 'after_msg03' => false, 'complaint' => null];
     }
 
     // ---------------------------------------------------------------- menu
 
-    private function goMainMenu(bool $greet = false): BotReply
+    private function goMainMenu(): BotReply
     {
         $this->state = self::freshState();
 
-        return $this->reply($this->mainMenuText($greet), ['M-00']);
+        return $this->reply($this->mainMenuText(), ['M-00']);
     }
 
+    /** "Kembali ke menu sebelumnya" dari submenu: ke menu induk (menu utama lengkap dengan sapaan dan status hari ini). */
     private function back(): BotReply
     {
         $this->validInput();
-
-        if ($this->state['answer']) {
-            $this->state['answer'] = null;
-
-            return $this->showMenu($this->state['menu']);
-        }
+        $this->state['status'] = false;
 
         $parent = BotScript::MENUS[$this->state['menu']]['parent'] ?? null;
 
@@ -213,6 +210,17 @@ class BotEngine
             return [$this->showAnswer(substr($target, 4))];
         }
 
+        if ($target === 'BACK') {
+            return [$this->back()];
+        }
+
+        if (str_starts_with($target, 'STATUS:')) {
+            $this->state['status'] = true;
+            $this->state['answer'] = null;
+
+            return [$this->reply(BotScript::statusPrompt(), ['STATUS'])];
+        }
+
         if ($target === 'PGD-01') {
             $this->state['pgd'] = 'PGD-01';
             $this->state['answer'] = null;
@@ -220,13 +228,14 @@ class BotEngine
             return [$this->reply(BotScript::pgd('PGD-01'), ['PGD-01'])];
         }
 
-        return [$this->escalate(viaMenu3: true)];
+        return [$this->escalate(viaMenu: true, path: substr($target, 4))];
     }
 
     private function showMenu(string $code): BotReply
     {
         $this->state['menu'] = $code;
         $this->state['answer'] = null;
+        $this->state['status'] = false;
 
         if ($code === 'M-00') {
             return $this->reply($this->mainMenuText(), ['M-00']);
@@ -237,111 +246,73 @@ class BotEngine
 
     private function menuText(string $code): string
     {
-        $intro = null;
-        $introCode = BotScript::MENUS[$code]['intro_faq'] ?? null;
-
-        if ($introCode) {
-            $faq = Faq::where('code', $introCode)->first();
-            $intro = $faq && $this->canShow($faq) ? "*{$faq->question}*\n{$faq->answer}" : null;
-        }
-
-        return BotScript::menu($code, $intro);
+        return BotScript::menu($code);
     }
 
-    private function mainMenuText(bool $greet = false): string
+    private function mainMenuText(): string
     {
-        return BotScript::mainMenu($this->llm->isAvailable(), $this->conversation->user_name, $greet);
+        return BotScript::mainMenu($this->conversation->user_name, $this->hours->statusText());
     }
 
     private function showAnswer(string $path): BotReply
     {
         $definition = BotScript::ANSWERS[$path];
-        $faqs = $this->faqsByCode($definition['faqs']);
-        $published = $faqs->filter(fn (Faq $faq) => $this->canShow($faq));
-        $held = collect($definition['faqs'])->reject(fn ($code) => $published->has($code))->values();
 
         $this->state['answer'] = $path;
-        $this->state['shown'] = $published->isNotEmpty();
-        $firstFaqId = $faqs->first()?->id;
+        $this->state['shown'] = true;
 
-        if ($held->isNotEmpty()) {
-            $this->escalations->record(
-                $this->conversation, 'A3', 'Jawaban ditahan: '.$held->implode(', '),
-                $faqs->get($held->first())?->id, $path,
-            );
-        }
-
-        if ($published->isEmpty()) {
-            $this->tagIncoming($firstFaqId);
-
-            return $this->reply(BotScript::msg('MSG-05')."\n\n".BotScript::answerFooter(), ['MSG-05'], $firstFaqId);
-        }
-
-        $body = $published->count() === 1 && count($definition['faqs']) === 1
-            ? $published->first()->answer
-            : $published->map(fn (Faq $faq) => "*{$faq->question}*\n{$faq->answer}")->implode("\n\n");
-
-        if ($held->isNotEmpty()) {
-            $body .= "\n\n".BotScript::msg('MSG-05');
-        }
-
-        if ($published->contains(fn (Faq $faq) => ! $faq->isPublished())) {
-            $body .= "\n\n".BotScript::msg('AI-DISCLAIMER');
-        }
-
-        // offer88: tawaran menghubungi petugas kini selalu ada di penutup jawaban (Ketik 1).
-        $primary = $published->first()->id;
-        $this->tagIncoming($primary);
-        $codes = $published->keys()->all();
-
-        return $this->reply(BotScript::answer($body), $held->isNotEmpty() ? [...$codes, 'MSG-05'] : $codes, $primary);
+        return $this->reply(BotScript::answer($definition['text'] ?? BotScript::locationText()), ['ANS-'.$path]);
     }
 
     /**
-     * BOT_FAQ_SCOPE=verified (bawaan): hanya FAQ Terverifikasi + Aktif.
-     * BOT_FAQ_SCOPE=all: semua FAQ non-draf (sementara, selama verifikasi belum selesai) + catatan "Informasi umum".
+     * Cek Status Paspor: pemohon mengetik nomor permohonan; hasilnya dibalas petugas lewat antrean
+     * (kantor Cilacap tidak punya akses otomatis ke sistem status paspor).
+     *
+     * @return list<BotReply>
      */
-    private function canShow(Faq $faq): bool
+    private function statusStep(string $command, string $text): array
     {
-        return $faq->isPublished()
-            || (config('kancil.faq_scope') === 'all' && $faq->verification_status !== 'draft');
-    }
+        if (in_array($command, ['0', '99', 'menu'], true)) {
+            return [$this->goMainMenu()];
+        }
 
-    /** @return Collection<string, Faq> urut sesuai daftar kode */
-    private function faqsByCode(array $codes): Collection
-    {
-        $found = Faq::whereIn('code', $codes)->get()->keyBy('code');
+        $number = preg_replace('/\s+/', '', $text);
 
-        return collect($codes)->filter(fn ($c) => $found->has($c))->mapWithKeys(fn ($c) => [$c => $found[$c]]);
+        if (! preg_match('/^\d{10,25}$/', $number)) {
+            return [$this->invalidInput($text)];
+        }
+
+        $log = $this->escalations->record($this->conversation, 'A2', "Cek status paspor, no. permohonan {$number}.", null, '0>10');
+        $ticket = $this->enqueue($log, "Cek status paspor, no. permohonan {$number}");
+
+        return [$this->reply($this->handoffText($ticket), ['STATUS', 'LYN'])];
     }
 
     // ---------------------------------------------------------------- eskalasi
 
-    private function escalate(bool $viaMenu3): BotReply
+    private function escalate(bool $viaMenu, ?string $path = null): BotReply
     {
-        $codes = $viaMenu3 ? ['KTK-001', 'ESK-01'] : ['ESK-01'];
-
-        if ($viaMenu3) {
-            $log = $this->escalations->record($this->conversation, 'A2', 'Memilih menu 3 (Hubungi Petugas).',
-                Faq::where('code', 'KTK-001')->value('id'), '3');
+        if ($viaMenu) {
+            $log = $this->escalations->record($this->conversation, 'A2', 'Memilih menu layanan petugas: '.BotScript::topicLabel($path).'.', null, $path);
         } elseif (! ($this->state['after_msg03'] ?? false)) {
             $path = $this->state['answer'] ?? null;
-            $special = ($path && ($this->state['shown'] ?? false)) ? (BotScript::ANSWERS[$path]['code'] ?? null) : null;
+            $special = ($path && ($this->state['shown'] ?? false))
+                ? ($path === 'AI' ? ($this->state['ai_code'] ?? null) : (BotScript::ANSWERS[$path]['code'] ?? null))
+                : null;
 
             if ($special) {
-                $faqId = Faq::where('code', BotScript::ANSWERS[$path]['faqs'][0])->value('id');
-                $log = $this->escalations->record($this->conversation, $special, "Mengetik 88 setelah jawaban {$path}.", $faqId, $path);
+                $log = $this->escalations->record($this->conversation, $special, "Menghubungi petugas setelah jawaban {$path}.", null, $path);
             } else {
-                $log = $this->escalations->record($this->conversation, 'A2', 'Mengetik 88.', null, $path ?? BotScript::MENUS[$this->state['menu']]['path']);
+                $log = $this->escalations->record($this->conversation, 'A2', 'Menghubungi petugas.', null, $path ?? BotScript::MENUS[$this->state['menu']]['path']);
             }
         } else {
-            // 88 setelah MSG-03: log A1 sudah dicatat saat MSG-03.
+            // Petugas setelah MSG-03: log A1 sudah dicatat saat MSG-03.
             $log = $this->conversation->escalationLogs()->latest('id')->first();
         }
 
         $ticket = $this->enqueue($log, $this->recentQuestion());
 
-        return $this->reply($this->handoffText($codes, $ticket), $codes);
+        return $this->reply($this->handoffText($ticket), ['ESK-01', 'LYN']);
     }
 
     /**
@@ -377,18 +348,10 @@ class BotEngine
             && count($this->words($text)) >= 2 && ! $this->isGreeting($text);
     }
 
-    /** Pesan antrean petugas (tanpa nomor/email kantor) + nomor tiket/posisi + catatan di luar jam layanan. */
-    private function handoffText(array &$codes, ServiceTicket $ticket): string
+    /** Pesan antrean petugas persis Bogor (tanpa nomor tiket/kontak); tiket tetap tercatat untuk dashboard. */
+    private function handoffText(ServiceTicket $ticket): string
     {
-        $text = BotScript::handoff($ticket->ticket_number, $ticket->queue_no, $this->tickets->position($ticket));
-        $codes[] = 'LYN';
-
-        if (config('kancil.outside_hours_notice') && ! $this->hours->isOpen()) {
-            $text .= "\n\n".BotScript::msg('MSG-07', $this->hours->publicText());
-            $codes[] = 'MSG-07';
-        }
-
-        return $text;
+        return BotScript::handoff();
     }
 
     /** Masuk antrean petugas: bot diam sampai tiket diambil, diselesaikan, dibatalkan, atau kedaluwarsa. */
@@ -493,10 +456,8 @@ class BotEngine
             if ($answer !== null) {
                 $log = $this->escalations->record($this->conversation, 'A1', 'AI: '.$text, null, 'AI');
                 $ticket = $this->enqueue($log, $text);
-                $codes = ['AI-UNKNOWN', 'ESK-01'];
-                $handoff = $this->handoffText($codes, $ticket);
 
-                return [$this->reply(BotScript::msg('AI-UNKNOWN')."\n\n".$handoff, $codes, sender: 'ai')];
+                return [$this->reply(BotScript::msg('AI-UNKNOWN')."\n\n".$this->handoffText($ticket), ['AI-UNKNOWN', 'ESK-01', 'LYN'], sender: 'ai')];
             }
         }
 
@@ -506,8 +467,8 @@ class BotEngine
     private function aiReply(LlmAnswer $answer): BotReply
     {
         $this->validInput();
-        $path = BotScript::pathForFaq($answer->faqCodes[0]);
-        $this->state['answer'] = $path ?? 'AI';
+        $this->state['answer'] = 'AI';
+        $this->state['ai_code'] = BotScript::FAQ_ESCALATION[$answer->faqCodes[0]] ?? null;
         $this->state['shown'] = true;
         $this->tagIncoming($answer->primaryFaqId());
 
@@ -557,7 +518,7 @@ class BotEngine
         if ($command === '88') {
             $this->discardComplaint('Menghubungi petugas saat mengisi pengaduan.');
 
-            return [$this->escalate(viaMenu3: false)];
+            return [$this->escalate(viaMenu: false)];
         }
 
         if ($command === '9') {
@@ -686,6 +647,7 @@ class BotEngine
         $this->state['complaint'] = null;
         $this->state['menu'] = 'M-00';
         $this->state['answer'] = null;
+        $this->state['status'] = false;
     }
 
     private function hasComplaintDraft(): bool
@@ -737,6 +699,10 @@ class BotEngine
     {
         if ($step = $this->state['pgd'] ?? null) {
             return $this->pgdPrompt($step);
+        }
+
+        if ($this->state['status'] ?? false) {
+            return BotScript::statusPrompt();
         }
 
         if ($this->state['answer'] ?? null) {

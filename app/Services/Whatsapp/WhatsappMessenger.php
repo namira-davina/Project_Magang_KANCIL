@@ -8,6 +8,7 @@ use App\Models\Message;
 use App\Services\BalesOtomatis\WebhookData;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Menyimpan pesan keluar lalu mengantrekan pengiriman ke WhatsApp,
@@ -45,10 +46,27 @@ class WhatsappMessenger
         $conversation->forceFill(['last_message_at' => now()])->save();
 
         if ($isWhatsapp) {
-            SendWhatsappMessage::dispatch($message->id);
+            $this->send($message, $senderType);
         }
 
         return $message;
+    }
+
+    /** Balasan bot/AI langsung dikirim (tanpa antre) bila kancil.reply_inline; kegagalan jatuh ke antrean. */
+    private function send(Message $message, string $senderType): void
+    {
+        if (! config('kancil.reply_inline') || ! in_array($senderType, ['bot', 'ai'], true)) {
+            SendWhatsappMessage::dispatch($message->id);
+
+            return;
+        }
+
+        try {
+            SendWhatsappMessage::dispatchSync($message->id);
+        } catch (Throwable $e) {
+            report($e);
+            SendWhatsappMessage::dispatch($message->id);
+        }
     }
 
     public function resolveConversation(WebhookData $data, ?string $deviceKey = null): Conversation
