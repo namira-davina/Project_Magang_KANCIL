@@ -51,14 +51,13 @@ class BotQueueTest extends TestCase
     public function test_menu_hubungi_petugas_creates_ticket_and_tells_number_and_position(): void
     {
         $this->reply('Halo');
-        $reply = $this->reply('4');
+        $reply = $this->reply('3');
 
         $ticket = ServiceTicket::sole();
-        $this->assertSame(['KTK-001', 'ESK-01', 'LYN'], $reply->codes);
-        $this->assertStringContainsString("Nomor tiket: *{$ticket->ticket_number}*", $reply->text);
-        $this->assertStringContainsString('Nomor antrean hari ini: *1*', $reply->text);
-        $this->assertStringContainsString('Posisi antrean Anda: *ke-1* (berikutnya dilayani)', $reply->text);
-        $this->assertStringContainsString(BotScript::QUEUE_HELP, $reply->text);
+        $this->assertSame(['ESK-01', 'LYN'], $reply->codes);
+        $this->assertSame(BotScript::handoff(), $reply->text, 'Teks sama dengan Imigrasi Bogor: tanpa nomor tiket.');
+        $this->assertSame(1, $ticket->queue_no);
+        $this->assertSame(1, app(TicketQueueService::class)->position($ticket));
         $this->assertStringNotContainsString('081217000900', $reply->text);
 
         $this->assertSame('Menunggu', $ticket->status);
@@ -74,48 +73,47 @@ class BotQueueTest extends TestCase
     public function test_second_applicant_is_behind_the_first(): void
     {
         $this->reply('Halo');
-        $this->reply('4');
+        $this->reply('3');
 
         $this->startChat(['wa_chat_id' => '6289999@s.whatsapp.net', 'whatsapp_number' => '6289999', 'user_name' => 'Sari']);
         $this->reply('Halo');
-        $reply = $this->reply('4');
+        $this->reply('3');
 
-        $this->assertStringContainsString('LYN-20261111-002', $reply->text);
-        $this->assertStringContainsString('Nomor antrean hari ini: *2*', $reply->text);
-        $this->assertStringContainsString('Posisi antrean Anda: *ke-2*', $reply->text);
-        $this->assertStringNotContainsString('berikutnya dilayani', $reply->text);
+        $second = ServiceTicket::where('ticket_number', 'LYN-20261111-002')->sole();
+        $this->assertSame(2, $second->queue_no);
+        $this->assertSame(2, app(TicketQueueService::class)->position($second));
     }
 
     public function test_88_after_special_case_answer_carries_code_priority_and_topic(): void
     {
-        $this->conversation(['Halo', '1', '1', '5']); // Paspor hilang (C1)
+        $this->conversation(['Halo', '1', '7']); // Paspor hilang (C1)
         $reply = $this->reply('88');
 
         $ticket = ServiceTicket::sole();
         $this->assertContains('LYN', $reply->codes);
         $this->assertSame('C1', $ticket->escalation_code);
         $this->assertSame('Tinggi', $ticket->priority);
-        $this->assertSame('0>1>5', $ticket->menu_path);
-        $this->assertSame('Persyaratan Paspor › Paspor Hilang', BotScript::topicLabel($ticket->menu_path));
+        $this->assertSame('0>7', $ticket->menu_path);
+        $this->assertSame('Pelayanan Paspor WNI › Permohonan Paspor Hilang', BotScript::topicLabel($ticket->menu_path));
     }
 
     public function test_typing_1_after_regular_answer_queues_with_answer_path(): void
     {
-        $this->conversation(['Halo', '1', '1', '1']); // Paspor baru
+        $this->conversation(['Halo', '1', '2']); // Paspor baru
         $this->reply('1');
 
         $ticket = ServiceTicket::sole();
         $this->assertSame('A2', $ticket->escalation_code);
-        $this->assertSame('0>1>1', $ticket->menu_path);
+        $this->assertSame('0>2', $ticket->menu_path);
     }
 
     public function test_88_from_submenu_records_menu_path(): void
     {
-        $this->conversation(['Halo', '1', '1']);
+        $this->conversation(['Halo', '1']);
         $this->reply('88');
 
-        $this->assertSame('0>1', ServiceTicket::sole()->menu_path);
-        $this->assertSame('Persyaratan Paspor', BotScript::topicLabel('0>1'));
+        $this->assertSame('0', ServiceTicket::sole()->menu_path);
+        $this->assertSame('Pelayanan Paspor WNI', BotScript::topicLabel('0'));
     }
 
     public function test_question_typed_before_88_is_kept_for_officer(): void
@@ -134,7 +132,7 @@ class BotQueueTest extends TestCase
         $this->reply('paspor saya rusak kena air bagaimana?');
         Carbon::setTestNow(now()->addHour());
         $this->reply('Halo');
-        $this->reply('4');
+        $this->reply('3');
 
         $this->assertNull(ServiceTicket::sole()->question_text);
     }
@@ -155,7 +153,9 @@ class BotQueueTest extends TestCase
 
     public function test_88_while_filling_complaint_discards_draft_and_queues(): void
     {
-        $this->conversation(['Halo', '3', '1', 'Budi Santoso']);
+        $this->reply('Halo');
+        $this->chat->update(['session_state' => array_merge($this->chat->fresh()->session_state, ['pgd' => 'PGD-01'])]);
+        $this->conversation(['1', 'Budi Santoso']);
         $reply = $this->reply('88');
 
         $this->assertContains('LYN', $reply->codes);
@@ -174,7 +174,7 @@ class BotQueueTest extends TestCase
         $ticket = ServiceTicket::sole();
         $this->assertSame(['AI-UNKNOWN', 'ESK-01', 'LYN'], $reply->codes);
         $this->assertSame('ai', $reply->sender);
-        $this->assertStringContainsString($ticket->ticket_number, $reply->text);
+        $this->assertStringContainsString(BotScript::handoff(), $reply->text);
         $this->assertSame('apakah bisa bikin paspor di hari libur nasional?', $ticket->question_text);
         $this->assertSame('AI', $ticket->menu_path);
         $this->assertSame('A1', $ticket->escalation_code);
@@ -184,22 +184,22 @@ class BotQueueTest extends TestCase
     {
         Carbon::setTestNow(Carbon::parse('2026-11-14 10:00', 'Asia/Jakarta')); // Sabtu
         $this->reply('Halo');
-        $reply = $this->reply('4');
+        $reply = $this->reply('3');
 
-        $this->assertSame(['KTK-001', 'ESK-01', 'LYN', 'MSG-07'], $reply->codes);
-        $this->assertStringContainsString('LYN-20261114-001', $reply->text);
-        $this->assertStringEndsWith(BotScript::msg('MSG-07'), $reply->text);
+        $this->assertSame(['ESK-01', 'LYN'], $reply->codes);
+        $this->assertSame(BotScript::handoff(), $reply->text, 'Di luar jam layanan teksnya tetap sama; status ada di menu utama.');
+        $this->assertSame('LYN-20261114-001', ServiceTicket::sole()->ticket_number);
     }
 
     public function test_escalating_again_reuses_open_ticket(): void
     {
         $this->reply('Halo');
-        $this->reply('4');
+        $this->reply('3');
         $this->reply('1');            // langsung lewat engine (tanpa job): menu
         $again = $this->reply('88');
 
         $this->assertSame(1, ServiceTicket::count());
-        $this->assertStringContainsString(ServiceTicket::sole()->ticket_number, $again->text);
+        $this->assertSame(BotScript::handoff(), $again->text);
     }
 
     // ------------------------------------------------------------ pesan selama antre
@@ -207,7 +207,7 @@ class BotQueueTest extends TestCase
     public function test_queued_messages_reminder_is_throttled(): void
     {
         $this->reply('Halo');
-        $this->reply('4');
+        $this->reply('3');
 
         $this->assertSame([], $this->queued('halo pak'), 'Baru saja diberi tahu saat handoff.');
 
@@ -238,7 +238,7 @@ class BotQueueTest extends TestCase
     public function test_status_command_answers_after_one_minute(string $command): void
     {
         $this->reply('Halo');
-        $this->reply('4');
+        $this->reply('3');
 
         $this->assertSame([], $this->queued($command), 'Masih dalam 1 menit sejak handoff.');
 
@@ -252,10 +252,10 @@ class BotQueueTest extends TestCase
     {
         $first = $this->startChat(['wa_chat_id' => 'a@s.whatsapp.net', 'whatsapp_number' => '6281']);
         $this->reply('Halo');
-        $this->reply('4');
+        $this->reply('3');
         $this->startChat(['wa_chat_id' => 'b@s.whatsapp.net', 'whatsapp_number' => '6282']);
         $this->reply('Halo');
-        $this->reply('4');
+        $this->reply('3');
 
         Carbon::setTestNow(now()->addMinutes(2));
         $this->assertStringContainsString('*ke-2*', $this->queued('antrean')[0]->text);
@@ -269,7 +269,7 @@ class BotQueueTest extends TestCase
     public function test_status_while_ticket_is_handled_says_officer_is_on_it(): void
     {
         $this->reply('Halo');
-        $this->reply('4');
+        $this->reply('3');
         ServiceTicket::query()->update(['status' => 'Ditangani', 'last_notice_at' => now()->subHour()]);
 
         $replies = $this->queued('batal'); // tidak bisa batal saat sudah ditangani
@@ -288,7 +288,7 @@ class BotQueueTest extends TestCase
     public function test_cancel_command_leaves_queue_and_shows_menu(string $command): void
     {
         $this->reply('Halo');
-        $this->reply('4');
+        $this->reply('3');
         $number = ServiceTicket::sole()->ticket_number;
 
         $replies = $this->queued($command);
@@ -302,13 +302,13 @@ class BotQueueTest extends TestCase
         $this->assertSame('M-00', $chat->current_menu);
         $this->assertSame('M-00', $chat->session_state['menu']);
 
-        $this->assertStringContainsString('Pelayanan Paspor WNI', $this->reply('1')->text, 'Bot melayani menu lagi.');
+        $this->assertSame(['M-01'], $this->reply('1')->codes, 'Bot melayani menu lagi.');
     }
 
     public function test_media_while_queued_gets_reminder_only_after_interval(): void
     {
         $this->reply('Halo');
-        $this->reply('4');
+        $this->reply('3');
         Carbon::setTestNow(now()->addMinutes(20));
         $media = $this->chat->messages()->create(['sender_type' => 'user', 'message_type' => 'image', 'sent_at' => now()]);
 
@@ -329,7 +329,7 @@ class BotQueueTest extends TestCase
     public function test_webhook_messages_while_queued_go_to_queue_handler(): void
     {
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
-        $this->postWebhook($this->incomingPayload(['message_body' => '4']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '3']));
         Carbon::setTestNow(now()->addMinutes(2));
 
         $this->postWebhook($this->incomingPayload(['message_body' => 'antrean']));
@@ -341,7 +341,7 @@ class BotQueueTest extends TestCase
     public function test_webhook_while_officer_handles_is_silent_even_for_queue_commands(): void
     {
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
-        $this->postWebhook($this->incomingPayload(['message_body' => '4']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '3']));
         app(TicketQueueService::class)->assign(Conversation::sole(), User::factory()->create());
         $bots = Message::whereIn('sender_type', ['bot', 'ai'])->count();
 
@@ -368,7 +368,7 @@ class BotQueueTest extends TestCase
     {
         config(['kancil.rate_limit_per_minute' => 2]);
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
-        $this->postWebhook($this->incomingPayload(['message_body' => '4']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '3']));
         ServiceTicket::query()->update(['last_notice_at' => now()->subHour()]); // jeda pengingat tidak menahan
         $bots = Message::where('sender_type', 'bot')->count();
 
@@ -400,7 +400,7 @@ class BotQueueTest extends TestCase
     public function test_option_b_reply_from_officer_phone_marks_ticket_handled(): void
     {
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
-        $this->postWebhook($this->incomingPayload(['message_body' => '4']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '3']));
 
         $this->postWebhook($this->incomingPayload(['message_id' => 'HP-1', 'message_body' => 'Baik Pak, saya bantu.'], 'outgoing_chat'));
 
@@ -423,7 +423,7 @@ class BotQueueTest extends TestCase
     public function test_handoff_expiry_closes_handled_ticket_and_bot_resumes(): void
     {
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
-        $this->postWebhook($this->incomingPayload(['message_body' => '4']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '3']));
         app(TicketQueueService::class)->assign(Conversation::sole(), User::factory()->create(), responded: true);
 
         Carbon::setTestNow(now()->addMinutes(121));
@@ -437,7 +437,7 @@ class BotQueueTest extends TestCase
     public function test_echo_of_ticket_closing_message_does_not_trigger_takeover(): void
     {
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
-        $this->postWebhook($this->incomingPayload(['message_body' => '4']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '3']));
         $officer = User::factory()->create();
         app(TicketQueueService::class)->resolve(ServiceTicket::sole(), $officer);
         $closing = Message::where('sender_type', 'system')->sole();
@@ -473,7 +473,7 @@ class BotQueueTest extends TestCase
     public function test_simulation_shows_queue_and_silence(): void
     {
         $this->artisan('kancil:simulasi', ['pesan' => 'Halo'])->assertSuccessful();
-        $this->artisan('kancil:simulasi', ['pesan' => '4'])->expectsOutputToContain('LYN-20261111-001')->assertSuccessful();
+        $this->artisan('kancil:simulasi', ['pesan' => '3'])->expectsOutputToContain('masuk antrean')->assertSuccessful();
         $this->artisan('kancil:simulasi', ['pesan' => 'halo pak'])->expectsOutputToContain('Bot diam')->assertSuccessful();
         $this->artisan('kancil:simulasi', ['pesan' => 'batal'])->expectsOutputToContain('dibatalkan')->assertSuccessful();
     }
@@ -482,13 +482,9 @@ class BotQueueTest extends TestCase
 
     public function test_queue_texts(): void
     {
-        $this->assertSame(
-            BotScript::handoff()."\n\nNomor tiket: *LYN-1*\nNomor antrean hari ini: *3*\nPosisi antrean Anda: *ke-2*\n\n"
-            ."Petugas akan membalas di chat ini sesuai urutan antrean.\n".BotScript::QUEUE_HELP,
-            BotScript::handoff('LYN-1', 3, 2),
-        );
-        $this->assertStringNotContainsString('Posisi', BotScript::handoff('LYN-1', 3, null));
-        $this->assertStringNotContainsString('Nomor antrean', BotScript::handoff('LYN-1', null, 1));
+        $this->assertSame('Terima kasih atas pesan Anda.
+
+Mohon menunggu, pesan Anda telah diterima dan masuk antrean.', BotScript::handoff());
         $this->assertSame('Tiket *LYN-1* sedang ditangani *Petugas*. Mohon tunggu balasan di chat ini.', BotScript::queueStatus('LYN-1', 1, null, true));
         $this->assertStringContainsString('*LYN-1*', BotScript::ticketResolved('LYN-1'));
         $this->assertStringContainsString('Ketik *88*', BotScript::ticketExpired('LYN-1'));
@@ -501,10 +497,11 @@ class BotQueueTest extends TestCase
             'kosong' => [null, 'Umum'],
             'string kosong' => ['', 'Umum'],
             'ai' => ['AI', 'Pertanyaan bebas (AI)'],
-            'menu 3' => ['3', 'Hubungi Petugas (menu utama)'],
-            'jawaban' => ['0>2>1', 'Cara Pembayaran Paspor › ATM'],
-            'jawaban level 1' => ['0>4', 'Pelayanan Paspor WNI › Cek Status Permohonan'],
-            'menu' => ['1>1', 'Tarif Izin Tinggal dan Visa'],
+            'menu 3' => ['3', 'Layanan Pengaduan (menu utama)'],
+            'jawaban' => ['0>2', 'Pelayanan Paspor WNI › Persyaratan Paspor Baru'],
+            'cek status' => ['0>10', 'Pelayanan Paspor WNI › Cek Status Paspor'],
+            'menu' => ['1>1', 'Pelayanan Izin Tinggal (For Foreigners) › Izin Tinggal (Residence Permit)'],
+            'submenu paspor' => ['0', 'Pelayanan Paspor WNI'],
             'tidak dikenal' => ['9>9', '9>9'],
         ];
     }

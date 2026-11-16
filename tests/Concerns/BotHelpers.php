@@ -136,6 +136,18 @@ trait BotHelpers
         return $replies[0];
     }
 
+    /**
+     * Masuk ke alur pengaduan PGD-01 (tidak ada di menu utama gaya Bogor, tapi mesin pengaduan tetap ada),
+     * lalu lanjutkan dengan $rest.
+     */
+    protected function complaintFlow(array $rest = []): ?BotReply
+    {
+        $this->reply('Halo');
+        $this->chat->update(['session_state' => array_merge($this->chat->fresh()->session_state, ['pgd' => 'PGD-01'])]);
+
+        return $rest ? $this->conversation($rest) : null;
+    }
+
     /** @param  list<string>  $inputs */
     protected function conversation(array $inputs): BotReply
     {

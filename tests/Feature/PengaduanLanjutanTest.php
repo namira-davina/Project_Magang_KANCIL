@@ -49,7 +49,7 @@ class PengaduanLanjutanTest extends TestCase
         Storage::fake('local');
         Storage::disk('local')->put('wa-media/1/foto.jpg', 'isi-foto');
 
-        $this->conversation(['Halo', '3', '1', 'Budi Santoso', $category, 'Petugas loket meminta biaya tambahan di luar tarif resmi.', '1']);
+        $this->complaintFlow(['1', 'Budi Santoso', $category, 'Petugas loket meminta biaya tambahan di luar tarif resmi.', '1']);
         $this->reply('', 'image', ['attachment_path' => 'wa-media/1/foto.jpg', 'meta' => ['media_name' => 'bukti.jpg']]);
         $this->reply('selesai');
         $this->reply('1');
@@ -131,7 +131,7 @@ class PengaduanLanjutanTest extends TestCase
     {
         $this->reply('Halo');
         $this->reply('petugas loket kemarin kasar sekali');
-        $this->reply('4');
+        $this->reply('3');
 
         return ServiceTicket::sole();
     }
@@ -179,9 +179,7 @@ class PengaduanLanjutanTest extends TestCase
         $this->assertSame(1, Message::where('sender_type', 'system')->count(), 'Tidak ada pesan penutup ganda.');
 
         // Pemohon bisa cek status pengaduan seperti biasa (PGD-09/10).
-        $this->reply('0');
-        $this->reply('3');
-        $this->reply('2');
+        $this->complaintFlow(['2']);
         $this->assertStringContainsString('*Baru*', $this->reply($complaint->ticket_number)->text);
     }
 

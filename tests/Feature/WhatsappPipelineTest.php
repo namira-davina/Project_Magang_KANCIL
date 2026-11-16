@@ -68,7 +68,7 @@ class WhatsappPipelineTest extends TestCase
         $this->assertFalse($user->is_read);
 
         $bot = Message::where('sender_type', 'bot')->sole();
-        $this->assertStringContainsString('Selamat Datang di Layanan Informasi dan Pengaduan', $bot->message_text);
+        $this->assertStringContainsString('Selamat Datang , di Layanan Informasi dan Pengaduan', $bot->message_text);
         $this->assertSame(['codes' => ['M-00']], $bot->meta);
         $this->assertSame('sent', $bot->delivery_status);
         $this->assertSame('OUT-1', $bot->external_message_id);
@@ -86,13 +86,13 @@ class WhatsappPipelineTest extends TestCase
 
     public function test_full_menu_conversation_over_webhook(): void
     {
-        foreach (['Halo', '1', '1', '1'] as $i => $text) {
+        foreach (['Halo', '1', '2'] as $i => $text) {
             $this->postWebhook($this->incomingPayload(['message_id' => "IN-{$i}", 'message_body' => $text]));
         }
 
         $last = Message::where('sender_type', 'bot')->latest('id')->first();
-        $this->assertStringContainsString('KTP elektronik', $last->message_text);
-        $this->assertSame(4, Message::where('sender_type', 'bot')->count());
+        $this->assertStringContainsString('Dokumen persyaratan Paspor Baru:', $last->message_text);
+        $this->assertSame(3, Message::where('sender_type', 'bot')->count());
         $this->assertSame(1, Conversation::count());
     }
 
@@ -159,7 +159,11 @@ class WhatsappPipelineTest extends TestCase
     {
         Storage::fake('local');
 
-        foreach (['Halo', '3', '1', 'Budi', '1', 'Petugas parkir kantor meminta uang tambahan.', '1'] as $i => $text) {
+        $this->postWebhook($this->incomingPayload(['message_id' => 'C-H', 'message_body' => 'Halo']));
+        $conversation = Conversation::sole();
+        $conversation->update(['session_state' => array_merge($conversation->session_state, ['pgd' => 'PGD-01'])]); // menu 3 = antrean petugas (gaya Bogor)
+
+        foreach (['1', 'Budi', '1', 'Petugas parkir kantor meminta uang tambahan.', '1'] as $i => $text) {
             $this->postWebhook($this->incomingPayload(['message_id' => "C-{$i}", 'message_body' => $text]));
         }
         $this->postWebhook($this->incomingPayload([
@@ -374,11 +378,11 @@ class WhatsappPipelineTest extends TestCase
     {
         Carbon::setTestNow(Carbon::parse('2026-11-11 10:00', 'Asia/Jakarta'));
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
-        $this->postWebhook($this->incomingPayload(['message_body' => '4']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '3']));
 
         $handoff = $this->lastBotMessage()->message_text;
         $this->assertStringContainsString('masuk antrean', $handoff);
-        $this->assertStringContainsString('LYN-20261111-001', $handoff);
+        $this->assertSame('LYN-20261111-001', ServiceTicket::sole()->ticket_number);
         $this->assertSame('WAITING_HUMAN', Conversation::sole()->conversation_mode);
         $ticket = ServiceTicket::sole();
         $this->assertSame('Menunggu', $ticket->status);
@@ -417,14 +421,14 @@ class WhatsappPipelineTest extends TestCase
         $this->assertSame('BOT_ACTIVE', Conversation::sole()->conversation_mode);
 
         $this->postWebhook($this->incomingPayload(['message_body' => '1']));
-        $this->assertStringContainsString('Pelayanan Paspor WNI', $this->lastBotMessage()->message_text, 'Setelah batal bot melayani menu lagi.');
+        $this->assertStringContainsString('Persyaratan Paspor Baru', $this->lastBotMessage()->message_text, 'Setelah batal bot melayani menu lagi.');
         Carbon::setTestNow();
     }
 
     public function test_officer_reply_while_waiting_takes_over(): void
     {
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
-        $this->postWebhook($this->incomingPayload(['message_body' => '4']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '3']));
 
         $this->postWebhook($this->incomingPayload(['message_id' => 'HP-9', 'message_body' => 'Halo kak, ada yang bisa kami bantu?'], 'outgoing_chat'));
 

@@ -24,7 +24,7 @@ class BusinessHours
     {
         $at = Carbon::instance($at ?? now())->setTimezone(self::TIMEZONE);
 
-        if (! in_array($at->dayOfWeekIso, $this->workingDays(), true)) {
+        if (! in_array($at->dayOfWeekIso, $this->workingDays(), true) || $this->holiday($at) !== null) {
             return false;
         }
 
@@ -32,6 +32,41 @@ class BusinessHours
 
         return $time >= $this->setting('working_hours_start', '08:00')
             && $time < $this->setting('working_hours_end', '16:00');
+    }
+
+    /** Keterangan hari libur nasional / cuti bersama pada tanggal tersebut, atau null. */
+    public function holiday(CarbonInterface $at): ?string
+    {
+        $date = Carbon::instance($at)->setTimezone(self::TIMEZONE)->toDateString();
+
+        return config('holidays.dates')[$date] ?? null;
+    }
+
+    /** Status pada waktu pemohon chat: BUKA, LIBUR (...), atau TUTUP (di luar jam pelayanan). */
+    public function todayStatus(?CarbonInterface $at = null): string
+    {
+        $at = Carbon::instance($at ?? now())->setTimezone(self::TIMEZONE);
+
+        if ($holiday = $this->holiday($at)) {
+            return "LIBUR ({$holiday})";
+        }
+
+        if (! in_array($at->dayOfWeekIso, $this->workingDays(), true)) {
+            return 'LIBUR (Akhir Pekan)';
+        }
+
+        return $this->isOpen($at) ? 'BUKA' : 'TUTUP (di luar jam pelayanan)';
+    }
+
+    /** Dua baris "Status Hari Ini" untuk menu utama (format layanan WhatsApp Imigrasi Bogor). */
+    public function statusText(?CarbonInterface $at = null): string
+    {
+        $days = str_replace('-', '–', trim($this->setting('working_days', 'Senin-Jumat')));
+        $from = str_replace(':', '.', $this->setting('working_hours_start', '08:00'));
+        $to = str_replace(':', '.', $this->setting('working_hours_end', '16:00'));
+
+        return '*Status Hari Ini: '.$this->todayStatus($at)."*
+Waktu pelayanan tersedia setiap hari {$days} pukul {$from}–{$to} WIB.";
     }
 
     public function isBusinessDay(CarbonInterface $day): bool
