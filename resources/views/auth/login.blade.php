@@ -110,17 +110,6 @@
                     </div>
                 </div>
 
-                <div class="login-meta-row">
-                    <label class="remember-checkbox-label">
-                        <input type="checkbox" name="remember" value="1">
-                        <span>Ingat saya di perangkat ini</span>
-                    </label>
-
-                    <a href="#" class="forgot-password-link">
-                        Lupa kata sandi?
-                    </a>
-                </div>
-
                 <button type="submit" class="login-submit-button">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
