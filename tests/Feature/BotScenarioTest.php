@@ -70,7 +70,7 @@ class BotScenarioTest extends TestCase
 
         $esk = $this->reply('1');
         $this->assertSame(['ESK-01', 'LYN'], $esk->codes, 'Ketik 1 setelah jawaban = hubungi Petugas.');
-        $this->assertSame(BotScript::handoff(), $esk->text);
+        $this->assertHandoff($esk->text);
 
         $log = EscalationLog::latest('id')->first();
         $this->assertSame($escalationCode ?? 'A2', $log->escalation_code);
@@ -143,7 +143,7 @@ class BotScenarioTest extends TestCase
             $this->reply('2');
             $queued = $this->reply($key);
             $this->assertSame(['ESK-01', 'LYN'], $queued->codes);
-            $this->assertSame("Terima kasih atas pesan Anda.\n\nMohon menunggu, pesan Anda telah diterima dan masuk antrean.", $queued->text);
+            $this->assertHandoff($queued->text);
             $this->assertSame($path, EscalationLog::latest('id')->first()->menu_path);
             $this->chat->update(['conversation_mode' => Conversation::MODE_BOT]);
         }
@@ -165,7 +165,7 @@ class BotScenarioTest extends TestCase
         $reply = $this->reply('3');
 
         $this->assertSame(['ESK-01', 'LYN'], $reply->codes);
-        $this->assertSame(BotScript::handoff(), $reply->text);
+        $this->assertHandoff($reply->text);
         $this->assertSame(Conversation::MODE_WAITING, $this->chat->fresh()->conversation_mode);
         $this->assertNull($this->chat->fresh()->bot_paused_until, 'Antrean tiket: bot diam sampai tiket ditutup.');
 
@@ -220,7 +220,7 @@ class BotScenarioTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-11-14 20:00:00', 'Asia/Jakarta'));
 
         $this->reply('Halo');
-        $this->assertSame(BotScript::handoff(), $this->reply('3')->text);
+        $this->assertHandoff($this->reply('3')->text);
     }
 
     public function test_cek_status_asks_number_then_queues_officer_with_the_number(): void
@@ -234,7 +234,7 @@ class BotScenarioTest extends TestCase
 
         $queued = $this->reply('1498 0000 0001 2345');
         $this->assertSame(['STATUS', 'LYN'], $queued->codes);
-        $this->assertSame(BotScript::handoff(), $queued->text);
+        $this->assertHandoff($queued->text);
         $this->assertStringContainsString('1498000000012345', ServiceTicket::sole()->question_text);
         $this->assertSame(Conversation::MODE_WAITING, $this->chat->fresh()->conversation_mode);
     }

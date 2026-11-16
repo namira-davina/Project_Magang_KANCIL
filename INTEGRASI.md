@@ -29,7 +29,7 @@ Pemohon masuk **antrean tiket petugas** (FIFO, yang lebih dulu bertanya dilayani
 - Bot membalas nomor tiket `LYN-YYYYMMDD-NNN`, nomor antrean hari ini, dan posisi antrean.
 - Status percakapan *Menunggu Petugas*; bot diam. Selama menunggu pemohon bisa mengetik **antrean**
   (cek posisi, maks. 1x/menit) atau **batal** (keluar antrean, kembali ke menu). Pesan lain dicatat untuk petugas
-  dan dibalas pengingat posisi paling sering tiap `TICKET_NOTICE_MINUTES` (15).
+  dan dibalas pengingat posisi + pilihan paling sering tiap `TICKET_NOTICE_SECONDS` (30).
 - Petugas: halaman **Antrean Petugas** → *Ambil Antrean Berikutnya* (tiket tertua) atau *Ambil* tiket tertentu,
   lalu membalas di Percakapan. Membalas/ambil alih dari Percakapan juga mengambil tiket. Petugas tidak bisa
   menyerobot percakapan yang dipegang petugas lain (409); Admin bisa.

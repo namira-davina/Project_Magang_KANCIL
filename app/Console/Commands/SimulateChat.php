@@ -59,7 +59,7 @@ class SimulateChat extends Command
         $conversation->update(['last_inbound_at' => now(), 'last_message_at' => now()]);
 
         $replies = $conversation->isWaitingForOfficer() && $conversation->serviceTickets()->open()->exists()
-            ? $engine->handleQueued($conversation, $message)
+            ? $engine->handleQueued($conversation, $message, $previous)
             : $engine->handle($conversation, $message, $previous);
 
         if ($replies === []) {

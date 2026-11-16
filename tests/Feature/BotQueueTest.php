@@ -55,7 +55,7 @@ class BotQueueTest extends TestCase
 
         $ticket = ServiceTicket::sole();
         $this->assertSame(['ESK-01', 'LYN'], $reply->codes);
-        $this->assertSame(BotScript::handoff(), $reply->text, 'Teks sama dengan Imigrasi Bogor: tanpa nomor tiket.');
+        $this->assertHandoff($reply->text);
         $this->assertSame(1, $ticket->queue_no);
         $this->assertSame(1, app(TicketQueueService::class)->position($ticket));
         $this->assertStringNotContainsString('081217000900', $reply->text);
@@ -174,7 +174,7 @@ class BotQueueTest extends TestCase
         $ticket = ServiceTicket::sole();
         $this->assertSame(['AI-UNKNOWN', 'ESK-01', 'LYN'], $reply->codes);
         $this->assertSame('ai', $reply->sender);
-        $this->assertStringContainsString(BotScript::handoff(), $reply->text);
+        $this->assertHandoff($reply->text);
         $this->assertSame('apakah bisa bikin paspor di hari libur nasional?', $ticket->question_text);
         $this->assertSame('AI', $ticket->menu_path);
         $this->assertSame('A1', $ticket->escalation_code);
@@ -187,7 +187,7 @@ class BotQueueTest extends TestCase
         $reply = $this->reply('3');
 
         $this->assertSame(['ESK-01', 'LYN'], $reply->codes);
-        $this->assertSame(BotScript::handoff(), $reply->text, 'Di luar jam layanan teksnya tetap sama; status ada di menu utama.');
+        $this->assertHandoff($reply->text);
         $this->assertSame('LYN-20261114-001', ServiceTicket::sole()->ticket_number);
     }
 
@@ -199,7 +199,7 @@ class BotQueueTest extends TestCase
         $again = $this->reply('88');
 
         $this->assertSame(1, ServiceTicket::count());
-        $this->assertSame(BotScript::handoff(), $again->text);
+        $this->assertHandoff($again->text);
     }
 
     // ------------------------------------------------------------ pesan selama antre
@@ -220,7 +220,7 @@ class BotQueueTest extends TestCase
 
         $this->assertSame([], $this->queued('pak?'));
 
-        config(['kancil.ticket.notice_minutes' => 5]);
+        config(['kancil.ticket.notice_seconds' => 5 * 60]);
         Carbon::setTestNow(now()->addMinutes(6));
         $this->assertCount(1, $this->queued('pak??'), 'Jarak pengingat bisa diatur.');
     }
@@ -473,7 +473,7 @@ class BotQueueTest extends TestCase
     public function test_simulation_shows_queue_and_silence(): void
     {
         $this->artisan('kancil:simulasi', ['pesan' => 'Halo'])->assertSuccessful();
-        $this->artisan('kancil:simulasi', ['pesan' => '3'])->expectsOutputToContain('masuk antrean')->assertSuccessful();
+        $this->artisan('kancil:simulasi', ['pesan' => '3'])->expectsOutputToContain('Nomor tiket')->assertSuccessful();
         $this->artisan('kancil:simulasi', ['pesan' => 'halo pak'])->expectsOutputToContain('Bot diam')->assertSuccessful();
         $this->artisan('kancil:simulasi', ['pesan' => 'batal'])->expectsOutputToContain('dibatalkan')->assertSuccessful();
     }
@@ -482,9 +482,10 @@ class BotQueueTest extends TestCase
 
     public function test_queue_texts(): void
     {
-        $this->assertSame('Terima kasih atas pesan Anda.
-
-Mohon menunggu, pesan Anda telah diterima dan masuk antrean.', BotScript::handoff());
+        $this->assertStringContainsString('Nomor tiket: *LYN-1*', BotScript::handoff('LYN-1', 3, 2));
+        $this->assertStringNotContainsString('Posisi', BotScript::handoff('LYN-1', 3, null));
+        $this->assertStringNotContainsString('Nomor antrean', BotScript::handoff('LYN-1', null, 1));
+        $this->assertStringContainsString(BotScript::QUEUE_OPTIONS, BotScript::queueStatus('LYN-1', 1, 1));
         $this->assertSame('Tiket *LYN-1* sedang ditangani *Petugas*. Mohon tunggu balasan di chat ini.', BotScript::queueStatus('LYN-1', 1, null, true));
         $this->assertStringContainsString('*LYN-1*', BotScript::ticketResolved('LYN-1'));
         $this->assertStringContainsString('Ketik *88*', BotScript::ticketExpired('LYN-1'));

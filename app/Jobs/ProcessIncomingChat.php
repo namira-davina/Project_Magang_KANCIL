@@ -134,7 +134,7 @@ class ProcessIncomingChat implements ShouldQueue
             RateLimiter::hit($key, 60);
         }
 
-        $replies = $queued ? $engine->handleQueued($conversation, $message) : $engine->handle($conversation, $message, $previousInbound);
+        $replies = $queued ? $engine->handleQueued($conversation, $message, $previousInbound) : $engine->handle($conversation, $message, $previousInbound);
 
         foreach ($replies as $reply) {
             $messenger->queue($conversation, $reply->text, $reply->sender, null, $reply->faqId, ['codes' => $reply->codes]);

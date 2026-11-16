@@ -106,7 +106,7 @@ class BotAiTest extends TestCase
         $reply = $this->reply('alamat kantor imigrasi di mana ya?');
 
         $this->assertSame(['AI-UNKNOWN', 'ESK-01', 'LYN'], $reply->codes);
-        $this->assertStringContainsString(BotScript::handoff(), $reply->text);
+        $this->assertHandoff($reply->text);
         $this->assertStringNotContainsString('081217000900', $reply->text);
         $log = EscalationLog::sole();
         $this->assertSame('A1', $log->escalation_code);

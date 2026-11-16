@@ -165,7 +165,7 @@ class BotEngine
 
     private static function freshState(): array
     {
-        return ['menu' => 'M-00', 'pgd' => null, 'status' => false, 'answer' => null, 'shown' => false, 'invalid' => 0, 'after_msg03' => false, 'complaint' => null];
+        return ['menu' => 'M-00', 'pgd' => null, 'status' => false, 'queued' => false, 'answer' => null, 'shown' => false, 'invalid' => 0, 'after_msg03' => false, 'complaint' => null];
     }
 
     // ---------------------------------------------------------------- menu
@@ -322,6 +322,7 @@ class BotEngine
     private function enqueue(?EscalationLog $log, ?string $question): ServiceTicket
     {
         $this->state = self::freshState();
+        $this->state['queued'] = true;
         $this->markWaitingHuman();
 
         return $this->tickets->open($this->conversation, $log, $question)[0];
@@ -348,10 +349,10 @@ class BotEngine
             && count($this->words($text)) >= 2 && ! $this->isGreeting($text);
     }
 
-    /** Pesan antrean petugas persis Bogor (tanpa nomor tiket/kontak); tiket tetap tercatat untuk dashboard. */
+    /** Pesan eskalasi: nomor tiket, posisi antrean, dan pilihan selama menunggu. */
     private function handoffText(ServiceTicket $ticket): string
     {
-        return BotScript::handoff();
+        return BotScript::handoff($ticket->ticket_number, $ticket->queue_no, $this->tickets->position($ticket));
     }
 
     /** Masuk antrean petugas: bot diam sampai tiket diambil, diselesaikan, dibatalkan, atau kedaluwarsa. */
@@ -364,14 +365,14 @@ class BotEngine
     }
 
     /**
-     * Pesan pemohon selama menunggu di antrean petugas:
-     *  "batal"   -> tiket dibatalkan, kembali ke menu utama
-     *  "antrean" -> posisi antrean (paling sering 1x per menit)
-     *  lainnya   -> pengingat posisi (paling sering 1x per kancil.ticket.notice_minutes); pesan tetap tercatat untuk petugas.
+     * Pesan pemohon selama tiket terbuka. Bot tidak pernah diam tanpa pilihan:
+     *  petugas sudah mengambil -> pengingat singkat (dibatasi)
+     *  mode antrean (state.queued): 0 = menu utama, 1 = cek posisi, 2 = batal; pesan lain = pengingat + pilihan
+     *  mode menu (setelah 0): menu bot berjalan normal, tiket tetap terbuka; eskalasi lagi memakai tiket yang sama
      *
      * @return list<BotReply>
      */
-    public function handleQueued(Conversation $conversation, Message $incoming): array
+    public function handleQueued(Conversation $conversation, Message $incoming, ?CarbonInterface $previousInboundAt = null): array
     {
         $this->conversation = $conversation;
         $this->incoming = $incoming;
@@ -381,10 +382,17 @@ class BotEngine
             return [];
         }
 
-        $command = $incoming->message_type === 'text' ? self::normalize((string) $incoming->message_text) : '';
+        $handling = $ticket->status === ServiceTicket::HANDLING;
+        $queueMode = ($conversation->session_state['queued'] ?? true) === true;
 
-        if (in_array($command, ['batal', 'batalkan', 'batal antrean', 'batal antrian', 'cancel'], true)
-            && $ticket->status === ServiceTicket::WAITING) {
+        if (! $handling && ! $queueMode) {
+            return $this->handle($conversation, $incoming, $previousInboundAt);
+        }
+
+        $command = $incoming->message_type === 'text' ? self::normalize((string) $incoming->message_text) : '';
+        $waiting = $ticket->status === ServiceTicket::WAITING;
+
+        if ($waiting && in_array($command, ['2', 'batal', 'batalkan', 'batal antrean', 'batal antrian', 'cancel'], true)) {
             $this->tickets->cancel($ticket);
             $this->state = self::freshState();
             $conversation->forceFill(['session_state' => $this->state, 'current_menu' => 'M-00'])->save();
@@ -392,15 +400,21 @@ class BotEngine
             return [$this->reply(BotScript::queueCancelled($ticket->ticket_number)."\n\n".$this->mainMenuText(), ['LYN-BATAL', 'M-00'])];
         }
 
-        $asked = (bool) preg_match('/^(cek\s+)?(antrean|antrian|posisi|status)(\s+(saya|antrean|antrian))?$/u', $command);
-        $minutes = $asked ? 1 : max(1, (int) config('kancil.ticket.notice_minutes', 15));
+        if ($waiting && in_array($command, ['0', '99', 'menu'], true)) {
+            $this->state = self::freshState();
+            $conversation->forceFill(['session_state' => $this->state, 'current_menu' => 'M-00'])->save();
 
-        if ($ticket->last_notice_at && $ticket->last_notice_at->gt(now()->subMinutes($minutes))) {
+            return [$this->reply($this->mainMenuText(), ['M-00'])];
+        }
+
+        $asked = $command === '1' || (bool) preg_match('/^(cek\s+)?(antrean|antrian|posisi|status)(\s+(saya|antrean|antrian))?$/u', $command);
+        $seconds = $asked ? 10 : max(5, (int) config('kancil.ticket.notice_seconds', 30));
+
+        if ($ticket->last_notice_at && $ticket->last_notice_at->gt(now()->subSeconds($seconds))) {
             return [];
         }
 
         $ticket->update(['last_notice_at' => now()]);
-        $handling = $ticket->status === ServiceTicket::HANDLING;
 
         return [$this->reply(
             BotScript::queueStatus($ticket->ticket_number, $ticket->queue_no, $this->tickets->position($ticket), $handling),

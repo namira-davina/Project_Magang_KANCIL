@@ -7,6 +7,7 @@ use App\Models\Faq;
 use App\Models\Message;
 use App\Services\Bot\BotEngine;
 use App\Services\Bot\BotReply;
+use App\Services\Bot\BotScript;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
@@ -134,6 +135,15 @@ trait BotHelpers
         $this->assertCount(1, $replies, 'Bot harus membalas tepat satu pesan.');
 
         return $replies[0];
+    }
+
+    /** Balasan eskalasi: judul tiket, nomor tiket LYN, posisi antrean, dan pilihan selama menunggu. */
+    protected function assertHandoff(string $text): void
+    {
+        $this->assertStringContainsString('🎫 *Permintaan Anda diteruskan ke Petugas*', $text);
+        $this->assertMatchesRegularExpression('/Nomor tiket: \*LYN-\d{8}-\d{3}\*/', $text);
+        $this->assertStringContainsString('Posisi antrean Anda: *ke-', $text);
+        $this->assertStringContainsString(BotScript::QUEUE_OPTIONS, $text);
     }
 
     /**

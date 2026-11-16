@@ -374,48 +374,45 @@ class WhatsappPipelineTest extends TestCase
         $this->assertSame(['user', 'bot'], Message::orderBy('id')->pluck('sender_type')->all());
     }
 
-    public function test_queue_keeps_bot_quiet_with_throttled_reminders_commands_and_cancel(): void
+    public function test_queue_gives_options_throttled_reminders_commands_and_cancel(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-11-11 10:00', 'Asia/Jakarta'));
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
         $this->postWebhook($this->incomingPayload(['message_body' => '3']));
 
-        $handoff = $this->lastBotMessage()->message_text;
-        $this->assertStringContainsString('masuk antrean', $handoff);
+        $this->assertHandoff($this->lastBotMessage()->message_text);
         $this->assertSame('LYN-20261111-001', ServiceTicket::sole()->ticket_number);
         $this->assertSame('WAITING_HUMAN', Conversation::sole()->conversation_mode);
         $ticket = ServiceTicket::sole();
         $this->assertSame('Menunggu', $ticket->status);
         $botCount = Message::where('sender_type', 'bot')->count();
 
-        // Pesan biasa tepat setelah masuk antrean: bot diam (pengingat baru dikirim saat handoff).
+        // Tepat setelah tiket dibuat, pesan lain tidak dibalas ulang (anti-spam 30 detik); pesan tetap tercatat.
         $this->postWebhook($this->incomingPayload(['message_body' => 'Pak, paspor saya hilang di Jakarta']));
-        $this->postWebhook($this->incomingPayload(['message_body' => '1']));
-        $this->assertSame($botCount, Message::where('sender_type', 'bot')->count(), 'Selama antrean bot diam.');
-        $this->assertSame(4, Message::where('sender_type', 'user')->count(), 'Pesan pemohon tetap tercatat untuk petugas.');
+        $this->assertSame($botCount, Message::where('sender_type', 'bot')->count());
+        $this->assertSame(3, Message::where('sender_type', 'user')->count(), 'Pesan pemohon tetap tercatat untuk petugas.');
 
-        // Lewat 15 menit: pesan biasa dibalas pengingat posisi satu kali.
-        Carbon::setTestNow(now()->addMinutes(16));
+        // Lewat 30 detik: bot membalas dengan nomor tiket + pilihan, satu kali.
+        Carbon::setTestNow(now()->addSeconds(31));
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo, masih lama?']));
         $this->assertSame($botCount + 1, Message::where('sender_type', 'bot')->count());
         $this->assertStringContainsString('Anda masih dalam antrean', $this->lastBotMessage()->message_text);
+        $this->assertStringContainsString('Nomor tiket: *LYN-20261111-001*', $this->lastBotMessage()->message_text);
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo?']));
-        $this->assertSame($botCount + 1, Message::where('sender_type', 'bot')->count(), 'Pengingat tidak diulang dalam 15 menit.');
+        $this->assertSame($botCount + 1, Message::where('sender_type', 'bot')->count(), 'Pengingat tidak diulang dalam 30 detik.');
 
-        // Perintah "antrean": dijawab, dibatasi 1x per menit.
-        $this->postWebhook($this->incomingPayload(['message_body' => 'antrean']));
-        $this->assertSame($botCount + 1, Message::where('sender_type', 'bot')->count(), 'Perintah antrean dibatasi 1x per menit.');
-        Carbon::setTestNow(now()->addMinutes(2));
-        $this->postWebhook($this->incomingPayload(['message_body' => 'Cek antrean']));
+        // Pilihan 1 = cek posisi (maks. 1x per 10 detik).
+        Carbon::setTestNow(now()->addSeconds(11));
+        $this->postWebhook($this->incomingPayload(['message_body' => '1']));
         $this->assertSame($botCount + 2, Message::where('sender_type', 'bot')->count());
         $this->assertStringContainsString('Posisi antrean Anda: *ke-1*', $this->lastBotMessage()->message_text);
 
-        // Tiket tidak lepas sendiri setelah berjam-jam (beda dengan batas tunggu lama).
+        // Tiket tidak lepas sendiri setelah berjam-jam.
         Carbon::setTestNow(now()->addMinutes(241));
         $this->artisan('kancil:pemeliharaan')->assertSuccessful();
         $this->assertSame('WAITING_HUMAN', Conversation::sole()->conversation_mode);
 
-        $this->postWebhook($this->incomingPayload(['message_body' => 'batal']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '2']));
         $this->assertStringContainsString('dibatalkan', $this->lastBotMessage()->message_text);
         $this->assertSame('Batal', $ticket->fresh()->status);
         $this->assertSame('BOT_ACTIVE', Conversation::sole()->conversation_mode);
@@ -423,6 +420,31 @@ class WhatsappPipelineTest extends TestCase
         $this->postWebhook($this->incomingPayload(['message_body' => '1']));
         $this->assertStringContainsString('Persyaratan Paspor Baru', $this->lastBotMessage()->message_text, 'Setelah batal bot melayani menu lagi.');
         Carbon::setTestNow();
+    }
+
+    public function test_zero_while_queued_opens_menu_keeps_ticket_and_menu_works(): void
+    {
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
+        $this->postWebhook($this->incomingPayload(['message_body' => '3']));
+        $ticket = ServiceTicket::sole();
+
+        $this->postWebhook($this->incomingPayload(['message_body' => '0']));
+        $this->assertStringContainsString('Silakan pilih menu di bawah ini', $this->lastBotMessage()->message_text);
+        $this->assertSame('Menunggu', $ticket->fresh()->status, 'Tiket tetap terbuka saat pemohon memakai menu.');
+
+        $this->postWebhook($this->incomingPayload(['message_body' => '1']));
+        $this->assertStringContainsString('Persyaratan Paspor Baru', $this->lastBotMessage()->message_text);
+        $this->postWebhook($this->incomingPayload(['message_body' => '2']));
+        $this->assertStringContainsString('Dokumen persyaratan Paspor Baru', $this->lastBotMessage()->message_text);
+
+        // Minta Petugas lagi: tiket yang sama dipakai dan tiketnya diberitahukan lagi.
+        $this->postWebhook($this->incomingPayload(['message_body' => '1']));
+        $this->assertStringContainsString('Nomor tiket: *'.$ticket->ticket_number.'*', $this->lastBotMessage()->message_text);
+        $this->assertSame(1, ServiceTicket::count());
+
+        // Kembali ke mode antrean: 2 membatalkan.
+        $this->postWebhook($this->incomingPayload(['message_body' => '2']));
+        $this->assertSame('Batal', $ticket->fresh()->status);
     }
 
     public function test_officer_reply_while_waiting_takes_over(): void

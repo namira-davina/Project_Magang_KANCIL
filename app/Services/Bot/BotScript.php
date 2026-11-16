@@ -17,7 +17,8 @@ final class BotScript
 
     public const DIVIDER = '------------------------';
 
-    public const QUEUE_HELP = 'Ketik *antrean* untuk cek posisi, atau *batal* untuk membatalkan antrean.';
+    /** Pilihan pemohon selama menunggu Petugas (bot tetap aktif, tidak diam). */
+    public const QUEUE_OPTIONS = "Sambil menunggu, Anda dapat:\nKetik *0* kembali ke menu utama\nKetik *1* cek posisi antrean\nKetik *2* batalkan antrean";
 
     /**
      * Menu: judul (hanya untuk label petugas), jalur, induk, pilihan (angka => [label, tujuan]).
@@ -168,21 +169,22 @@ final class BotScript
             .'*Terima kasih.*';
     }
 
-    /** Pemohon masuk antrean petugas (teks sama dengan Imigrasi Bogor); nomor tiket tetap dicatat di dashboard. */
-    public static function handoff(): string
+    /** Pemohon diteruskan ke Petugas: nomor tiket, posisi antrean, dan pilihan selama menunggu. */
+    public static function handoff(string $ticket, ?int $queueNo = null, ?int $position = null): string
     {
-        return "Terima kasih atas pesan Anda.\n\nMohon menunggu, pesan Anda telah diterima dan masuk antrean.";
+        return "🎫 *Permintaan Anda diteruskan ke Petugas*\n\n".self::queueLines($ticket, $queueNo, $position)
+            ."\n\nPetugas akan membalas di chat ini sesuai urutan antrean.\n\n".self::QUEUE_OPTIONS;
     }
 
-    /** Balasan perintah "antrean" atau pengingat saat pemohon mengirim pesan selama menunggu. */
+    /** Balasan cek posisi atau pengingat saat pemohon mengirim pesan selama menunggu. */
     public static function queueStatus(string $ticket, ?int $queueNo, ?int $position, bool $handling = false): string
     {
         if ($handling) {
             return "Tiket *{$ticket}* sedang ditangani *Petugas*. Mohon tunggu balasan di chat ini.";
         }
 
-        return "Anda masih dalam antrean *Petugas*.\n\n".self::queueLines($ticket, $queueNo, $position)
-            ."\n\nPesan Anda tetap kami teruskan ke petugas.\n".self::QUEUE_HELP;
+        return "🎫 Anda masih dalam antrean *Petugas*.\n\n".self::queueLines($ticket, $queueNo, $position)
+            ."\n\nPesan Anda tetap kami teruskan ke Petugas.\n\n".self::QUEUE_OPTIONS;
     }
 
     public static function queueCancelled(string $ticket): string

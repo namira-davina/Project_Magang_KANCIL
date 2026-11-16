@@ -17,8 +17,8 @@ return [
     'ticket' => [
         // Tiket menunggu ditutup otomatis (Kedaluwarsa) setelah N hari kerja tanpa diambil petugas.
         'expire_business_days' => (int) env('TICKET_EXPIRE_BUSINESS_DAYS', 2),
-        // Jarak minimal pengingat posisi antrean saat pemohon mengirim pesan biasa selama menunggu.
-        'notice_minutes' => (int) env('TICKET_NOTICE_MINUTES', 15),
+        // Jarak minimal pengingat posisi antrean saat pemohon mengirim pesan biasa selama menunggu (detik).
+        'notice_seconds' => (int) env('TICKET_NOTICE_SECONDS', 30),
     ],
 
     // FAQ yang boleh ditampilkan menu: verified = Terverifikasi + Aktif; all = semua non-draf (+ catatan "Informasi umum").

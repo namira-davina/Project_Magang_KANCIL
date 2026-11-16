@@ -110,9 +110,10 @@ class BotScriptTest extends TestCase
             $this->assertStringNotContainsString('081217000900', BotScript::msg($id), $id);
             $this->assertStringNotContainsString('cilacap@imigrasi.go.id', BotScript::msg($id), $id);
         }
-        $this->assertSame('Terima kasih atas pesan Anda.
-
-Mohon menunggu, pesan Anda telah diterima dan masuk antrean.', BotScript::handoff());
+        $handoff = BotScript::handoff('LYN-20261116-001', 1, 2);
+        $this->assertStringContainsString('🎫 *Permintaan Anda diteruskan ke Petugas*', $handoff);
+        $this->assertStringContainsString("Nomor tiket: *LYN-20261116-001*\nNomor antrean hari ini: *1*\nPosisi antrean Anda: *ke-2*", $handoff);
+        $this->assertStringEndsWith("Ketik *0* kembali ke menu utama\nKetik *1* cek posisi antrean\nKetik *2* batalkan antrean", $handoff);
     }
 
     public function test_answer_format_follows_bogor_style(): void
