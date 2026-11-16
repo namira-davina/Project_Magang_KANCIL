@@ -1,6 +1,6 @@
-
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,6 +16,7 @@
 
     <link rel="stylesheet" href="{{ asset('css/kancil.css') }}">
 </head>
+
 <body class="login-body">
 
     <div class="login-wrapper">
@@ -44,9 +45,9 @@
             </div>
 
             @if (session('message'))
-                <div class="login-alert-banner">
-                    {{ session('message') }}
-                </div>
+            <div class="login-alert-banner">
+                {{ session('message') }}
+            </div>
             @endif
 
             <form action="{{ route('login.submit') }}" method="POST" class="login-form">
@@ -71,8 +72,7 @@
                             name="username"
                             placeholder="contoh: agus_tikim"
                             autocomplete="username"
-                            required
-                        >
+                            required>
                     </div>
                 </div>
 
@@ -94,20 +94,25 @@
                             name="password"
                             placeholder="Masukkan kata sandi kedinasan"
                             autocomplete="current-password"
-                            required
-                        >
+                            required>
                         <button
                             type="button"
                             class="password-toggle-btn"
                             id="togglePassword"
-                            aria-label="Tampilkan kata sandi"
-                        >
+                            aria-label="Tampilkan kata sandi">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
                         </button>
                     </div>
+                </div>
+
+                <div class="login-meta-row">
+                    <label class="remember-checkbox-label">
+                        <input type="checkbox" name="remember" value="1">
+                        <span>Ingat saya di perangkat ini</span>
+                    </label>
                 </div>
 
                 <button type="submit" class="login-submit-button">
@@ -144,4 +149,5 @@
 
     <script src="{{ asset('js/kancil.js') }}"></script>
 </body>
+
 </html>
