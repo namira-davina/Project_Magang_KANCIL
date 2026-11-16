@@ -155,6 +155,10 @@ class BotScenarioTest extends TestCase
 
         $this->assertStringContainsString('📍 Kantor Imigrasi Kelas I TPI Cilacap', $text);
         $this->assertStringContainsString('Pantusan, Gumilir', $text);
+        $this->assertStringContainsString('Mal Pelayanan Publik (MPP) Cilacap', $text);
+        $this->assertStringContainsString('https://maps.app.goo.gl/8JoubSb8oX5GQ1NQ9', $text);
+        $this->assertStringNotContainsString('Purbalingga', $text);
+        $this->assertStringNotContainsString('Banyumas', $text);
         $this->assertStringNotContainsString('Bogor', $text);
         $this->assertStringNotContainsString('Tanah Sareal', $text);
     }

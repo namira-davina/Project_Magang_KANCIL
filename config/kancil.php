@@ -47,9 +47,7 @@ return [
         'maps' => 'https://maps.app.goo.gl/nsSRkK4pQqpF6rHM6',
         // Lokasi layanan paspor lain (nama => tautan peta).
         'other_locations' => [
-            'MPP Kabupaten Banyumas' => 'https://www.google.com/maps/search/?api=1&query=Mal+Pelayanan+Publik+Banyumas',
-            'MPP Kabupaten Purbalingga' => 'https://www.google.com/maps/search/?api=1&query=Mal+Pelayanan+Publik+Purbalingga',
-            'Kantor Kemenag Kabupaten Purbalingga' => 'https://www.google.com/maps/search/?api=1&query=Kantor+Kemenag+Purbalingga',
+            'Mal Pelayanan Publik (MPP) Cilacap' => 'https://maps.app.goo.gl/8JoubSb8oX5GQ1NQ9',
         ],
     ],
 
