@@ -10,7 +10,7 @@ return [
     'session_timeout_minutes' => (int) env('BOT_SESSION_TIMEOUT', 30),
 
     // Lama bot diam setelah petugas mengambil alih / membalas.
-    'handoff_minutes' => (int) env('BOT_HANDOFF_MINUTES', 120),
+    'handoff_minutes' => (int) env('BOT_HANDOFF_MINUTES', 60),
 
     // Tiket antrean petugas (88 / Hubungi Petugas / AI tidak tahu): urut FIFO, nomor LYN-YYYYMMDD-NNN.
     // Selama tiket menunggu bot diam (kecuali perintah "antrean"/"batal" dan pengingat posisi).

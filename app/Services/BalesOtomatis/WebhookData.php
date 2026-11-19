@@ -89,6 +89,15 @@ final class WebhookData
             || filter_var($this->data['location_attached'] ?? false, FILTER_VALIDATE_BOOLEAN);
     }
 
+    /** Event tanpa teks, media, maupun lokasi (stub/sistem WhatsApp): bukan pesan pemohon. */
+    public function isBlank(): bool
+    {
+        $location = $this->data['location_attached'] ?? null;
+        $hasLocation = is_array($location) && ($location['lat'] ?? null) !== null && ($location['lng'] ?? null) !== null;
+
+        return trim((string) $this->body()) === '' && ! $this->hasMedia() && ! $hasLocation;
+    }
+
     public function mediaMime(): ?string
     {
         return $this->string('media_mime');

@@ -51,6 +51,16 @@ class WhatsappPipelineTest extends TestCase
 
     // ------------------------------------------------------------ incoming_chat (Opsi B)
 
+    public function test_blank_incoming_event_is_skipped_without_message_or_reply(): void
+    {
+        $this->postWebhook($this->incomingPayload(['message_id' => 'IN-BLANK', 'message_body' => null]))->assertOk();
+
+        $this->assertSame(0, Message::count());
+        $this->assertSame(0, Conversation::count());
+        Http::assertNothingSent();
+        $this->assertNotNull(WebhookEvent::sole()->processed_at);
+    }
+
     public function test_incoming_message_creates_conversation_and_bot_replies_via_api(): void
     {
         $this->postWebhook($this->incomingPayload(['message_id' => 'IN-1', 'message_body' => 'Halo']))->assertOk();

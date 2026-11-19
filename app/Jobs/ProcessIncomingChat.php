@@ -49,6 +49,13 @@ class ProcessIncomingChat implements ShouldQueue
                 return;
             }
 
+            // Stub/sistem WhatsApp tanpa isi: jangan disimpan dan jangan dibalas menu.
+            if ($data->isBlank()) {
+                $event->update(['processed_at' => now(), 'error' => 'Dilewati: pesan kosong (tanpa teks/media).']);
+
+                return;
+            }
+
             if ($data->messageId() && Message::where('external_message_id', $data->messageId())->exists()) {
                 $event->update(['processed_at' => now()]);
 
