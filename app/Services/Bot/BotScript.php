@@ -219,16 +219,12 @@ final class BotScript
             .'Ketik *0* untuk kembali ke menu utama.';
     }
 
-    /** Petugas mengalihkan tiket antrean menjadi pengaduan resmi. */
+    /** Petugas mengalihkan tiket antrean menjadi pengaduan resmi (nomor ADU tidak ditampilkan, feedback user 2). */
     public static function ticketToComplaint(): string
     {
-        return 'Permintaan Anda telah kami catat sebagai *pengaduan resmi*.
-
-'
-            .'Tanggapan Petugas akan dikirim ke chat ini.
-
-'
-            .'Ketik *0* untuk kembali ke menu utama';
+        return "Permintaan Anda telah kami catat sebagai *pengaduan resmi*.\n\n"
+            ."Tanggapan Petugas akan dikirim ke chat ini.\n\n"
+            .self::MAIN_MENU_FOOTER;
     }
 
     public static function ticketExpired(): string
@@ -255,6 +251,9 @@ Ketik *88* untuk masuk antrean Petugas kembali';
         return implode('
 ', $lines);
     }
+
+    /** Footer setelah cek status ADU di luar alur PGD (diketik langsung): hanya menu utama. */
+    public const MAIN_MENU_FOOTER = 'Ketik *0* untuk kembali ke menu utama';
 
     public static function msg(string $id, ?string $fill = null): string
     {
@@ -295,13 +294,15 @@ Ketik *88* untuk masuk antrean Petugas kembali';
                 .($data['attachments'] > 0 ? "{$data['attachments']} berkas" : 'tidak ada')
                 ."\n\nKetik *1* Kirim pengaduan\nKetik *2* Batalkan",
             'PGD-08' => "Terima kasih, pengaduan Anda sudah kami terima.\n\nNomor tiket: *{$data['ticket']}*\n_Status awal tiket: Baru._\n\n"
-                ."Cek status kapan saja lewat menu *3* (Layanan Pengaduan) lalu *2* (Cek status pengaduan).\n\n"
-                .'Ketik *0* untuk kembali ke menu utama',
+                ."Untuk cek status, ketik nomor tiket tersebut kapan saja.\n\n"
+                .self::MAIN_MENU_FOOTER,
             'PGD-09' => "Silakan ketik nomor tiket Anda.\n\n".self::FOOTER,
             'PGD-10' => "Status pengaduan *{$data['ticket']}*: *{$data['status']}*."
                 .($data['response'] ? "\nTanggapan petugas: {$data['response']}" : '')
-                ."\n\n".self::FOOTER,
-            'PGD-10-NOTFOUND' => "Nomor tiket tidak ditemukan untuk nomor WhatsApp ini. Pastikan nomor tiket benar (contoh: ADU-202611-0001).\n\n".self::FOOTER,
+                ."\n\n".($data['footer'] ?? self::FOOTER),
+            // Skenario 3.2 no. 57: nomor milik WhatsApp lain diperlakukan sama dengan tidak ditemukan (tidak membocorkan data).
+            'PGD-10-NOTFOUND' => "Nomor tiket tidak ditemukan untuk nomor WhatsApp ini. Pastikan nomor tiket benar (contoh: ADU-202611-0001).\n\n"
+                .($data['footer'] ?? self::FOOTER),
             default => throw new \InvalidArgumentException("Pesan {$id} tidak dikenal."),
         };
     }

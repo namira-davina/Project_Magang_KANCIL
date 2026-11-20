@@ -107,7 +107,7 @@
         <form id="formPengaduan">
             <h3>Jadikan Pengaduan Resmi</h3>
             <p class="text-secondary-cell">
-                Tiket <strong id="dialogPengaduanTiket">-</strong> ditutup dan pemohon menerima nomor pengaduan (ADU).
+                Tiket <strong id="dialogPengaduanTiket">-</strong> ditutup dan pemohon diberi tahu bahwa permintaannya dicatat sebagai pengaduan resmi (nomor ADU hanya untuk petugas).
                 Pengaduan lalu ditindaklanjuti Admin/Pimpinan di halaman Pengaduan.
             </p>
 

@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     isi: document.getElementById('dialogIsi').value.trim(),
                 });
                 closeComplaintDialog();
-                alert(`Pengaduan ${data.pengaduan} dibuat. Nomor pengaduan sudah dikirim ke pemohon.`);
+                alert(`Pengaduan ${data.pengaduan} dibuat. Pemohon sudah diberi tahu bahwa permintaannya dicatat sebagai pengaduan resmi.`);
             } catch (err) {
                 alert(err.message);
             } finally {

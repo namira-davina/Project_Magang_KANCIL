@@ -79,6 +79,13 @@ class BotEngine
     {
         $isNew = $this->state === [];
         $expired = ! $isNew && $this->isExpired();
+        $complaintNumber = $this->isMedia() ? null : self::complaintNumber($text);
+
+        // Nomor pengaduan (ADU) diketik kapan saja = cek status. Saat mengisi formulir pengaduan (draf) teks diperlakukan
+        // sebagai isian, dan draf yang kedaluwarsa tetap mendapat Pesan 9 lebih dulu.
+        if ($complaintNumber && ! $this->hasComplaintDraft()) {
+            return [$this->complaintStatusShortcut($complaintNumber)];
+        }
 
         if ($isNew || $expired) {
             return $this->startSession($text, $expired);
@@ -690,10 +697,11 @@ class BotEngine
         return in_array($this->state['pgd'] ?? null, ['PGD-02', 'PGD-03', 'PGD-04', 'PGD-05', 'PGD-06', 'PGD-07'], true);
     }
 
-    private function checkTicket(string $text): BotReply
+    /** Cek status pengaduan (PGD-10); hanya untuk nomor WhatsApp pelapor (Skenario 3.2 no. 56-57). */
+    private function checkTicket(string $text, ?string $footer = null): BotReply
     {
         $this->validInput();
-        $ticket = strtoupper(preg_replace('/\s+/', '', $text));
+        $ticket = self::complaintNumber($text) ?? strtoupper(preg_replace('/\s+/', '', $text));
 
         $complaint = Complaint::where('ticket_number', $ticket)->first();
         $owner = $complaint && (
@@ -702,14 +710,31 @@ class BotEngine
         );
 
         if (! $owner) {
-            return $this->reply(BotScript::pgd('PGD-10-NOTFOUND'), ['PGD-10']);
+            return $this->reply(BotScript::pgd('PGD-10-NOTFOUND', ['footer' => $footer]), ['PGD-10']);
         }
 
         return $this->reply(BotScript::pgd('PGD-10', [
             'ticket' => $complaint->ticket_number,
             'status' => Complaint::STATUS_LABEL_FOR_USER[$complaint->status] ?? $complaint->status,
             'response' => $complaint->response_text,
+            'footer' => $footer,
         ]), ['PGD-10']);
+    }
+
+    /** Pemohon mengetik nomor pengaduan langsung (di luar alur PGD): jawab status lalu kembali ke menu utama. */
+    private function complaintStatusShortcut(string $number): BotReply
+    {
+        $this->state = self::freshState();
+
+        return $this->checkTicket($number, BotScript::MAIN_MENU_FOOTER);
+    }
+
+    /** "ADU-202611-0005", "adu 202611 0005", "ADU2026110005" => "ADU-202611-0005"; selain itu null. */
+    public static function complaintNumber(string $text): ?string
+    {
+        $compact = strtoupper(preg_replace('/[\s\-#*_.]+/', '', trim($text)));
+
+        return preg_match('/^ADU(\d{6})(\d{4})$/', $compact, $m) ? "ADU-{$m[1]}-{$m[2]}" : null;
     }
 
     private function pgdPrompt(string $step): string
