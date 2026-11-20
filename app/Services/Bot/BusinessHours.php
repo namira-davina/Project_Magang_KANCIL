@@ -39,6 +39,12 @@ class BusinessHours
             && $time < $this->closingTime($at->dayOfWeekIso);
     }
 
+    /** Jam buka (H:i). */
+    public function openingTime(): string
+    {
+        return $this->setting('working_hours_start', '08:00');
+    }
+
     /** Jam tutup (H:i) untuk hari ISO tersebut: Jumat memakai working_hours_end_friday. */
     public function closingTime(int $dayOfWeekIso): string
     {

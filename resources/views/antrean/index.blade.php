@@ -41,6 +41,7 @@
         <div class="stat-metric-card">
             <div class="stat-metric-header"><span class="stat-metric-label">RATA-RATA TUNGGU HARI INI</span></div>
             <div class="stat-metric-value" id="statRataTunggu">{{ $stats['rata_tunggu_menit'] !== null ? $stats['rata_tunggu_menit'].' mnt' : '-' }}</div>
+            <div class="stat-metric-footer">Dari tiket masuk hari ini yang sudah diambil</div>
         </div>
     </div>
 

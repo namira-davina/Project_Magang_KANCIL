@@ -428,6 +428,38 @@ class AntreanTest extends TestCase
         $this->assertSame(12, $response->viewData('antrean')['rata_tunggu_menit']);
     }
 
+    public function test_today_average_wait_ignores_tickets_queued_on_earlier_days(): void
+    {
+        // Audit 20 Nov: "Rata-rata tunggu hari ini" 287 mnt karena tiket semalam ikut dihitung.
+        $this->actingAs($this->user('admin'));
+        Carbon::setTestNow(Carbon::parse('2026-11-19 15:00', 'Asia/Jakarta'));
+        $yesterday = $this->ticket();
+
+        Carbon::setTestNow(Carbon::parse('2026-11-20 06:30', 'Asia/Jakarta'));
+        $early = $this->ticket(); // masuk sebelum jam buka
+
+        Carbon::setTestNow(Carbon::parse('2026-11-20 13:14', 'Asia/Jakarta'));
+        $quick = $this->ticket();
+
+        Carbon::setTestNow(Carbon::parse('2026-11-20 13:16', 'Asia/Jakarta'));
+        foreach ([$yesterday, $quick] as $ticket) {
+            $this->postJson(route('antrean.ambil', $ticket))->assertOk();
+        }
+        $early->update(['status' => 'Ditangani', 'taken_at' => Carbon::parse('2026-11-20 08:10', 'Asia/Jakarta')]);
+
+        $stats = $this->getJson(route('antrean.data'))->json('stats');
+
+        // quick = 2 mnt; early = 10 mnt (dihitung sejak 08.00); kemarin tidak dihitung.
+        $this->assertSame(6, $stats['rata_tunggu_menit']);
+    }
+
+    public function test_today_average_wait_card_explains_scope(): void
+    {
+        $this->actingAs($this->user('admin'));
+
+        $this->get(route('antrean'))->assertOk()->assertSee('Dari tiket masuk hari ini yang sudah diambil');
+    }
+
     public function test_monthly_report_summarises_queue(): void
     {
         $this->actingAs($this->user('pimpinan'));

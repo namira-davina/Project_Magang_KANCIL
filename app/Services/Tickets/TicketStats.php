@@ -20,7 +20,17 @@ class TicketStats
     {
         $byStatus = ServiceTicket::open()->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
         $oldest = ServiceTicket::where('status', ServiceTicket::WAITING)->min('queued_at');
-        $taken = ServiceTicket::whereNotNull('taken_at')->where('taken_at', '>=', now()->startOfDay())->get(['queued_at', 'taken_at']);
+        // Rata-rata tunggu "hari ini" = tiket yang MASUK hari ini dan sudah diambil. Dulu dihitung dari tiket yang
+        // diambil hari ini, sehingga tiket semalam/akhir pekan menggelembungkan angka (audit 20 Nov: 287 mnt padahal
+        // antrean hari itu menunggu 0-2 mnt). Tiket yang masuk sebelum jam buka dihitung sejak jam buka.
+        $startOfDay = now()->setTimezone(BusinessHours::TIMEZONE)->startOfDay();
+        $opening = Carbon::parse($startOfDay->toDateString().' '.$this->hours->openingTime(), BusinessHours::TIMEZONE);
+        $taken = ServiceTicket::whereNotNull('taken_at')->where('queued_at', '>=', $startOfDay)->get(['queued_at', 'taken_at'])
+            ->each(function (ServiceTicket $t) use ($opening) {
+                if ($t->queued_at->lt($opening) && $t->taken_at->gte($opening)) {
+                    $t->queued_at = $opening->copy();
+                }
+            });
 
         return [
             'menunggu' => (int) ($byStatus[ServiceTicket::WAITING] ?? 0),
