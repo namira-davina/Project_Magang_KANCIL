@@ -8,8 +8,8 @@ use App\Models\FaqKeyword;
 use Illuminate\Database\Seeder;
 
 /**
- * Impor 61 FAQ dari Dokumen Inventarisasi FAQ (database/data/faqs.php).
- * Status awal "perlu_verifikasi" dan nonaktif: bot menampilkan MSG-05 sampai Admin memverifikasi.
+ * Impor FAQ dari Dokumen Inventarisasi FAQ 3.1 (database/data/faqs.php: 61 FAQ + PSP-013..015).
+ * Status awal mengikuti data (3.1: "perlu_verifikasi", nonaktif): bot menampilkan MSG-05 sampai Admin memverifikasi.
  * Idempoten: FAQ yang sudah ada (berdasarkan kode) tidak ditimpa agar hasil verifikasi tetap.
  */
 class FaqSeeder extends Seeder
@@ -35,9 +35,9 @@ class FaqSeeder extends Seeder
                 'category_id' => $categories[$this->categoryFor($row['code'])] ?? null,
                 'question' => $row['question'],
                 'answer' => $row['answer'],
-                'source' => 'Dokumen Inventarisasi FAQ',
-                'verification_status' => 'perlu_verifikasi',
-                'is_active' => false,
+                'source' => $row['source'] ?? 'Dokumen Inventarisasi FAQ 3.1',
+                'verification_status' => $row['status'] ?? 'perlu_verifikasi',
+                'is_active' => ($row['status'] ?? null) === 'terverifikasi',
             ]);
 
             foreach ($this->keywords($row) as $keyword) {

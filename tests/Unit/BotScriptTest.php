@@ -189,7 +189,7 @@ Silakan pilih menu', $text);
     {
         $faqs = $this->faqData();
 
-        $this->assertCount(61, $faqs);
+        $this->assertCount(64, $faqs);
         foreach ($faqs as $code => $faq) {
             $this->assertMatchesRegularExpression('/^(PSP|ANK|AMB|BYR|TRF|LYK|WNA|KTK)-\d{3}$/', $code);
             $this->assertLessThanOrEqual(1600, mb_strlen($faq['answer']), $code);

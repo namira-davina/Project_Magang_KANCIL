@@ -22,12 +22,12 @@ class FaqIntegrationTest extends TestCase
 {
     use CreatesData, RefreshDatabase;
 
-    public function test_seeder_imports_61_faqs_held_for_verification(): void
+    public function test_seeder_imports_inventory_faqs_held_for_verification(): void
     {
         $this->seed(DatabaseSeeder::class);
 
-        $this->assertSame(61, Faq::count());
-        $this->assertSame(61, Faq::where('verification_status', 'perlu_verifikasi')->where('is_active', false)->count());
+        $this->assertSame(64, Faq::count());
+        $this->assertSame(64, Faq::where('verification_status', 'perlu_verifikasi')->where('is_active', false)->count());
         $this->assertSame(0, Faq::published()->count());
 
         $psp = Faq::where('code', 'PSP-001')->sole();
@@ -53,7 +53,7 @@ class FaqIntegrationTest extends TestCase
         $faq = Faq::where('code', 'PSP-001')->sole();
         $this->assertTrue($faq->isPublished());
         $this->assertSame('Dikoreksi petugas', $faq->answer);
-        $this->assertSame(61, Faq::count());
+        $this->assertSame(64, Faq::count());
         $this->assertSame($keywords, FaqKeyword::count());
     }
 
@@ -102,7 +102,7 @@ class FaqIntegrationTest extends TestCase
         $html = $this->get(route('faq.index'))->assertOk()->getContent();
 
         $this->assertSame(1, substr_count($html, '● Aktif<'));
-        $this->assertSame(60, substr_count($html, 'Perlu Verifikasi</span>') + substr_count($html, "● Perlu Verifikasi\n"));
+        $this->assertSame(63, substr_count($html, 'Perlu Verifikasi</span>') + substr_count($html, "● Perlu Verifikasi\n"));
     }
 
     public function test_integration_schema(): void
