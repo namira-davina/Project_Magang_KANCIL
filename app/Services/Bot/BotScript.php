@@ -171,53 +171,77 @@ final class BotScript
             .'*Terima kasih.*';
     }
 
-    /** Pemohon diteruskan ke Petugas: nomor tiket, posisi antrean, dan pilihan selama menunggu. */
-    public static function handoff(string $ticket, ?int $queueNo = null, ?int $position = null): string
+    /** Pemohon diteruskan ke Petugas: nomor antrean, posisi, dan pilihan selama menunggu (nomor tiket tidak ditampilkan). */
+    public static function handoff(?int $queueNo = null, ?int $position = null): string
     {
-        return "🎫 *Permintaan Anda diteruskan ke Petugas*\n\n".self::queueLines($ticket, $queueNo, $position)
-            ."\n\nPetugas akan membalas di chat ini sesuai urutan antrean.\n\n".self::QUEUE_OPTIONS;
+        $lines = self::queueLines($queueNo, $position);
+
+        return "🎫 *Permintaan Anda diteruskan ke Petugas*
+
+".($lines !== '' ? $lines."
+
+" : '')
+            ."Petugas akan membalas di chat ini sesuai urutan antrean.
+
+".self::QUEUE_OPTIONS;
     }
 
     /** Balasan cek posisi atau pengingat saat pemohon mengirim pesan selama menunggu. */
-    public static function queueStatus(string $ticket, ?int $queueNo, ?int $position, bool $handling = false): string
+    public static function queueStatus(?int $queueNo, ?int $position, bool $handling = false): string
     {
         if ($handling) {
-            return "Tiket *{$ticket}* sedang ditangani *Petugas*. Mohon tunggu balasan di chat ini.";
+            return 'Permintaan Anda sedang ditangani *Petugas*. Mohon tunggu balasan di chat ini.';
         }
 
-        return "🎫 Anda masih dalam antrean *Petugas*.\n\n".self::queueLines($ticket, $queueNo, $position)
-            ."\n\nPesan Anda tetap kami teruskan ke Petugas.\n\n".self::QUEUE_OPTIONS;
+        $lines = self::queueLines($queueNo, $position);
+
+        return "🎫 Anda masih dalam antrean *Petugas*.
+
+".($lines !== '' ? $lines."
+
+" : '')
+            ."Pesan Anda tetap kami teruskan ke Petugas.
+
+".self::QUEUE_OPTIONS;
     }
 
-    public static function queueCancelled(string $ticket): string
+    public static function queueCancelled(): string
     {
-        return "Antrean tiket *{$ticket}* dibatalkan.";
+        return 'Antrean Anda ke Petugas dibatalkan.';
     }
 
-    public static function ticketResolved(string $ticket): string
+    public static function ticketResolved(): string
     {
-        return "Tiket *{$ticket}* telah diselesaikan oleh Petugas. Terima kasih telah menghubungi *Kantor Imigrasi Kelas I TPI Cilacap*.\n\n"
+        return "Permintaan Anda telah diselesaikan oleh Petugas. Terima kasih telah menghubungi *Kantor Imigrasi Kelas I TPI Cilacap*.
+
+"
             .'Ketik *0* untuk kembali ke menu utama.';
     }
 
     /** Petugas mengalihkan tiket antrean menjadi pengaduan resmi. */
-    public static function ticketToComplaint(string $ticket, string $complaint): string
+    public static function ticketToComplaint(): string
     {
-        return "Permintaan Anda pada tiket *{$ticket}* telah kami catat sebagai *pengaduan resmi*.\n\n"
-            ."Nomor tiket pengaduan: *{$complaint}*\n_Status awal tiket: Baru._\n\n"
-            ."Tanggapan akan dikirim ke chat ini. Cek status kapan saja lewat menu *3* (Layanan Pengaduan) lalu *2* (Cek status pengaduan).\n\n"
+        return "Permintaan Anda telah kami catat sebagai *pengaduan resmi*.
+
+"
+            ."Tanggapan Petugas akan dikirim ke chat ini.
+
+"
             .'Ketik *0* untuk kembali ke menu utama';
     }
 
-    public static function ticketExpired(string $ticket): string
+    public static function ticketExpired(): string
     {
-        return "Mohon maaf, tiket *{$ticket}* belum dapat dilayani Petugas dan ditutup otomatis.\n\n"
-            ."Ketik *0* untuk kembali ke menu utama\nKetik *88* untuk masuk antrean Petugas kembali";
+        return "Mohon maaf, permintaan Anda belum dapat dilayani Petugas dan antrean ditutup otomatis.
+
+"
+            ."Ketik *0* untuk kembali ke menu utama
+Ketik *88* untuk masuk antrean Petugas kembali";
     }
 
-    private static function queueLines(string $ticket, ?int $queueNo, ?int $position): string
+    private static function queueLines(?int $queueNo, ?int $position): string
     {
-        $lines = ["Nomor tiket: *{$ticket}*"];
+        $lines = [];
 
         if ($queueNo !== null) {
             $lines[] = "Nomor antrean hari ini: *{$queueNo}*";
@@ -227,7 +251,8 @@ final class BotScript
             $lines[] = "Posisi antrean Anda: *ke-{$position}*".($position === 1 ? ' (berikutnya dilayani)' : '');
         }
 
-        return implode("\n", $lines);
+        return implode("
+", $lines);
     }
 
     public static function msg(string $id, ?string $fill = null): string

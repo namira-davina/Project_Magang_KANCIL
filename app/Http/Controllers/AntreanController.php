@@ -100,7 +100,7 @@ class AntreanController extends Controller
             return $complaint;
         });
 
-        $messenger->queue($ticket->conversation, BotScript::ticketToComplaint($ticket->ticket_number, $complaint->ticket_number),
+        $messenger->queue($ticket->conversation, BotScript::ticketToComplaint(),
             'system', $user->id, meta: ['codes' => ['LYN-ADU', 'PGD-08'], 'ticket_id' => $ticket->id, 'complaint_id' => $complaint->id]);
 
         return response()->json([

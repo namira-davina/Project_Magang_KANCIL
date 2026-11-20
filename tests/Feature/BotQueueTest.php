@@ -289,12 +289,11 @@ class BotQueueTest extends TestCase
     {
         $this->reply('Halo');
         $this->reply('3');
-        $number = ServiceTicket::sole()->ticket_number;
 
         $replies = $this->queued($command);
 
         $this->assertSame(['LYN-BATAL', 'M-00'], $replies[0]->codes);
-        $this->assertStringStartsWith(BotScript::queueCancelled($number), $replies[0]->text);
+        $this->assertStringStartsWith(BotScript::queueCancelled(), $replies[0]->text);
         $this->assertStringContainsString('Silakan pilih menu', $replies[0]->text);
         $this->assertSame('Batal', ServiceTicket::sole()->status);
         $chat = $this->chat->fresh();
@@ -473,7 +472,7 @@ class BotQueueTest extends TestCase
     public function test_simulation_shows_queue_and_silence(): void
     {
         $this->artisan('kancil:simulasi', ['pesan' => 'Halo'])->assertSuccessful();
-        $this->artisan('kancil:simulasi', ['pesan' => '3'])->expectsOutputToContain('Nomor tiket')->assertSuccessful();
+        $this->artisan('kancil:simulasi', ['pesan' => '3'])->expectsOutputToContain('diteruskan ke Petugas')->assertSuccessful();
         $this->artisan('kancil:simulasi', ['pesan' => 'halo pak'])->expectsOutputToContain('Bot diam')->assertSuccessful();
         $this->artisan('kancil:simulasi', ['pesan' => 'batal'])->expectsOutputToContain('dibatalkan')->assertSuccessful();
     }
@@ -482,13 +481,21 @@ class BotQueueTest extends TestCase
 
     public function test_queue_texts(): void
     {
-        $this->assertStringContainsString('Nomor tiket: *LYN-1*', BotScript::handoff('LYN-1', 3, 2));
-        $this->assertStringNotContainsString('Posisi', BotScript::handoff('LYN-1', 3, null));
-        $this->assertStringNotContainsString('Nomor antrean', BotScript::handoff('LYN-1', null, 1));
-        $this->assertStringContainsString(BotScript::QUEUE_OPTIONS, BotScript::queueStatus('LYN-1', 1, 1));
-        $this->assertSame('Tiket *LYN-1* sedang ditangani *Petugas*. Mohon tunggu balasan di chat ini.', BotScript::queueStatus('LYN-1', 1, null, true));
-        $this->assertStringContainsString('*LYN-1*', BotScript::ticketResolved('LYN-1'));
-        $this->assertStringContainsString('Ketik *88*', BotScript::ticketExpired('LYN-1'));
+        $this->assertStringContainsString('Posisi antrean Anda: *ke-2*', BotScript::handoff(3, 2));
+        $this->assertStringNotContainsString('Posisi', BotScript::handoff(3, null));
+        $this->assertStringNotContainsString('Nomor antrean', BotScript::handoff(null, 1));
+        $this->assertStringNotContainsString("
+
+
+", BotScript::handoff(null, null));
+        $this->assertStringContainsString(BotScript::QUEUE_OPTIONS, BotScript::queueStatus(1, 1));
+        $this->assertSame('Permintaan Anda sedang ditangani *Petugas*. Mohon tunggu balasan di chat ini.', BotScript::queueStatus(1, null, true));
+        $this->assertStringContainsString('telah diselesaikan oleh Petugas', BotScript::ticketResolved());
+        $this->assertStringContainsString('Ketik *88*', BotScript::ticketExpired());
+
+        foreach ([BotScript::handoff(1, 1), BotScript::queueStatus(1, 1), BotScript::queueStatus(1, 1, true), BotScript::queueCancelled(), BotScript::ticketResolved(), BotScript::ticketToComplaint(), BotScript::ticketExpired()] as $text) {
+            $this->assertDoesNotMatchRegularExpression('/LYN-|ADU-|Nomor tiket|[Tt]iket \*/', $text);
+        }
     }
 
     /** @return array<string, array{?string, string}> */

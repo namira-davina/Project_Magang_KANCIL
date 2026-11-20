@@ -218,7 +218,7 @@ class TicketQueueService
         $conversation->returnToBot(closeAll: true);
 
         if ($notify) {
-            $this->messenger->queue($conversation, BotScript::ticketResolved($ticket->ticket_number), 'system', $user->id,
+            $this->messenger->queue($conversation, BotScript::ticketResolved(), 'system', $user->id,
                 meta: ['codes' => ['LYN-SELESAI'], 'ticket_id' => $ticket->id]);
         }
 
@@ -272,7 +272,7 @@ class TicketQueueService
                 }
 
                 if ($notify) {
-                    $this->messenger->queue($conversation, BotScript::ticketExpired($ticket->ticket_number), 'system',
+                    $this->messenger->queue($conversation, BotScript::ticketExpired(), 'system',
                         meta: ['codes' => ['LYN-KEDALUWARSA'], 'ticket_id' => $ticket->id]);
                 }
 

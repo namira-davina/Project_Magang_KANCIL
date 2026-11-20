@@ -82,8 +82,8 @@ class PengaduanController extends Controller
             $messenger->queue(
                 $conversation,
                 $response !== ''
-                    ? "Tanggapan atas pengaduan *{$complaint->ticket_number}* (status: *{$label}*):\n{$response}"
-                    : "Status pengaduan *{$complaint->ticket_number}* kini: *{$label}*.",
+                    ? "Tanggapan atas pengaduan Anda (status: *{$label}*):\n{$response}"
+                    : "Status pengaduan Anda kini: *{$label}*.",
                 'petugas',
                 $request->user()->id,
                 meta: ['codes' => ['PGD-10'], 'complaint_id' => $complaint->id],

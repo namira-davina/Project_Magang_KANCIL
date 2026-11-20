@@ -80,12 +80,12 @@ class PengaduanTest extends TestCase
 
         $wa = Message::sole();
         $this->assertSame('petugas', $wa->sender_type);
-        $this->assertStringContainsString('*ADU-202611-0001*', $wa->message_text);
+        $this->assertStringNotContainsString('ADU-202611-0001', $wa->message_text);
         $this->assertStringContainsString('Sedang kami tindak lanjuti.', $this->sentWhatsappTexts()[0]['message']);
 
         // Status berubah tanpa tanggapan: pelapor tetap diberi tahu statusnya.
         $this->putJson(route('pengaduan.update', $complaint), ['status' => 'Selesai'])->assertOk()->assertJsonPath('notified', true);
-        $this->assertSame('Status pengaduan *ADU-202611-0001* kini: *Selesai*.', Message::latest('id')->value('message_text'));
+        $this->assertSame('Status pengaduan Anda kini: *Selesai*.', Message::latest('id')->value('message_text'));
         // Simpan ulang tanpa perubahan: tidak ada pesan.
         $this->putJson(route('pengaduan.update', $complaint), ['status' => 'Selesai'])->assertOk()->assertJsonPath('notified', false);
         $this->assertSame(2, Message::count());

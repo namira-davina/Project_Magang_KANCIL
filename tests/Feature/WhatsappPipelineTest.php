@@ -503,12 +503,12 @@ class WhatsappPipelineTest extends TestCase
         $this->assertSame($botCount, Message::where('sender_type', 'bot')->count());
         $this->assertSame(3, Message::where('sender_type', 'user')->count(), 'Pesan pemohon tetap tercatat untuk petugas.');
 
-        // Lewat 30 detik: bot membalas dengan nomor tiket + pilihan, satu kali.
+        // Lewat 30 detik: bot membalas posisi antrean + pilihan (tanpa nomor tiket), satu kali.
         Carbon::setTestNow(now()->addSeconds(31));
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo, masih lama?']));
         $this->assertSame($botCount + 1, Message::where('sender_type', 'bot')->count());
         $this->assertStringContainsString('Anda masih dalam antrean', $this->lastBotMessage()->message_text);
-        $this->assertStringContainsString('Nomor tiket: *LYN-20261111-001*', $this->lastBotMessage()->message_text);
+        $this->assertStringNotContainsString('LYN-20261111-001', $this->lastBotMessage()->message_text);
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo?']));
         $this->assertSame($botCount + 1, Message::where('sender_type', 'bot')->count(), 'Pengingat tidak diulang dalam 30 detik.');
 
@@ -548,9 +548,10 @@ class WhatsappPipelineTest extends TestCase
         $this->postWebhook($this->incomingPayload(['message_body' => '2']));
         $this->assertStringContainsString('Dokumen persyaratan Paspor Baru', $this->lastBotMessage()->message_text);
 
-        // Minta Petugas lagi: tiket yang sama dipakai dan tiketnya diberitahukan lagi.
+        // Minta Petugas lagi: tiket yang sama dipakai, posisi antrean diberitahukan lagi.
         $this->postWebhook($this->incomingPayload(['message_body' => '1']));
-        $this->assertStringContainsString('Nomor tiket: *'.$ticket->ticket_number.'*', $this->lastBotMessage()->message_text);
+        $this->assertStringContainsString('diteruskan ke Petugas', $this->lastBotMessage()->message_text);
+        $this->assertStringNotContainsString($ticket->ticket_number, $this->lastBotMessage()->message_text);
         $this->assertSame(1, ServiceTicket::count());
 
         // Kembali ke mode antrean: 2 membatalkan.
