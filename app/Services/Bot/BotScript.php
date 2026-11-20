@@ -176,14 +176,14 @@ final class BotScript
     {
         $lines = self::queueLines($queueNo, $position);
 
-        return "🎫 *Permintaan Anda diteruskan ke Petugas*
+        return '🎫 *Permintaan Anda diteruskan ke Petugas*
 
-".($lines !== '' ? $lines."
+'.($lines !== '' ? $lines.'
 
-" : '')
-            ."Petugas akan membalas di chat ini sesuai urutan antrean.
+' : '')
+            .'Petugas akan membalas di chat ini sesuai urutan antrean.
 
-".self::QUEUE_OPTIONS;
+'.self::QUEUE_OPTIONS;
     }
 
     /** Balasan cek posisi atau pengingat saat pemohon mengirim pesan selama menunggu. */
@@ -195,14 +195,14 @@ final class BotScript
 
         $lines = self::queueLines($queueNo, $position);
 
-        return "🎫 Anda masih dalam antrean *Petugas*.
+        return '🎫 Anda masih dalam antrean *Petugas*.
 
-".($lines !== '' ? $lines."
+'.($lines !== '' ? $lines.'
 
-" : '')
-            ."Pesan Anda tetap kami teruskan ke Petugas.
+' : '')
+            .'Pesan Anda tetap kami teruskan ke Petugas.
 
-".self::QUEUE_OPTIONS;
+'.self::QUEUE_OPTIONS;
     }
 
     public static function queueCancelled(): string
@@ -212,31 +212,31 @@ final class BotScript
 
     public static function ticketResolved(): string
     {
-        return "Permintaan Anda telah diselesaikan oleh Petugas. Terima kasih telah menghubungi *Kantor Imigrasi Kelas I TPI Cilacap*.
+        return 'Permintaan Anda telah diselesaikan oleh Petugas. Terima kasih telah menghubungi *Kantor Imigrasi Kelas I TPI Cilacap*.
 
-"
+'
             .'Ketik *0* untuk kembali ke menu utama.';
     }
 
     /** Petugas mengalihkan tiket antrean menjadi pengaduan resmi. */
     public static function ticketToComplaint(): string
     {
-        return "Permintaan Anda telah kami catat sebagai *pengaduan resmi*.
+        return 'Permintaan Anda telah kami catat sebagai *pengaduan resmi*.
 
-"
-            ."Tanggapan Petugas akan dikirim ke chat ini.
+'
+            .'Tanggapan Petugas akan dikirim ke chat ini.
 
-"
+'
             .'Ketik *0* untuk kembali ke menu utama';
     }
 
     public static function ticketExpired(): string
     {
-        return "Mohon maaf, permintaan Anda belum dapat dilayani Petugas dan antrean ditutup otomatis.
+        return 'Mohon maaf, permintaan Anda belum dapat dilayani Petugas dan antrean ditutup otomatis.
 
-"
-            ."Ketik *0* untuk kembali ke menu utama
-Ketik *88* untuk masuk antrean Petugas kembali";
+'
+            .'Ketik *0* untuk kembali ke menu utama
+Ketik *88* untuk masuk antrean Petugas kembali';
     }
 
     private static function queueLines(?int $queueNo, ?int $position): string
@@ -251,8 +251,8 @@ Ketik *88* untuk masuk antrean Petugas kembali";
             $lines[] = "Posisi antrean Anda: *ke-{$position}*".($position === 1 ? ' (berikutnya dilayani)' : '');
         }
 
-        return implode("
-", $lines);
+        return implode('
+', $lines);
     }
 
     public static function msg(string $id, ?string $fill = null): string

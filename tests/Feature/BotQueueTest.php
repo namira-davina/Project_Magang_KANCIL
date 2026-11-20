@@ -484,10 +484,10 @@ class BotQueueTest extends TestCase
         $this->assertStringContainsString('Posisi antrean Anda: *ke-2*', BotScript::handoff(3, 2));
         $this->assertStringNotContainsString('Posisi', BotScript::handoff(3, null));
         $this->assertStringNotContainsString('Nomor antrean', BotScript::handoff(null, 1));
-        $this->assertStringNotContainsString("
+        $this->assertStringNotContainsString('
 
 
-", BotScript::handoff(null, null));
+', BotScript::handoff(null, null));
         $this->assertStringContainsString(BotScript::QUEUE_OPTIONS, BotScript::queueStatus(1, 1));
         $this->assertSame('Permintaan Anda sedang ditangani *Petugas*. Mohon tunggu balasan di chat ini.', BotScript::queueStatus(1, null, true));
         $this->assertStringContainsString('telah diselesaikan oleh Petugas', BotScript::ticketResolved());

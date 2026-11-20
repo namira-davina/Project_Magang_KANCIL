@@ -74,8 +74,8 @@ class BusinessHours
     /** Dua baris "Status Hari Ini" untuk menu utama (format layanan WhatsApp Imigrasi Bogor). */
     public function statusText(?CarbonInterface $at = null): string
     {
-        return '*Status Hari Ini: '.$this->todayStatus($at)."*
-Waktu pelayanan tersedia setiap hari ".$this->scheduleText().'.';
+        return '*Status Hari Ini: '.$this->todayStatus($at).'*
+Waktu pelayanan tersedia setiap hari '.$this->scheduleText().'.';
     }
 
     /** Mis. "Senin–Kamis pukul 08.00–16.00 WIB dan Jumat pukul 08.00–16.30 WIB". */

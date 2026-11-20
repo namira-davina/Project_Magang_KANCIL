@@ -11,6 +11,7 @@ use App\Models\Conversation;
 use App\Models\EscalationLog;
 use App\Models\Message;
 use App\Models\ServiceTicket;
+use App\Models\User;
 use App\Models\WebhookEvent;
 use App\Services\BalesOtomatis\BalesOtomatisClient;
 use App\Services\BalesOtomatis\BalesOtomatisException;
@@ -129,7 +130,7 @@ class WhatsappPipelineTest extends TestCase
     {
         $this->postWebhook($this->incomingPayload(['message_id' => 'IN-BLANK', 'message_body' => null, 'phone_number' => '6281200000001']));
 
-        $this->actingAs(\App\Models\User::where("role", "admin")->first() ?? $this->makeUser());
+        $this->actingAs(User::where('role', 'admin')->first() ?? $this->makeUser());
         $this->getJson(route('percakapan.pesan', Conversation::sole()))
             ->assertOk()->assertJsonFragment(['text' => '[Pesan WhatsApp tidak terbaca]']);
     }
