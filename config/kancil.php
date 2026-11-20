@@ -19,6 +19,8 @@ return [
         'expire_business_days' => (int) env('TICKET_EXPIRE_BUSINESS_DAYS', 2),
         // Jarak minimal pengingat posisi antrean saat pemohon mengirim pesan biasa selama menunggu (detik).
         'notice_seconds' => (int) env('TICKET_NOTICE_SECONDS', 30),
+        // Default prefix kode tiket layanan petugas.
+        'prefix' => env('TICKET_PREFIX', 'LYN'),
     ],
 
     // FAQ yang boleh ditampilkan menu: verified = Terverifikasi + Aktif; all = semua non-draf (+ catatan "Informasi umum").
