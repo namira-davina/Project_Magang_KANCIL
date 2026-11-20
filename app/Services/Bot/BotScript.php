@@ -259,13 +259,15 @@ Ketik *88* untuk masuk antrean Petugas kembali';
     public static function msg(string $id, ?string $fill = null): string
     {
         return match ($id) {
-            'MSG-01' => 'Mohon maaf, pilihan Anda tidak tersedia. Silakan ketik angka sesuai menu di bawah ini.',
-            'MSG-02' => 'Mohon maaf, pilihan Anda masih belum sesuai. Silakan ketik angka pilihan saja, misalnya *1*.',
-            'MSG-03' => "Mohon maaf, kami belum dapat memahami pesan Anda.\n\nKetik *0* untuk kembali ke menu utama\nKetik *88* untuk menghubungi Petugas",
-            'MSG-04' => 'Mohon maaf, layanan ini hanya menerima pesan teks berupa angka pilihan. Silakan ketik angka sesuai menu.',
-            'MSG-05' => 'Mohon maaf, informasi untuk topik ini sedang diperbarui.',
-            'MSG-06' => 'Sesi sebelumnya telah berakhir.',
-            'MSG-07' => '_Saat ini di luar jam layanan petugas. Petugas akan membalas pesan Anda pada jam layanan'.($fill ? ": {$fill}._" : ' berikutnya._'),
+            // Teks Dokumen Skenario 3.2 (Pesan 1-9). Adaptasi menu Bogor: "0" = menu utama (99 tetap diterima), petugas
+            // lewat antrean (bot tidak menyebut nomor/email karena pemohon sudah menghubungi nomor resmi kantor).
+            'MSG-01' => 'Maaf, pilihan tidak valid. Silakan ketik angka sesuai daftar menu.',
+            'MSG-02' => 'Maaf, pilihan masih belum sesuai. Bot ini hanya menerima angka pilihan seperti pada menu.',
+            'MSG-03' => "Mohon maaf, bot belum dapat memahami pesan Anda.\n\nKetik *88* untuk menghubungi Petugas\nKetik *0* untuk menu utama",
+            'MSG-04' => 'Maaf, bot hanya menerima pesan teks berupa angka pilihan. Silakan ketik angka sesuai menu.',
+            'MSG-05' => 'Informasi ini sedang diperbarui. Untuk kepastian, silakan hubungi Petugas.',
+            'MSG-06' => 'Sesi sebelumnya telah berakhir. Silakan pilih layanan kembali:',
+            'MSG-07' => '_Saat ini di luar jam layanan petugas. Jam layanan: '.($fill ?: 'hari kerja').'. Permintaan Anda tetap tercatat dalam antrean._',
             'MSG-08' => 'Pengaduan dibatalkan. Anda dapat memulai kembali kapan saja.',
             'MSG-09' => 'Sesi sebelumnya telah berakhir, dan pengaduan yang belum dikirim tidak tersimpan. Pilih *3* (Layanan Pengaduan) untuk memulai lagi.',
             'AI-UNKNOWN' => 'Mohon maaf, pertanyaan Anda belum dapat dijawab otomatis.',

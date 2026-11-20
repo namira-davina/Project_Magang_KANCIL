@@ -293,7 +293,7 @@ class BotEngine
         $log = $this->escalations->record($this->conversation, 'A2', "Cek status paspor, no. permohonan {$number}.", null, '0>10');
         $ticket = $this->enqueue($log, "Cek status paspor, no. permohonan {$number}");
 
-        return [$this->reply($this->handoffText($ticket), ['STATUS', 'LYN'])];
+        return [$this->reply($this->handoffText($ticket), ['STATUS', 'LYN', ...$this->outsideHoursCodes()])];
     }
 
     // ---------------------------------------------------------------- eskalasi
@@ -320,7 +320,7 @@ class BotEngine
 
         $ticket = $this->enqueue($log, $this->recentQuestion());
 
-        return $this->reply($this->handoffText($ticket), ['ESK-01', 'LYN']);
+        return $this->reply($this->handoffText($ticket), ['ESK-01', 'LYN', ...$this->outsideHoursCodes()]);
     }
 
     /**
@@ -360,7 +360,20 @@ class BotEngine
     /** Pesan eskalasi: nomor tiket, posisi antrean, dan pilihan selama menunggu. */
     private function handoffText(ServiceTicket $ticket): string
     {
-        return BotScript::handoff($ticket->queue_no, $this->tickets->position($ticket));
+        $text = BotScript::handoff($ticket->queue_no, $this->tickets->position($ticket));
+
+        // Skenario 3.2 no. 49 / Pesan 7: di luar jam layanan pemohon diberi tahu jam layanan (tanpa janji waktu balasan).
+        if ($this->outsideHoursCodes() !== []) {
+            $text .= "\n\n".BotScript::msg('MSG-07', $this->hours->scheduleText());
+        }
+
+        return $text;
+    }
+
+    /** @return list<string> ['MSG-07'] bila eskalasi terjadi di luar jam layanan (dan pemberitahuan aktif). */
+    private function outsideHoursCodes(): array
+    {
+        return config('kancil.outside_hours_notice', true) && ! $this->hours->isOpen() ? ['MSG-07'] : [];
     }
 
     /** Masuk antrean petugas: bot diam sampai tiket diambil, diselesaikan, dibatalkan, atau kedaluwarsa. */
@@ -479,7 +492,7 @@ class BotEngine
                 $log = $this->escalations->record($this->conversation, 'A1', 'AI: '.$text, null, 'AI');
                 $ticket = $this->enqueue($log, $text);
 
-                return [$this->reply(BotScript::msg('AI-UNKNOWN')."\n\n".$this->handoffText($ticket), ['AI-UNKNOWN', 'ESK-01', 'LYN'], sender: 'ai')];
+                return [$this->reply(BotScript::msg('AI-UNKNOWN')."\n\n".$this->handoffText($ticket), ['AI-UNKNOWN', 'ESK-01', 'LYN', ...$this->outsideHoursCodes()], sender: 'ai')];
             }
         }
 

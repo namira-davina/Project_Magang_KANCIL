@@ -186,8 +186,9 @@ class BotQueueTest extends TestCase
         $this->reply('Halo');
         $reply = $this->reply('3');
 
-        $this->assertSame(['ESK-01', 'LYN'], $reply->codes);
+        $this->assertSame(['ESK-01', 'LYN', 'MSG-07'], $reply->codes);
         $this->assertHandoff($reply->text);
+        $this->assertGreaterThan(strpos($reply->text, BotScript::QUEUE_OPTIONS), strpos($reply->text, 'di luar jam layanan'), 'Pesan 7 setelah detail antrean.');
         $this->assertSame('LYN-20261114-001', ServiceTicket::sole()->ticket_number);
     }
 

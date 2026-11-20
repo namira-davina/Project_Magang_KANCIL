@@ -224,12 +224,66 @@ class BotScenarioTest extends TestCase
         }
     }
 
-    public function test_handoff_text_is_same_outside_hours(): void
+    /** @return array<string, array{string, bool}> */
+    public static function officeMoments(): array
     {
-        Carbon::setTestNow(Carbon::parse('2026-11-14 20:00:00', 'Asia/Jakarta'));
+        return [
+            'Rabu 10.00 (buka)' => ['2026-11-11 10:00', false],
+            'Rabu 07.59 (belum buka)' => ['2026-11-11 07:59', true],
+            'Kamis 16.00 (tutup)' => ['2026-11-12 16:00', true],
+            'Jumat 16.15 (masih buka)' => ['2026-11-13 16:15', false],
+            'Jumat 16.30 (tutup)' => ['2026-11-13 16:30', true],
+            'Sabtu 10.00' => ['2026-11-14 10:00', true],
+            'Minggu malam' => ['2026-11-15 20:00', true],
+            'Natal (libur nasional)' => ['2026-12-25 10:00', true],
+        ];
+    }
+
+    #[DataProvider('officeMoments')]
+    public function test_s49_handoff_outside_hours_adds_message_7_with_schedule(string $at, bool $closed): void
+    {
+        // Skenario 3.2 no. 49: hubungi petugas di luar jam layanan = Pesan 7 berisi jam layanan, antrean tetap dibuat.
+        Carbon::setTestNow(Carbon::parse($at, 'Asia/Jakarta'));
+        $this->reply('Halo');
+        $reply = $this->reply('3');
+
+        $this->assertHandoff($reply->text);
+        $this->assertSame(1, ServiceTicket::count());
+
+        if ($closed) {
+            $this->assertSame(['ESK-01', 'LYN', 'MSG-07'], $reply->codes);
+            $this->assertStringEndsWith(
+                '
+
+_Saat ini di luar jam layanan petugas. Jam layanan: Senin–Kamis pukul 08.00–16.00 WIB dan Jumat pukul 08.00–16.30 WIB. Permintaan Anda tetap tercatat dalam antrean._',
+                $reply->text,
+            );
+        } else {
+            $this->assertSame(['ESK-01', 'LYN'], $reply->codes);
+            $this->assertStringNotContainsString('di luar jam layanan', $reply->text);
+        }
+    }
+
+    public function test_message_7_also_after_answer_88_and_status_number(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-14 10:00', 'Asia/Jakarta'));
+
+        $this->conversation(['Halo', '1', '7']);
+        $this->assertContains('MSG-07', $this->reply('1')->codes, 'Ketik 1 setelah jawaban.');
+
+        $this->chat->update(['session_state' => null, 'conversation_mode' => Conversation::MODE_BOT]);
+        ServiceTicket::query()->update(['status' => ServiceTicket::RESOLVED]);
+        $this->conversation(['Halo', '1', '10']);
+        $this->assertSame(['STATUS', 'LYN', 'MSG-07'], $this->reply('1498000000012345')->codes);
+    }
+
+    public function test_message_7_can_be_disabled(): void
+    {
+        config(['kancil.outside_hours_notice' => false]);
+        Carbon::setTestNow(Carbon::parse('2026-11-14 10:00', 'Asia/Jakarta'));
 
         $this->reply('Halo');
-        $this->assertHandoff($this->reply('3')->text);
+        $this->assertSame(['ESK-01', 'LYN'], $this->reply('3')->codes);
     }
 
     public function test_cek_status_asks_number_then_queues_officer_with_the_number(): void

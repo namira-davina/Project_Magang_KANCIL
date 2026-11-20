@@ -124,9 +124,19 @@ class BotScriptTest extends TestCase
 
     public function test_standard_messages_match_document(): void
     {
-        $this->assertSame('Mohon maaf, pilihan Anda tidak tersedia. Silakan ketik angka sesuai menu di bawah ini.', BotScript::msg('MSG-01'));
-        $this->assertSame('Sesi sebelumnya telah berakhir.', BotScript::msg('MSG-06'));
+        // Dokumen Skenario 3.2, Pesan 1-9 (audit 20 Nov); 99 diganti 0 sesuai menu Bogor, nomor kantor tidak disebut.
+        $this->assertSame('Maaf, pilihan tidak valid. Silakan ketik angka sesuai daftar menu.', BotScript::msg('MSG-01'));
+        $this->assertSame('Maaf, pilihan masih belum sesuai. Bot ini hanya menerima angka pilihan seperti pada menu.', BotScript::msg('MSG-02'));
+        $this->assertSame('Mohon maaf, bot belum dapat memahami pesan Anda.
+
+Ketik *88* untuk menghubungi Petugas
+Ketik *0* untuk menu utama', BotScript::msg('MSG-03'));
+        $this->assertSame('Maaf, bot hanya menerima pesan teks berupa angka pilihan. Silakan ketik angka sesuai menu.', BotScript::msg('MSG-04'));
+        $this->assertStringStartsWith('Informasi ini sedang diperbarui. Untuk kepastian', BotScript::msg('MSG-05'));
+        $this->assertSame('Sesi sebelumnya telah berakhir. Silakan pilih layanan kembali:', BotScript::msg('MSG-06'));
+        $this->assertSame('_Saat ini di luar jam layanan petugas. Jam layanan: Senin–Jumat pukul 08.00–16.00 WIB. Permintaan Anda tetap tercatat dalam antrean._', BotScript::msg('MSG-07', 'Senin–Jumat pukul 08.00–16.00 WIB'));
         $this->assertSame('Pengaduan dibatalkan. Anda dapat memulai kembali kapan saja.', BotScript::msg('MSG-08'));
+        $this->assertStringContainsString('Pilih *3* (Layanan Pengaduan)', BotScript::msg('MSG-09'), 'Menu Bogor: pengaduan = 3.');
 
         // Bot tidak menyebut nomor/email kantor; pemohon masuk antrean petugas dengan teks yang sama seperti Imigrasi Bogor.
         foreach (['MSG-01', 'MSG-02', 'MSG-03', 'MSG-04', 'MSG-05', 'MSG-06', 'MSG-07', 'MSG-08', 'MSG-09', 'AI-UNKNOWN'] as $id) {
