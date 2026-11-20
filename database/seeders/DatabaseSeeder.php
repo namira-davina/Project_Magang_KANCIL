@@ -53,6 +53,7 @@ class DatabaseSeeder extends Seeder
             'bot_name' => ['KANCIL SAPA', 'Nama chatbot'],
             'working_hours_start' => ['08:00', 'Jam mulai layanan petugas - perlu konfirmasi'],
             'working_hours_end' => ['16:00', 'Jam selesai layanan petugas - perlu konfirmasi'],
+            'working_hours_end_friday' => ['16:30', 'Jam selesai layanan petugas khusus hari Jumat'],
             'working_days' => ['Senin-Jumat', 'Hari layanan petugas - perlu konfirmasi'],
             'service_hours_text' => ['', 'Teks jam layanan yang boleh disebut bot (kosong = tidak disebut sampai dikonfirmasi)'],
         ] as $key => [$value, $description]) {

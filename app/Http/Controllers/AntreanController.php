@@ -23,11 +23,16 @@ class AntreanController extends Controller
 {
     private const HISTORY_LIMIT = 50;
 
+    private const EMPTY_QUEUE_MESSAGE = 'Antrean kosong.';
+
     public function __construct(
         private readonly TicketQueueService $tickets,
         private readonly TicketStats $stats,
     ) {}
 
+    /**
+     * Tampilkan halaman utama daftar antrean layanan petugas.
+     */
     public function index(Request $request)
     {
         return view('antrean.index', [
@@ -46,7 +51,7 @@ class AntreanController extends Controller
         $ticket = $this->tickets->claimNext($request->user());
 
         if (! $ticket) {
-            return response()->json(['message' => 'Antrean kosong.'], 404);
+            return response()->json(['message' => self::EMPTY_QUEUE_MESSAGE], 404);
         }
 
         return $this->claimed($ticket);
@@ -95,7 +100,7 @@ class AntreanController extends Controller
             return $complaint;
         });
 
-        $messenger->queue($ticket->conversation, BotScript::ticketToComplaint($ticket->ticket_number, $complaint->ticket_number),
+        $messenger->queue($ticket->conversation, BotScript::ticketToComplaint(),
             'system', $user->id, meta: ['codes' => ['LYN-ADU', 'PGD-08'], 'ticket_id' => $ticket->id, 'complaint_id' => $complaint->id]);
 
         return response()->json([

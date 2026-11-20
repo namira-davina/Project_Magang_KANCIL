@@ -352,7 +352,7 @@ class BotEngine
     /** Pesan eskalasi: nomor tiket, posisi antrean, dan pilihan selama menunggu. */
     private function handoffText(ServiceTicket $ticket): string
     {
-        return BotScript::handoff($ticket->ticket_number, $ticket->queue_no, $this->tickets->position($ticket));
+        return BotScript::handoff($ticket->queue_no, $this->tickets->position($ticket));
     }
 
     /** Masuk antrean petugas: bot diam sampai tiket diambil, diselesaikan, dibatalkan, atau kedaluwarsa. */
@@ -397,7 +397,7 @@ class BotEngine
             $this->state = self::freshState();
             $conversation->forceFill(['session_state' => $this->state, 'current_menu' => 'M-00'])->save();
 
-            return [$this->reply(BotScript::queueCancelled($ticket->ticket_number)."\n\n".$this->mainMenuText(), ['LYN-BATAL', 'M-00'])];
+            return [$this->reply(BotScript::queueCancelled()."\n\n".$this->mainMenuText(), ['LYN-BATAL', 'M-00'])];
         }
 
         if ($waiting && in_array($command, ['0', '99', 'menu'], true)) {
@@ -417,7 +417,7 @@ class BotEngine
         $ticket->update(['last_notice_at' => now()]);
 
         return [$this->reply(
-            BotScript::queueStatus($ticket->ticket_number, $ticket->queue_no, $this->tickets->position($ticket), $handling),
+            BotScript::queueStatus($ticket->queue_no, $this->tickets->position($ticket), $handling),
             ['LYN-STATUS'],
         )];
     }

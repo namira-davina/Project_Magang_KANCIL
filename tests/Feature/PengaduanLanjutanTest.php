@@ -173,8 +173,9 @@ class PengaduanLanjutanTest extends TestCase
         $this->assertStringContainsString("dari antrean {$ticket->ticket_number}", $b1->reason);
 
         $notice = Message::where('sender_type', 'system')->sole();
-        $this->assertStringContainsString($ticket->ticket_number, $notice->message_text);
-        $this->assertStringContainsString($complaint->ticket_number, $notice->message_text);
+        $this->assertStringContainsString('pengaduan resmi', $notice->message_text);
+        $this->assertStringNotContainsString($ticket->ticket_number, $notice->message_text);
+        $this->assertStringNotContainsString($complaint->ticket_number, $notice->message_text);
         $this->assertSame(['LYN-ADU', 'PGD-08'], $notice->meta['codes']);
         $this->assertSame(1, Message::where('sender_type', 'system')->count(), 'Tidak ada pesan penutup ganda.');
 

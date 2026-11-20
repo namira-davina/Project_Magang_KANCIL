@@ -7,11 +7,16 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
 /**
- * Jam layanan petugas dari bot_settings (working_days, working_hours_start/end), zona WIB.
+ * Jam layanan petugas dari bot_settings (working_days, working_hours_start/end, working_hours_end_friday), zona WIB.
+ * Jumat tutup lebih sore (default 16.30) daripada hari kerja lain (default 16.00).
  */
 class BusinessHours
 {
     public const TIMEZONE = 'Asia/Jakarta';
+
+    private const FRIDAY = 5;
+
+    private const DAY_NAMES = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
 
     private const DAYS = [
         'senin' => 1, 'selasa' => 2, 'rabu' => 3, 'kamis' => 4,
@@ -31,7 +36,15 @@ class BusinessHours
         $time = $at->format('H:i');
 
         return $time >= $this->setting('working_hours_start', '08:00')
-            && $time < $this->setting('working_hours_end', '16:00');
+            && $time < $this->closingTime($at->dayOfWeekIso);
+    }
+
+    /** Jam tutup (H:i) untuk hari ISO tersebut: Jumat memakai working_hours_end_friday. */
+    public function closingTime(int $dayOfWeekIso): string
+    {
+        $end = $this->setting('working_hours_end', '16:00');
+
+        return $dayOfWeekIso === self::FRIDAY ? $this->setting('working_hours_end_friday', '16:30') : $end;
     }
 
     /** Keterangan hari libur nasional / cuti bersama pada tanggal tersebut, atau null. */
@@ -61,12 +74,47 @@ class BusinessHours
     /** Dua baris "Status Hari Ini" untuk menu utama (format layanan WhatsApp Imigrasi Bogor). */
     public function statusText(?CarbonInterface $at = null): string
     {
-        $days = str_replace('-', '–', trim($this->setting('working_days', 'Senin-Jumat')));
-        $from = str_replace(':', '.', $this->setting('working_hours_start', '08:00'));
-        $to = str_replace(':', '.', $this->setting('working_hours_end', '16:00'));
+        return '*Status Hari Ini: '.$this->todayStatus($at).'*
+Waktu pelayanan tersedia setiap hari '.$this->scheduleText().'.';
+    }
 
-        return '*Status Hari Ini: '.$this->todayStatus($at)."*
-Waktu pelayanan tersedia setiap hari {$days} pukul {$from}–{$to} WIB.";
+    /** Mis. "Senin–Kamis pukul 08.00–16.00 WIB dan Jumat pukul 08.00–16.30 WIB". */
+    public function scheduleText(): string
+    {
+        $from = self::dot($this->setting('working_hours_start', '08:00'));
+        $to = self::dot($this->setting('working_hours_end', '16:00'));
+        $days = $this->workingDays();
+        $friday = self::dot($this->closingTime(self::FRIDAY));
+
+        if (! in_array(self::FRIDAY, $days, true) || $friday === $to) {
+            return str_replace('-', '–', trim($this->setting('working_days', 'Senin-Jumat')))." pukul {$from}–{$to} WIB";
+        }
+
+        $others = array_values(array_diff($days, [self::FRIDAY]));
+
+        if ($others === []) {
+            return "Jumat pukul {$from}–{$friday} WIB";
+        }
+
+        return self::dayRange($others)." pukul {$from}–{$to} WIB dan Jumat pukul {$from}–{$friday} WIB";
+    }
+
+    /** @param list<int> $days */
+    private static function dayRange(array $days): string
+    {
+        sort($days);
+        $contiguous = end($days) - reset($days) === count($days) - 1;
+
+        if (count($days) > 1 && $contiguous) {
+            return self::DAY_NAMES[reset($days)].'–'.self::DAY_NAMES[end($days)];
+        }
+
+        return implode(', ', array_map(fn (int $d) => self::DAY_NAMES[$d], $days));
+    }
+
+    private static function dot(string $time): string
+    {
+        return str_replace(':', '.', $time);
     }
 
     public function isBusinessDay(CarbonInterface $day): bool

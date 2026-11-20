@@ -35,6 +35,10 @@ class BusinessHoursAndComplaintTest extends TestCase
             'Rabu 08:00' => ['2026-11-11 08:00', true],
             'Rabu 15:59' => ['2026-11-11 15:59', true],
             'Rabu 16:00' => ['2026-11-11 16:00', false],
+            'Kamis 16:15' => ['2026-11-12 16:15', false],
+            'Jumat 16:00' => ['2026-11-13 16:00', true],
+            'Jumat 16:29' => ['2026-11-13 16:29', true],
+            'Jumat 16:30' => ['2026-11-13 16:30', false],
             'Sabtu 10:00' => ['2026-11-14 10:00', false],
             'Minggu 10:00' => ['2026-11-15 10:00', false],
         ];
@@ -64,6 +68,29 @@ class BusinessHoursAndComplaintTest extends TestCase
         $this->assertSame([1, 2, 3, 4, 5, 6], $hours->workingDays());
         $this->assertTrue($hours->isOpen(Carbon::parse('2026-11-14 07:30', 'Asia/Jakarta')));
         $this->assertFalse($hours->isOpen(Carbon::parse('2026-11-14 12:00', 'Asia/Jakarta')));
+    }
+
+    public function test_friday_closing_time_and_schedule_text(): void
+    {
+        $hours = new BusinessHours;
+        $this->assertSame('16:00', $hours->closingTime(4));
+        $this->assertSame('16:30', $hours->closingTime(5));
+        $this->assertSame('Senin–Kamis pukul 08.00–16.00 WIB dan Jumat pukul 08.00–16.30 WIB', $hours->scheduleText());
+
+        // Jumat disamakan dengan hari lain: kembali ke format satu rentang.
+        $this->setting('working_hours_end_friday', '16:00');
+        $this->assertSame('Senin–Jumat pukul 08.00–16.00 WIB', (new BusinessHours)->scheduleText());
+        $this->assertFalse((new BusinessHours)->isOpen(Carbon::parse('2026-11-13 16:15', 'Asia/Jakarta')));
+
+        $this->setting('working_hours_end_friday', '11:00');
+        $this->setting('working_days', 'Senin, Rabu, Jumat');
+        $this->assertSame('Senin, Rabu pukul 08.00–16.00 WIB dan Jumat pukul 08.00–11.00 WIB', (new BusinessHours)->scheduleText());
+
+        $this->setting('working_days', 'Jumat');
+        $this->assertSame('Jumat pukul 08.00–11.00 WIB', (new BusinessHours)->scheduleText());
+
+        $this->setting('working_days', 'Senin-Kamis');
+        $this->assertSame('Senin–Kamis pukul 08.00–16.00 WIB', (new BusinessHours)->scheduleText());
     }
 
     public function test_comma_separated_and_invalid_day_lists(): void

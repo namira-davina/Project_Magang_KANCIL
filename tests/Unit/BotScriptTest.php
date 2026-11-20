@@ -110,9 +110,10 @@ class BotScriptTest extends TestCase
             $this->assertStringNotContainsString('081217000900', BotScript::msg($id), $id);
             $this->assertStringNotContainsString('cilacap@imigrasi.go.id', BotScript::msg($id), $id);
         }
-        $handoff = BotScript::handoff('LYN-20261116-001', 1, 2);
+        $handoff = BotScript::handoff(1, 2);
         $this->assertStringContainsString('🎫 *Permintaan Anda diteruskan ke Petugas*', $handoff);
-        $this->assertStringContainsString("Nomor tiket: *LYN-20261116-001*\nNomor antrean hari ini: *1*\nPosisi antrean Anda: *ke-2*", $handoff);
+        $this->assertStringContainsString("Nomor antrean hari ini: *1*\nPosisi antrean Anda: *ke-2*", $handoff);
+        $this->assertStringNotContainsString('Nomor tiket', $handoff);
         $this->assertStringEndsWith("Ketik *0* kembali ke menu utama\nKetik *1* cek posisi antrean\nKetik *2* batalkan antrean", $handoff);
     }
 
@@ -195,6 +196,41 @@ Silakan pilih menu', $text);
             $this->assertLessThanOrEqual(255, mb_strlen($faq['question']), $code);
             $this->assertStringNotContainsString('**', $faq['answer'], "{$code}: markdown ganda harus jadi *tebal* WhatsApp");
             $this->assertStringNotContainsString('\\', $faq['answer'], $code);
+        }
+    }
+
+    public function test_passport_answers_mention_sipantas_and_updated_requirements(): void
+    {
+        $sipantas = 'https://sipantas.kanimcilacap.com/';
+
+        // Biaya: BAP hilang/rusak/penambahan nama bisa online; tidak lagi "tidak dapat online".
+        $fee = BotScript::ANSWERS['0>1']['text'];
+        $this->assertStringContainsString('Khusus paspor hilang, rusak, dan penambahan nama', $fee);
+        $this->assertStringContainsString("(BAP) dapat diajukan online melalui {$sipantas}", $fee);
+        $this->assertStringNotContainsString('Tidak dapat mengajukan permohonan secara online', $fee);
+
+        // Hilang dan rusak: datang ke kantor setelah terverifikasi petugas lewat SIPANTAS.
+        foreach (['0>7', '0>8'] as $path) {
+            $text = BotScript::ANSWERS[$path]['text'];
+            $this->assertStringContainsString($sipantas, $text, $path);
+            $this->assertStringContainsString('wajib datang ke Kantor Imigrasi setelah permohonan terverifikasi oleh petugas', $text, $path);
+        }
+
+        $this->assertStringContainsString($sipantas, BotScript::ANSWERS['0>9']['text']);
+
+        // Penggantian: tambah KK dan akta lahir/ijazah/buku nikah.
+        $replace = BotScript::ANSWERS['0>3']['text'];
+        $this->assertStringContainsString('* Kartu Keluarga', $replace);
+        $this->assertStringContainsString('* Akta Lahir / Ijazah / Buku Nikah', $replace);
+    }
+
+    public function test_answers_have_no_double_spaces_that_gateway_would_collapse(): void
+    {
+        // BalesOtomatis memadatkan spasi ganda pada echo; teks bot dijaga tanpa spasi ganda / indentasi.
+        foreach (BotScript::ANSWERS as $path => $answer) {
+            if ($answer['text'] !== null) {
+                $this->assertDoesNotMatchRegularExpression('/ {2,}/', $answer['text'], $path);
+            }
         }
     }
 }

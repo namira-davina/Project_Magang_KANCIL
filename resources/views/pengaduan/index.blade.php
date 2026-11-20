@@ -21,7 +21,7 @@
                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
                 </svg>
             </span>
-            <span>Catatan: Pengaduan di luar jam layanan (08.00 – 16.00 WIB) akan diproses pada hari kerja berikutnya.</span>
+            <span>Catatan: Pengaduan di luar jam layanan (Senin – Kamis 08.00 – 16.00 WIB, Jumat 08.00 – 16.30 WIB) akan diproses pada hari kerja berikutnya.</span>
         </div>
     </div>
 

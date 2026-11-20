@@ -369,12 +369,12 @@ class TicketQueueServiceTest extends TestCase
         $this->assertSame(0, $chat->escalationLogs()->where('status', '!=', 'Selesai')->count());
 
         $message = Message::where('sender_type', 'system')->sole();
-        $this->assertStringContainsString($ticket->ticket_number, $message->message_text);
+        $this->assertStringNotContainsString($ticket->ticket_number, $message->message_text);
         $this->assertSame($officer->id, $message->sender_user_id);
         $this->assertSame(['LYN-SELESAI'], $message->meta['codes']);
         $sent = $this->sentWhatsappTexts();
         $this->assertCount(1, $sent, 'Pemberitahuan dikirim ke WhatsApp.');
-        $this->assertStringContainsString($ticket->ticket_number, json_encode($sent));
+        $this->assertStringNotContainsString($ticket->ticket_number, json_encode($sent));
     }
 
     public function test_resolve_waiting_ticket_directly_records_officer(): void

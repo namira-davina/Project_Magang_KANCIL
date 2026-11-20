@@ -27,7 +27,7 @@ class SchemaAndSeederTest extends TestCase
         // Kategori pengaduan PGD-03 (Dokumen Skenario FAQ).
         $this->assertSame(['Layanan paspor', 'Layanan WNA / izin tinggal', 'Pelayanan petugas', 'Lainnya'],
             DB::table('complaint_categories')->orderBy('id')->pluck('name')->all());
-        $this->assertSame(['bot_name', 'service_hours_text', 'working_days', 'working_hours_end', 'working_hours_start'],
+        $this->assertSame(['bot_name', 'service_hours_text', 'working_days', 'working_hours_end', 'working_hours_end_friday', 'working_hours_start'],
             DB::table('bot_settings')->orderBy('setting_key')->pluck('setting_key')->all());
         $this->assertSame('admin', DB::table('users')->value('username'));
     }

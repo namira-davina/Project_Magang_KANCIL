@@ -55,11 +55,13 @@ class ServiceTicket extends Model
         'last_notice_at' => 'datetime',
     ];
 
+    /** Cek apakah tiket masih dalam status aktif (Menunggu atau Ditangani). */
     public function isOpen(): bool
     {
         return in_array($this->status, self::OPEN, true);
     }
 
+    /** Filter query hanya untuk tiket yang masih terbuka. */
     public function scopeOpen(Builder $query): Builder
     {
         return $query->whereIn('status', self::OPEN);

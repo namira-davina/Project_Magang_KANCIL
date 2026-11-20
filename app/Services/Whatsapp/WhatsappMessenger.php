@@ -69,7 +69,8 @@ class WhatsappMessenger
         }
     }
 
-    public function resolveConversation(WebhookData $data, ?string $deviceKey = null): Conversation
+    /** Percakapan yang sudah ada untuk kontak ini (tanpa membuat baru). */
+    public function findConversation(WebhookData $data): ?Conversation
     {
         $chatId = $data->chatId();
         $phone = $data->phone();
@@ -81,6 +82,16 @@ class WhatsappMessenger
         if (! $conversation && $phone) {
             $conversation = Conversation::where('whatsapp_number', $phone)->oldest('id')->first();
         }
+
+        return $conversation;
+    }
+
+    public function resolveConversation(WebhookData $data, ?string $deviceKey = null): Conversation
+    {
+        $chatId = $data->chatId();
+        $phone = $data->phone();
+
+        $conversation = $this->findConversation($data);
 
         $conversation ??= new Conversation([
             'channel' => 'whatsapp',

@@ -254,7 +254,7 @@ class AntreanTest extends TestCase
             ->assertJsonPath('ticket.posisi', null);
 
         $this->assertSame('BOT_ACTIVE', $ticket->conversation->fresh()->conversation_mode);
-        $this->assertStringContainsString($ticket->ticket_number, Message::where('sender_type', 'system')->sole()->message_text);
+        $this->assertStringNotContainsString($ticket->ticket_number, Message::where('sender_type', 'system')->sole()->message_text);
         $this->assertCount(1, $this->sentWhatsappTexts());
 
         $history = $this->getJson(route('antrean.data'))->json('history');

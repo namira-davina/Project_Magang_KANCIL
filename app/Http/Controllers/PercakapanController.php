@@ -14,12 +14,16 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Inbox percakapan WhatsApp dan simulasi: daftar thread, riwayat pesan, dan balas petugas.
+ */
 class PercakapanController extends Controller
 {
     private const LIMIT = 100;
 
     public function __construct(private readonly TicketQueueService $tickets) {}
 
+    /** Tampilkan halaman inbox percakapan petugas. */
     public function index(Request $request)
     {
         return view('percakapan.index', [
@@ -193,7 +197,9 @@ class PercakapanController extends Controller
 
         $text = $m->message_text;
 
-        if ($text === null && $m->message_type !== 'text') {
+        if (($text === null || $text === '') && ($m->meta['blank'] ?? false)) {
+            $text = '[Pesan WhatsApp tidak terbaca]';
+        } elseif ($text === null && $m->message_type !== 'text') {
             $text = match ($m->message_type) {
                 'image' => '[Foto]', 'document' => '[Dokumen]', 'audio' => '[Pesan suara]', default => '[Lampiran]',
             };

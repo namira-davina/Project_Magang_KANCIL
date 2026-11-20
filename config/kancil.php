@@ -19,6 +19,8 @@ return [
         'expire_business_days' => (int) env('TICKET_EXPIRE_BUSINESS_DAYS', 2),
         // Jarak minimal pengingat posisi antrean saat pemohon mengirim pesan biasa selama menunggu (detik).
         'notice_seconds' => (int) env('TICKET_NOTICE_SECONDS', 30),
+        // Default prefix kode tiket layanan petugas.
+        'prefix' => env('TICKET_PREFIX', 'LYN'),
     ],
 
     // FAQ yang boleh ditampilkan menu: verified = Terverifikasi + Aktif; all = semua non-draf (+ catatan "Informasi umum").
@@ -33,6 +35,9 @@ return [
     // true = balasan WhatsApp diproses dan dikirim langsung setelah webhook dijawab (tanpa menunggu worker antrean).
     // Balasan jadi ~2-3 detik; bila kirim gagal, otomatis dicoba ulang lewat antrean.
     'reply_inline' => (bool) env('BOT_REPLY_INLINE', false),
+
+    // Nomor WhatsApp bot kantor sendiri: pesan kosong dari nomor ini tidak dibalas menu (cegah bot saling balas).
+    'own_numbers' => array_values(array_filter(array_map('trim', explode(',', (string) env('BOT_OWN_NUMBERS', '6281217000900,6285184542256'))))),
 
     // Kontak resmi (satu-satunya yang boleh disebut bot).
     'contact' => [

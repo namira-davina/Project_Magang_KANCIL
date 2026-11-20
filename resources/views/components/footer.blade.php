@@ -3,7 +3,7 @@
 
     <div class="footer-status-pill">
         <span class="status-dot-amber">●</span>
-        <span>Status Operasional | Senin – Jumat | 08.00 – 16.00 WIB</span>
+        <span>Status Operasional | Senin – Kamis 08.00 – 16.00 WIB | Jumat 08.00 – 16.30 WIB</span>
     </div>
 
     <div class="footer-copyright">

@@ -55,6 +55,11 @@ class ProcessOutgoingChat implements ShouldQueue
             return;
         }
 
+        // Stub kosong dari perangkat kantor bukan balasan petugas: jangan dicatat dan jangan ambil alih bot.
+        if ($data->isBlank()) {
+            return;
+        }
+
         $conversation = $messenger->resolveConversation($data, $deviceKey);
 
         if ($own = $this->findOwnMessage($conversation, $data)) {
@@ -124,8 +129,8 @@ class ProcessOutgoingChat implements ShouldQueue
             ->orderByDesc('id')
             ->get();
 
-        // Utamakan kecocokan persis; bila BalesOtomatis/WA menghapus garis pemisah (---) atau ubah baris kosong,
-        // cocokkan teks ternormalisasi agar echo bot tidak disangka balasan petugas dari HP.
+        // Utamakan kecocokan persis; bila BalesOtomatis/WA menghapus garis pemisah (---), mengubah baris kosong,
+        // atau memadatkan spasi ganda, cocokkan teks ternormalisasi agar echo bot tidak disangka balasan petugas dari HP.
         if ($exact = $candidates->firstWhere('message_text', $body)) {
             return $exact;
         }
@@ -145,8 +150,8 @@ class ProcessOutgoingChat implements ShouldQueue
     {
         $text = str_replace(["\r\n", "\r"], "\n", $text);
         $text = preg_replace('/^\s*-{3,}\s*$/m', '', $text) ?? $text;
-        $text = preg_replace('/\n{2,}/', "\n", $text) ?? $text;
 
-        return trim($text);
+        // Semua whitespace (spasi ganda, NBSP, baris kosong, spasi awal baris) dianggap satu spasi.
+        return trim(preg_replace('/[\s\x{00A0}\x{200B}]+/u', ' ', $text) ?? $text);
     }
 }

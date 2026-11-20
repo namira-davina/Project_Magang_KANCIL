@@ -27,6 +27,16 @@ class DashboardTest extends TestCase
         $this->assertCount(0, $response->viewData('percakapanTerbaru'));
     }
 
+    public function test_layout_shows_friday_closing_at_1630(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->get(route('admin.dashboard'))->assertOk()
+            ->assertSee('Senin – Kamis | 08.00 – 16.00 WIB')
+            ->assertSee('Jumat | 08.00 – 16.30 WIB')
+            ->assertSee('Status Operasional | Senin – Kamis 08.00 – 16.00 WIB | Jumat 08.00 – 16.30 WIB');
+    }
+
     public function test_counts_messages_complaints_and_escalations(): void
     {
         $this->actingAsAdmin();

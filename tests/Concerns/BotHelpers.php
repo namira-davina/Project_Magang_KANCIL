@@ -141,7 +141,7 @@ trait BotHelpers
     protected function assertHandoff(string $text): void
     {
         $this->assertStringContainsString('🎫 *Permintaan Anda diteruskan ke Petugas*', $text);
-        $this->assertMatchesRegularExpression('/Nomor tiket: \*LYN-\d{8}-\d{3}\*/', $text);
+        $this->assertDoesNotMatchRegularExpression('/LYN-\d{8}|Nomor tiket/', $text, 'Nomor tiket tidak ditampilkan ke pemohon.');
         $this->assertStringContainsString('Posisi antrean Anda: *ke-', $text);
         $this->assertStringContainsString(BotScript::QUEUE_OPTIONS, $text);
     }

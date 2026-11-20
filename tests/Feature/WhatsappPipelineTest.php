@@ -11,6 +11,7 @@ use App\Models\Conversation;
 use App\Models\EscalationLog;
 use App\Models\Message;
 use App\Models\ServiceTicket;
+use App\Models\User;
 use App\Models\WebhookEvent;
 use App\Services\BalesOtomatis\BalesOtomatisClient;
 use App\Services\BalesOtomatis\BalesOtomatisException;
@@ -25,6 +26,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\Concerns\BotHelpers;
+use Tests\Concerns\CreatesData;
 use Tests\TestCase;
 
 /**
@@ -32,7 +34,7 @@ use Tests\TestCase;
  */
 class WhatsappPipelineTest extends TestCase
 {
-    use BotHelpers, RefreshDatabase;
+    use BotHelpers, CreatesData, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -51,14 +53,114 @@ class WhatsappPipelineTest extends TestCase
 
     // ------------------------------------------------------------ incoming_chat (Opsi B)
 
-    public function test_blank_incoming_event_is_skipped_without_message_or_reply(): void
+    public function test_blank_first_message_from_new_contact_still_gets_main_menu(): void
     {
-        $this->postWebhook($this->incomingPayload(['message_id' => 'IN-BLANK', 'message_body' => null]))->assertOk();
+        // Bentuk payload prod (20 Nov): pesan pertama kontak baru @lid tiba tanpa isi (belum terdekripsi).
+        $this->postWebhook($this->incomingPayload([
+            'message_id' => 'IN-BLANK', 'message_body' => null, 'chat_id' => '111122223333444@lid',
+            'phone_number' => '6281200000001', 'location_attached' => ['lat' => null, 'lng' => null],
+        ]))->assertOk();
+
+        $conversation = Conversation::sole();
+        $user = Message::where('sender_type', 'user')->sole();
+        $this->assertNull($user->message_text);
+        $this->assertTrue($user->meta['blank']);
+
+        $bot = Message::where('sender_type', 'bot')->sole();
+        $this->assertSame(['codes' => ['M-00']], $bot->meta);
+        $this->assertCount(1, $this->sentWhatsappTexts());
+        $this->assertSame('BOT_ACTIVE', $conversation->conversation_mode);
+        $this->assertNull(WebhookEvent::sole()->error);
+    }
+
+    public function test_blank_message_from_own_bot_number_is_skipped(): void
+    {
+        config(['kancil.own_numbers' => ['085184542256']]);
+
+        $this->postWebhook($this->incomingPayload([
+            'message_id' => 'IN-BLANK-OWN', 'message_body' => null, 'chat_id' => '555566667777888@lid', 'phone_number' => '6285184542256',
+        ]))->assertOk();
 
         $this->assertSame(0, Message::count());
         $this->assertSame(0, Conversation::count());
         Http::assertNothingSent();
         $this->assertNotNull(WebhookEvent::sole()->processed_at);
+    }
+
+    public function test_blank_message_mid_session_is_skipped_without_reply(): void
+    {
+        $this->postWebhook($this->incomingPayload(['message_id' => 'IN-1', 'message_body' => 'Halo']));
+
+        $this->postWebhook($this->incomingPayload(['message_id' => 'IN-BLANK', 'message_body' => null]))->assertOk();
+
+        $this->assertSame(2, Message::count(), 'Hanya pesan Halo dan menu; stub kosong tidak dicatat.');
+        $this->assertCount(1, $this->sentWhatsappTexts());
+    }
+
+    public function test_blank_message_after_session_expired_gets_main_menu_again(): void
+    {
+        $this->postWebhook($this->incomingPayload(['message_id' => 'IN-1', 'message_body' => 'Halo']));
+        Carbon::setTestNow(now()->addMinutes(31));
+
+        $this->postWebhook($this->incomingPayload(['message_id' => 'IN-BLANK', 'message_body' => null]))->assertOk();
+
+        $this->assertSame(['MSG-06', 'M-00'], Message::where('sender_type', 'bot')->latest('id')->first()->meta['codes']);
+    }
+
+    public function test_blank_message_is_skipped_while_officer_handles_conversation(): void
+    {
+        $this->postWebhook($this->incomingPayload(['message_id' => 'IN-1', 'message_body' => 'Halo']));
+        Conversation::sole()->update(['conversation_mode' => Conversation::MODE_HUMAN, 'last_inbound_at' => now()->subHours(2)]);
+
+        $this->postWebhook($this->incomingPayload(['message_id' => 'IN-BLANK', 'message_body' => null]))->assertOk();
+
+        $this->assertSame(2, Message::count());
+    }
+
+    public function test_blank_message_is_skipped_on_option_a(): void
+    {
+        config(['kancil.bot_engine' => 'balesotomatis']);
+
+        $this->postWebhook($this->incomingPayload(['message_id' => 'IN-BLANK', 'message_body' => null]))->assertOk();
+
+        $this->assertSame(0, Message::count());
+    }
+
+    public function test_blank_message_is_shown_as_unreadable_in_inbox(): void
+    {
+        $this->postWebhook($this->incomingPayload(['message_id' => 'IN-BLANK', 'message_body' => null, 'phone_number' => '6281200000001']));
+
+        $this->actingAs(User::where('role', 'admin')->first() ?? $this->makeUser());
+        $this->getJson(route('percakapan.pesan', Conversation::sole()))
+            ->assertOk()->assertJsonFragment(['text' => '[Pesan WhatsApp tidak terbaca]']);
+    }
+
+    public function test_echo_with_collapsed_double_spaces_is_not_treated_as_officer_reply(): void
+    {
+        // Prod 20 Nov: jawaban paspor hilang/rusak memuat spasi ganda; BalesOtomatis memadatkannya di echo.
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
+        $bot = Message::where('sender_type', 'bot')->sole();
+        $bot->update(['external_message_id' => null, 'message_text' => "PNBP:\n\n* 5 Tahun  : Rp 1.650.000\n  (Termasuk denda)\n\n------------------------\n\n*Terima kasih.*"]);
+
+        $this->postWebhook($this->incomingPayload([
+            'message_id' => 'ECHO-SPACE',
+            'message_body' => "PNBP:\n\n* 5 Tahun : Rp 1.650.000\n (Termasuk denda)\n\n\n*Terima kasih.*",
+        ], 'outgoing_chat'));
+
+        $this->assertSame('ECHO-SPACE', $bot->fresh()->external_message_id);
+        $this->assertSame(0, Message::where('sender_type', 'petugas')->count());
+        $this->assertSame('BOT_ACTIVE', Conversation::sole()->conversation_mode);
+    }
+
+    public function test_blank_outgoing_event_does_not_trigger_takeover(): void
+    {
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
+
+        $this->postWebhook($this->incomingPayload(['message_id' => 'OUT-BLANK', 'message_body' => null], 'outgoing_chat'));
+
+        $this->assertSame(0, Message::where('sender_type', 'petugas')->count());
+        $this->assertSame('BOT_ACTIVE', Conversation::sole()->conversation_mode);
+        $this->assertNull(Conversation::sole()->bot_paused_until);
     }
 
     public function test_incoming_message_creates_conversation_and_bot_replies_via_api(): void
@@ -402,12 +504,12 @@ class WhatsappPipelineTest extends TestCase
         $this->assertSame($botCount, Message::where('sender_type', 'bot')->count());
         $this->assertSame(3, Message::where('sender_type', 'user')->count(), 'Pesan pemohon tetap tercatat untuk petugas.');
 
-        // Lewat 30 detik: bot membalas dengan nomor tiket + pilihan, satu kali.
+        // Lewat 30 detik: bot membalas posisi antrean + pilihan (tanpa nomor tiket), satu kali.
         Carbon::setTestNow(now()->addSeconds(31));
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo, masih lama?']));
         $this->assertSame($botCount + 1, Message::where('sender_type', 'bot')->count());
         $this->assertStringContainsString('Anda masih dalam antrean', $this->lastBotMessage()->message_text);
-        $this->assertStringContainsString('Nomor tiket: *LYN-20261111-001*', $this->lastBotMessage()->message_text);
+        $this->assertStringNotContainsString('LYN-20261111-001', $this->lastBotMessage()->message_text);
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo?']));
         $this->assertSame($botCount + 1, Message::where('sender_type', 'bot')->count(), 'Pengingat tidak diulang dalam 30 detik.');
 
@@ -447,9 +549,10 @@ class WhatsappPipelineTest extends TestCase
         $this->postWebhook($this->incomingPayload(['message_body' => '2']));
         $this->assertStringContainsString('Dokumen persyaratan Paspor Baru', $this->lastBotMessage()->message_text);
 
-        // Minta Petugas lagi: tiket yang sama dipakai dan tiketnya diberitahukan lagi.
+        // Minta Petugas lagi: tiket yang sama dipakai, posisi antrean diberitahukan lagi.
         $this->postWebhook($this->incomingPayload(['message_body' => '1']));
-        $this->assertStringContainsString('Nomor tiket: *'.$ticket->ticket_number.'*', $this->lastBotMessage()->message_text);
+        $this->assertStringContainsString('diteruskan ke Petugas', $this->lastBotMessage()->message_text);
+        $this->assertStringNotContainsString($ticket->ticket_number, $this->lastBotMessage()->message_text);
         $this->assertSame(1, ServiceTicket::count());
 
         // Kembali ke mode antrean: 2 membatalkan.
