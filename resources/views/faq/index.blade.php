@@ -189,7 +189,7 @@
 
         {{-- INFORMASI DAN PAGINATION SESUAI DESAIN HALAMAN 7 --}}
         <div class="table-pagination-footer">
-            <span class="pagination-info" id="faqDataInfo">Menampilkan 1 - 6 dari 42 entri</span>
+            <span class="pagination-info" id="faqDataInfo">Menampilkan {{ min(1, count($faqs)) }} - {{ min(6, count($faqs)) }} dari {{ count($faqs) }} entri</span>
 
             <div class="pagination-buttons" id="faqPagination">
                 <button type="button" class="btn-page-nav" disabled>&laquo;</button>

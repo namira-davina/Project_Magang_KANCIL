@@ -93,6 +93,20 @@ class FaqIntegrationTest extends TestCase
         $this->put(route('faq.update', $id), $payload(['status' => 'terverifikasi', 'aktif' => 'ya']))->assertSessionHasErrors('aktif');
     }
 
+    public function test_index_pagination_label_uses_real_count_not_prototype_number(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->actingAs(User::where('username', 'admin')->sole());
+
+        $this->get(route('faq.index'))->assertOk()
+            ->assertSee('Menampilkan 1 - 6 dari 64 entri')
+            ->assertDontSee('dari 42 entri');
+
+        $js = file_get_contents(public_path('js/faq.js'));
+        $this->assertStringNotContainsString('dari 42', $js);
+        $this->assertStringNotContainsString("alert('Menampilkan halaman", $js, 'Tombol halaman palsu prototipe sudah dibuang.');
+    }
+
     public function test_index_shows_status_for_seeded_and_activated_faqs(): void
     {
         $this->seed(DatabaseSeeder::class);
