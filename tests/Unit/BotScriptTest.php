@@ -2,8 +2,10 @@
 
 namespace Tests\Unit;
 
+use App\Models\Faq;
 use App\Services\Bot\BotEngine;
 use App\Services\Bot\BotScript;
+use App\Services\Bot\MenuAnswerResolver;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 use Tests\TestCase;
@@ -16,6 +18,18 @@ class BotScriptTest extends TestCase
     private function faqData(): array
     {
         return collect(require database_path('data/faqs.php'))->keyBy('code')->all();
+    }
+
+    /** Teks jawaban menu seperti yang dirakit MenuAnswerResolver dari data FAQ (semua FAQ dianggap Aktif). */
+    private function answerText(string $path): string
+    {
+        $faqs = collect(BotScript::ANSWERS[$path]['faq'])
+            ->map(fn (string $code) => new Faq(['question' => $this->faqData()[$code]['question'], 'answer' => $this->faqData()[$code]['answer']]));
+
+        $text = MenuAnswerResolver::compose($faqs);
+        $pnbp = BotScript::ANSWERS[$path]['pnbp'] ?? [];
+
+        return $pnbp === [] ? $text : $text."\n\n".BotScript::pnbpBlock($pnbp);
     }
 
     public function test_every_menu_option_points_to_existing_target(): void
@@ -56,16 +70,27 @@ class BotScriptTest extends TestCase
             $this->assertSame('M-00', end($seen));
         }
 
-        // Jalur internal: menu utama 1/2 = 0/1 (WNI/WNA), selebihnya jalur induk + nomor pilihan.
+        // Jalur internal: menu utama 1/2 = 0/1 (WNI/WNA), selebihnya jalur induk + nomor pilihan. Pengecualian terdokumentasi:
+        // kunci stabil setelah Beda Data disisipkan di menu Paspor (feedback Imigrasi 20 Nov), agar data tiket lama tetap benar.
+        $stable = ['M-01' => ['9' => '0>12', '10' => '0>9']];
+
         foreach (BotScript::MENUS as $code => $menu) {
+            $keys = array_map('strval', array_keys($menu['options']));
+            $this->assertSame(array_map('strval', range(1, count($keys))), $keys, "{$code}: nomor pilihan berurutan dari 1");
+
+            if ($code !== 'M-00') {
+                $options = $menu['options'];
+                $this->assertSame('BACK', end($options)[1], "{$code}: pilihan terakhir = kembali ke menu sebelumnya");
+            }
+
             foreach ($menu['options'] as $key => [, $target]) {
-                $key = $code === 'M-00' ? (string) ((int) $key - 1) : $key;
+                $expected = $stable[$code][$key] ?? ltrim($menu['path'].'>'.($code === 'M-00' ? (string) ((int) $key - 1) : $key), '>');
 
                 if (isset(BotScript::MENUS[$target])) {
-                    $this->assertSame(ltrim($menu['path'].'>'.$key, '>'), BotScript::MENUS[$target]['path'], $target);
+                    $this->assertSame($expected, BotScript::MENUS[$target]['path'], $target);
                     $this->assertSame($code, BotScript::MENUS[$target]['parent'], $target);
                 } elseif (str_starts_with($target, 'ANS:')) {
-                    $this->assertSame(ltrim($menu['path'].'>'.$key, '>'), substr($target, 4));
+                    $this->assertSame($expected, substr($target, 4), "{$code} > {$key}");
                 }
             }
         }
@@ -73,11 +98,23 @@ class BotScriptTest extends TestCase
 
     public function test_answers_have_text_and_valid_escalation_codes(): void
     {
+        $faqs = $this->faqData();
+
         foreach (BotScript::ANSWERS as $path => $answer) {
-            if ($path !== '1>3') {
-                $this->assertNotEmpty($answer['text'], $path);
-                $this->assertLessThanOrEqual(1600, mb_strlen($answer['text']), "{$path}: muat di satu pesan WhatsApp");
+            if ($path === '1>3') {
+                $this->assertNull($answer['faq'], 'Lokasi Kami dari config kantor, bukan FAQ.');
+
+                continue;
             }
+
+            $this->assertNotEmpty($answer['faq'], $path);
+
+            foreach ($answer['faq'] as $code) {
+                $this->assertArrayHasKey($code, $faqs, "{$path}: FAQ sumber {$code} harus ada di data");
+            }
+
+            $text = BotScript::answer($this->answerText($path));
+            $this->assertLessThanOrEqual(4096, mb_strlen($text), "{$path}: muat di satu pesan WhatsApp");
 
             if ($answer['code']) {
                 $this->assertArrayHasKey($answer['code'], BotScript::PRIORITY);
@@ -101,9 +138,19 @@ class BotScriptTest extends TestCase
 
     public function test_standard_messages_match_document(): void
     {
-        $this->assertSame('Mohon maaf, pilihan Anda tidak tersedia. Silakan ketik angka sesuai menu di bawah ini.', BotScript::msg('MSG-01'));
-        $this->assertSame('Sesi sebelumnya telah berakhir.', BotScript::msg('MSG-06'));
+        // Dokumen Skenario 3.2, Pesan 1-9 (audit 20 Nov); 99 diganti 0 sesuai menu Bogor, nomor kantor tidak disebut.
+        $this->assertSame('Maaf, pilihan tidak valid. Silakan ketik angka sesuai daftar menu.', BotScript::msg('MSG-01'));
+        $this->assertSame('Maaf, pilihan masih belum sesuai. Bot ini hanya menerima angka pilihan seperti pada menu.', BotScript::msg('MSG-02'));
+        $this->assertSame('Mohon maaf, bot belum dapat memahami pesan Anda.
+
+Ketik *88* untuk menghubungi Petugas
+Ketik *0* untuk menu utama', BotScript::msg('MSG-03'));
+        $this->assertSame('Maaf, bot hanya menerima pesan teks berupa angka pilihan. Silakan ketik angka sesuai menu.', BotScript::msg('MSG-04'));
+        $this->assertStringStartsWith('Informasi ini sedang diperbarui. Untuk kepastian', BotScript::msg('MSG-05'));
+        $this->assertSame('Sesi sebelumnya telah berakhir. Silakan pilih layanan kembali:', BotScript::msg('MSG-06'));
+        $this->assertSame('_Saat ini di luar jam layanan petugas. Jam layanan: Senin–Jumat pukul 08.00–16.00 WIB. Permintaan Anda tetap tercatat dalam antrean._', BotScript::msg('MSG-07', 'Senin–Jumat pukul 08.00–16.00 WIB'));
         $this->assertSame('Pengaduan dibatalkan. Anda dapat memulai kembali kapan saja.', BotScript::msg('MSG-08'));
+        $this->assertStringContainsString('Pilih *3* (Layanan Pengaduan)', BotScript::msg('MSG-09'), 'Menu Bogor: pengaduan = 3.');
 
         // Bot tidak menyebut nomor/email kantor; pemohon masuk antrean petugas dengan teks yang sama seperti Imigrasi Bogor.
         foreach (['MSG-01', 'MSG-02', 'MSG-03', 'MSG-04', 'MSG-05', 'MSG-06', 'MSG-07', 'MSG-08', 'MSG-09', 'AI-UNKNOWN'] as $id) {
@@ -189,7 +236,7 @@ Silakan pilih menu', $text);
     {
         $faqs = $this->faqData();
 
-        $this->assertCount(61, $faqs);
+        $this->assertCount(65, $faqs);
         foreach ($faqs as $code => $faq) {
             $this->assertMatchesRegularExpression('/^(PSP|ANK|AMB|BYR|TRF|LYK|WNA|KTK)-\d{3}$/', $code);
             $this->assertLessThanOrEqual(1600, mb_strlen($faq['answer']), $code);
@@ -203,33 +250,91 @@ Silakan pilih menu', $text);
     {
         $sipantas = 'https://sipantas.kanimcilacap.com/';
 
-        // Biaya: BAP hilang/rusak/penambahan nama bisa online; tidak lagi "tidak dapat online".
-        $fee = BotScript::ANSWERS['0>1']['text'];
-        $this->assertStringContainsString('Khusus paspor hilang, rusak, dan penambahan nama', $fee);
-        $this->assertStringContainsString("(BAP) dapat diajukan online melalui {$sipantas}", $fee);
-        $this->assertStringNotContainsString('Tidak dapat mengajukan permohonan secara online', $fee);
+        // Biaya (TRF-003): BAP hilang/rusak/beda data online lewat SIPANTAS (feedback user 3: bukan penambahan nama).
+        $fee = $this->answerText('0>1');
+        $this->assertStringContainsString('paspor hilang, rusak, dan beda data dapat diajukan online melalui '.$sipantas, $fee);
+        $this->assertStringNotContainsString('penambahan nama', $fee);
+        $this->assertStringContainsString('Rp650.000', $fee);
+        $this->assertStringContainsString('Biaya layanan percepatan adalah Rp1.000.000.', $fee);
+        $this->assertStringContainsString('PP) Nomor 45 Tahun 2024', $fee);
 
-        // Hilang dan rusak: datang ke kantor setelah terverifikasi petugas lewat SIPANTAS.
-        foreach (['0>7', '0>8'] as $path) {
-            $text = BotScript::ANSWERS[$path]['text'];
-            $this->assertStringContainsString($sipantas, $text, $path);
-            $this->assertStringContainsString('wajib datang ke Kantor Imigrasi setelah permohonan terverifikasi oleh petugas', $text, $path);
+        // SIPANTAS hanya untuk hilang (0>7), rusak (0>8), beda data (0>12), sesuai kategori di sipantas.kanimcilacap.com.
+        foreach (['0>7', '0>8', '0>12'] as $path) {
+            $this->assertStringContainsString($sipantas, $this->answerText($path), $path);
+        }
+        $this->assertStringNotContainsString('sipantas', $this->answerText('0>9'), 'Penambahan nama bukan lewat SIPANTAS.');
+
+        // Syarat SIPANTAS (screenshot WA0032-34).
+        $this->assertStringContainsString('• Surat kehilangan (kepolisian)', $this->answerText('0>7'));
+        $this->assertStringContainsString('• Penetapan pengadilan', $this->answerText('0>12'));
+        $this->assertStringNotContainsString('Penetapan pengadilan', $this->answerText('0>8'));
+        $this->assertStringContainsString('(terdapat tanggal, bulan, dan tahun lahir)', $this->answerText('0>8'));
+
+        // Penggantian (feedback user 2): tambah KK dan akta lahir/ijazah/buku nikah.
+        $replace = $this->answerText('0>3');
+        $this->assertStringContainsString('• Kartu Keluarga', $replace);
+        $this->assertStringContainsString('• Akta lahir / ijazah / buku nikah', $replace);
+
+        // Paspor anak (3.1 ANK-002): anak di bawah 5 tahun TIDAK wajib M-Paspor (teks Bogor lama keliru).
+        $this->assertStringContainsString('Anak di bawah 5 tahun dapat langsung datang ke kantor imigrasi tanpa mendaftar di M-Paspor.', $this->answerText('0>4'));
+
+        // Layanan prioritas = KANCIL NARI (LYK-002), tanpa "Ibu Menyusui" yang tidak ada di 3.1.
+        $this->assertStringNotContainsString('Menyusui', $this->answerText('0>6'));
+    }
+
+    public function test_pnbp_is_listed_separately_never_summed(): void
+    {
+        // Feedback Imigrasi 20 Nov: "jangan langsung misal paspor rusak 5thn jadi 1.650.000, sebutin paspor 5thn 650rb dendanya 1jt".
+        $expected = [
+            '0>2' => ['Paspor elektronik 5 tahun: Rp650.000', 'Paspor elektronik 10 tahun: Rp950.000'],
+            '0>4' => ['Paspor elektronik 5 tahun: Rp650.000'],
+            '0>7' => ['Paspor elektronik 5 tahun: Rp650.000', 'Paspor elektronik 10 tahun: Rp950.000', 'Denda paspor hilang: Rp1.000.000'],
+            '0>8' => ['Paspor elektronik 5 tahun: Rp650.000', 'Paspor elektronik 10 tahun: Rp950.000', 'Denda paspor rusak: Rp500.000'],
+            '0>12' => ['Paspor elektronik 5 tahun: Rp650.000', 'Paspor elektronik 10 tahun: Rp950.000'],
+        ];
+
+        foreach ($expected as $path => $lines) {
+            $text = $this->answerText($path);
+            $this->assertStringContainsString('*PNBP (PP Nomor 45 Tahun 2024):*', $text, $path);
+
+            foreach ($lines as $line) {
+                $this->assertStringContainsString('• '.$line, $text, $path);
+            }
         }
 
-        $this->assertStringContainsString($sipantas, BotScript::ANSWERS['0>9']['text']);
+        $this->assertStringNotContainsString('10 tahun', $this->answerText('0>4'), 'Paspor anak berlaku 5 tahun (ANK-004).');
+        $this->assertStringNotContainsString('Denda paspor rusak', $this->answerText('0>7'));
+        $this->assertStringNotContainsString('Denda paspor hilang', $this->answerText('0>8'));
 
-        // Penggantian: tambah KK dan akta lahir/ijazah/buku nikah.
-        $replace = BotScript::ANSWERS['0>3']['text'];
-        $this->assertStringContainsString('* Kartu Keluarga', $replace);
-        $this->assertStringContainsString('* Akta Lahir / Ijazah / Buku Nikah', $replace);
+        // Tidak ada angka gabungan di jawaban mana pun (tarif dasar + denda/percepatan).
+        foreach (array_keys(BotScript::ANSWERS) as $path) {
+            if ($path === '1>3') {
+                continue;
+            }
+
+            foreach (['1.150.000', '1.450.000', '1.650.000', '1.950.000'] as $total) {
+                $this->assertStringNotContainsString($total, $this->answerText($path), "{$path}: angka gabungan {$total}");
+            }
+
+            if (str_starts_with($path, '1>')) {
+                $this->assertArrayNotHasKey('pnbp', BotScript::ANSWERS[$path], "{$path}: tarif WNA dari FAQ TRF-005..010, bukan PNBP paspor");
+            }
+        }
+    }
+
+    public function test_pnbp_block_rejects_unknown_component(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        BotScript::pnbpBlock(['paspor_5', 'paspor_rusak_5']);
     }
 
     public function test_answers_have_no_double_spaces_that_gateway_would_collapse(): void
     {
         // BalesOtomatis memadatkan spasi ganda pada echo; teks bot dijaga tanpa spasi ganda / indentasi.
-        foreach (BotScript::ANSWERS as $path => $answer) {
-            if ($answer['text'] !== null) {
-                $this->assertDoesNotMatchRegularExpression('/ {2,}/', $answer['text'], $path);
+        foreach (array_keys(BotScript::ANSWERS) as $path) {
+            if ($path !== '1>3') {
+                $this->assertDoesNotMatchRegularExpression('/ {2,}/', BotScript::answer($this->answerText($path)), $path);
             }
         }
     }

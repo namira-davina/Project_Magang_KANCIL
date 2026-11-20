@@ -50,6 +50,7 @@ class BotEngine
         private readonly BusinessHours $hours,
         private readonly ComplaintService $complaints,
         private readonly TicketQueueService $tickets,
+        private readonly MenuAnswerResolver $answers,
     ) {}
 
     /**
@@ -78,6 +79,13 @@ class BotEngine
     {
         $isNew = $this->state === [];
         $expired = ! $isNew && $this->isExpired();
+        $complaintNumber = $this->isMedia() ? null : self::complaintNumber($text);
+
+        // Nomor pengaduan (ADU) diketik kapan saja = cek status. Saat mengisi formulir pengaduan (draf) teks diperlakukan
+        // sebagai isian, dan draf yang kedaluwarsa tetap mendapat Pesan 9 lebih dulu.
+        if ($complaintNumber && ! $this->hasComplaintDraft()) {
+            return [$this->complaintStatusShortcut($complaintNumber)];
+        }
 
         if ($isNew || $expired) {
             return $this->startSession($text, $expired);
@@ -165,7 +173,7 @@ class BotEngine
 
     private static function freshState(): array
     {
-        return ['menu' => 'M-00', 'pgd' => null, 'status' => false, 'queued' => false, 'answer' => null, 'shown' => false, 'invalid' => 0, 'after_msg03' => false, 'complaint' => null];
+        return ['menu' => 'M-00', 'pgd' => null, 'status' => false, 'queued' => false, 'status_number' => null, 'answer' => null, 'shown' => false, 'invalid' => 0, 'after_msg03' => false, 'complaint' => null];
     }
 
     // ---------------------------------------------------------------- menu
@@ -216,6 +224,7 @@ class BotEngine
 
         if (str_starts_with($target, 'STATUS:')) {
             $this->state['status'] = true;
+            $this->state['status_number'] = null;
             $this->state['answer'] = null;
 
             return [$this->reply(BotScript::statusPrompt(), ['STATUS'])];
@@ -236,6 +245,7 @@ class BotEngine
         $this->state['menu'] = $code;
         $this->state['answer'] = null;
         $this->state['status'] = false;
+        $this->state['status_number'] = null;
 
         if ($code === 'M-00') {
             return $this->reply($this->mainMenuText(), ['M-00']);
@@ -254,19 +264,28 @@ class BotEngine
         return BotScript::mainMenu($this->conversation->user_name, $this->hours->statusText());
     }
 
+    /** Jawaban menu dari FAQ sumber; FAQ belum Aktif = Pesan 5 (tetap dengan pilihan 0 = menu, 1 = petugas). */
     private function showAnswer(string $path): BotReply
     {
-        $definition = BotScript::ANSWERS[$path];
+        $answer = $this->answers->resolve($path);
 
         $this->state['answer'] = $path;
-        $this->state['shown'] = true;
+        $this->state['shown'] = ! $answer['held'];
 
-        return $this->reply(BotScript::answer($definition['text'] ?? BotScript::locationText()), ['ANS-'.$path]);
+        if ($answer['held']) {
+            return $this->reply($answer['text']."\n\n".BotScript::answerFooter(), ['MSG-05', 'ANS-'.$path]);
+        }
+
+        $this->tagIncoming($answer['faq_id']);
+
+        return $this->reply(BotScript::answer($answer['text']), ['ANS-'.$path, ...$answer['codes']], $answer['faq_id']);
     }
 
     /**
-     * Cek Status Paspor: pemohon mengetik nomor permohonan; hasilnya dibalas petugas lewat antrean
-     * (kantor Cilacap tidak punya akses otomatis ke sistem status paspor).
+     * Cek Status Paspor (kantor Cilacap tidak punya akses otomatis ke sistem status paspor; petugas membalas lewat antrean):
+     *  langkah 1  nomor permohonan (boleh sekaligus dengan nama tempat, mis. "1498... MPP Banyumas")
+     *  langkah 2  tempat permohonan 1-5 (feedback Imigrasi 20 Nov)
+     * 0/99/menu = menu utama, 88 = petugas di kedua langkah.
      *
      * @return list<BotReply>
      */
@@ -276,16 +295,66 @@ class BotEngine
             return [$this->goMainMenu()];
         }
 
-        $number = preg_replace('/\s+/', '', $text);
+        // Skenario 3.2: 88 = hubungi petugas dari menu mana pun (termasuk saat diminta nomor permohonan).
+        if ($command === '88') {
+            $this->state['status'] = false;
+            $this->state['status_number'] = null;
+
+            return [$this->escalate(viaMenu: false)];
+        }
+
+        if ($number = $this->state['status_number'] ?? null) {
+            $place = config("kancil.application_places.{$command}.label") ?? self::applicationPlace($text)[0];
+
+            return $place ? [$this->queueStatusCheck($number, $place)] : [$this->invalidInput($text)];
+        }
+
+        [$place, $rest] = self::applicationPlace($text);
+        // Dengan nama tempat: ambil semua digit ("1498... tempat MPP Banyumas"); tanpa tempat: hanya angka (+ spasi/titik/strip).
+        $number = $place ? preg_replace('/\D+/', '', $rest) : preg_replace('/[\s.\-]+/', '', $rest);
 
         if (! preg_match('/^\d{10,25}$/', $number)) {
             return [$this->invalidInput($text)];
         }
 
-        $log = $this->escalations->record($this->conversation, 'A2', "Cek status paspor, no. permohonan {$number}.", null, '0>10');
-        $ticket = $this->enqueue($log, "Cek status paspor, no. permohonan {$number}");
+        if ($place) {
+            return [$this->queueStatusCheck($number, $place)];
+        }
 
-        return [$this->reply($this->handoffText($ticket), ['STATUS', 'LYN'])];
+        $this->validInput();
+        $this->state['status_number'] = $number;
+
+        return [$this->reply(BotScript::placePrompt($number), ['STATUS-PLACE'])];
+    }
+
+    private function queueStatusCheck(string $number, string $place): BotReply
+    {
+        $summary = "Cek status paspor, no. permohonan {$number}, tempat permohonan {$place}";
+        $log = $this->escalations->record($this->conversation, 'A2', $summary.'.', null, '0>10');
+        $ticket = $this->enqueue($log, $summary);
+
+        return $this->reply($this->handoffText($ticket), ['STATUS', 'LYN', ...$this->outsideHoursCodes()]);
+    }
+
+    /**
+     * Kenali tempat permohonan dalam teks bebas (kata kunci terpanjang menang, mis. "ngapak banyumas" sebelum "banyumas").
+     *
+     * @return array{0: string|null, 1: string} [label tempat atau null, sisa teks tanpa kata kunci]
+     */
+    public static function applicationPlace(string $text): array
+    {
+        $lower = mb_strtolower($text);
+        $candidates = collect(config('kancil.application_places'))
+            ->flatMap(fn ($place) => collect($place['match'])->map(fn ($keyword) => [$keyword, $place['label']]))
+            ->sortByDesc(fn ($pair) => mb_strlen($pair[0]));
+
+        foreach ($candidates as [$keyword, $label]) {
+            if (preg_match('/\b'.preg_quote($keyword, '/').'\b/u', $lower)) {
+                return [$label, trim(preg_replace('/\b'.preg_quote($keyword, '/').'\b/u', ' ', $lower))];
+            }
+        }
+
+        return [null, $text];
     }
 
     // ---------------------------------------------------------------- eskalasi
@@ -312,7 +381,7 @@ class BotEngine
 
         $ticket = $this->enqueue($log, $this->recentQuestion());
 
-        return $this->reply($this->handoffText($ticket), ['ESK-01', 'LYN']);
+        return $this->reply($this->handoffText($ticket), ['ESK-01', 'LYN', ...$this->outsideHoursCodes()]);
     }
 
     /**
@@ -352,7 +421,20 @@ class BotEngine
     /** Pesan eskalasi: nomor tiket, posisi antrean, dan pilihan selama menunggu. */
     private function handoffText(ServiceTicket $ticket): string
     {
-        return BotScript::handoff($ticket->queue_no, $this->tickets->position($ticket));
+        $text = BotScript::handoff($ticket->queue_no, $this->tickets->position($ticket));
+
+        // Skenario 3.2 no. 49 / Pesan 7: di luar jam layanan pemohon diberi tahu jam layanan (tanpa janji waktu balasan).
+        if ($this->outsideHoursCodes() !== []) {
+            $text .= "\n\n".BotScript::msg('MSG-07', $this->hours->scheduleText());
+        }
+
+        return $text;
+    }
+
+    /** @return list<string> ['MSG-07'] bila eskalasi terjadi di luar jam layanan (dan pemberitahuan aktif). */
+    private function outsideHoursCodes(): array
+    {
+        return config('kancil.outside_hours_notice', true) && ! $this->hours->isOpen() ? ['MSG-07'] : [];
     }
 
     /** Masuk antrean petugas: bot diam sampai tiket diambil, diselesaikan, dibatalkan, atau kedaluwarsa. */
@@ -471,7 +553,7 @@ class BotEngine
                 $log = $this->escalations->record($this->conversation, 'A1', 'AI: '.$text, null, 'AI');
                 $ticket = $this->enqueue($log, $text);
 
-                return [$this->reply(BotScript::msg('AI-UNKNOWN')."\n\n".$this->handoffText($ticket), ['AI-UNKNOWN', 'ESK-01', 'LYN'], sender: 'ai')];
+                return [$this->reply(BotScript::msg('AI-UNKNOWN')."\n\n".$this->handoffText($ticket), ['AI-UNKNOWN', 'ESK-01', 'LYN', ...$this->outsideHoursCodes()], sender: 'ai')];
             }
         }
 
@@ -669,10 +751,11 @@ class BotEngine
         return in_array($this->state['pgd'] ?? null, ['PGD-02', 'PGD-03', 'PGD-04', 'PGD-05', 'PGD-06', 'PGD-07'], true);
     }
 
-    private function checkTicket(string $text): BotReply
+    /** Cek status pengaduan (PGD-10); hanya untuk nomor WhatsApp pelapor (Skenario 3.2 no. 56-57). */
+    private function checkTicket(string $text, ?string $footer = null): BotReply
     {
         $this->validInput();
-        $ticket = strtoupper(preg_replace('/\s+/', '', $text));
+        $ticket = self::complaintNumber($text) ?? strtoupper(preg_replace('/\s+/', '', $text));
 
         $complaint = Complaint::where('ticket_number', $ticket)->first();
         $owner = $complaint && (
@@ -681,14 +764,31 @@ class BotEngine
         );
 
         if (! $owner) {
-            return $this->reply(BotScript::pgd('PGD-10-NOTFOUND'), ['PGD-10']);
+            return $this->reply(BotScript::pgd('PGD-10-NOTFOUND', ['footer' => $footer]), ['PGD-10']);
         }
 
         return $this->reply(BotScript::pgd('PGD-10', [
             'ticket' => $complaint->ticket_number,
             'status' => Complaint::STATUS_LABEL_FOR_USER[$complaint->status] ?? $complaint->status,
             'response' => $complaint->response_text,
+            'footer' => $footer,
         ]), ['PGD-10']);
+    }
+
+    /** Pemohon mengetik nomor pengaduan langsung (di luar alur PGD): jawab status lalu kembali ke menu utama. */
+    private function complaintStatusShortcut(string $number): BotReply
+    {
+        $this->state = self::freshState();
+
+        return $this->checkTicket($number, BotScript::MAIN_MENU_FOOTER);
+    }
+
+    /** "ADU-202611-0005", "adu 202611 0005", "ADU2026110005" => "ADU-202611-0005"; selain itu null. */
+    public static function complaintNumber(string $text): ?string
+    {
+        $compact = strtoupper(preg_replace('/[\s\-#*_.]+/', '', trim($text)));
+
+        return preg_match('/^ADU(\d{6})(\d{4})$/', $compact, $m) ? "ADU-{$m[1]}-{$m[2]}" : null;
     }
 
     private function pgdPrompt(string $step): string
@@ -716,7 +816,7 @@ class BotEngine
         }
 
         if ($this->state['status'] ?? false) {
-            return BotScript::statusPrompt();
+            return ($number = $this->state['status_number'] ?? null) ? BotScript::placePrompt($number) : BotScript::statusPrompt();
         }
 
         if ($this->state['answer'] ?? null) {

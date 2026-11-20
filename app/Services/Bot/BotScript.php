@@ -26,7 +26,9 @@ final class BotScript
      * Menu: judul (hanya untuk label petugas), jalur, induk, pilihan (angka => [label, tujuan]).
      * Tujuan: kode menu (M-xx), "ANS:<jalur>", "STATUS:<jalur>", "ESK:<jalur>" (masuk antrean petugas),
      * "BACK" (menu sebelumnya) atau "PGD-01" (alur pengaduan bot, tidak dipakai di menu utama gaya Bogor).
-     * Urutan dan teks mengikuti layanan WhatsApp Imigrasi Bogor, tanpa Drive Thru dan tanpa persyaratan berdasarkan tujuan.
+     * Menu Paspor mengikuti layanan WhatsApp Imigrasi Bogor (tanpa Drive Thru dan persyaratan berdasarkan tujuan) + Beda Data
+     * (feedback Imigrasi 20 Nov). Menu Izin Tinggal mengikuti Dokumen Skenario 3.2 (bukan Bogor, feedback 20 Nov).
+     * Kunci jalur jawaban dibuat stabil (data tiket/log lama tetap berlabel benar), tidak harus sama dengan angka pilihan.
      */
     public const MENUS = [
         'M-00' => ['title' => null, 'path' => '', 'parent' => null, 'options' => [
@@ -43,33 +45,65 @@ final class BotScript
             '6' => ['Layanan Prioritas Ramah HAM', 'ANS:0>6'],
             '7' => ['Permohonan Paspor Hilang', 'ANS:0>7'],
             '8' => ['Permohonan Paspor Rusak', 'ANS:0>8'],
-            '9' => ['Penambahan Nama pada Paspor', 'ANS:0>9'],
-            '10' => ['Cek Status Paspor', 'STATUS:0>10'],
-            '11' => ['untuk kembali ke menu sebelumnya', 'BACK'],
+            '9' => ['Permohonan Paspor Beda Data', 'ANS:0>12'],
+            '10' => ['Penambahan Nama pada Paspor', 'ANS:0>9'],
+            '11' => ['Cek Status Paspor', 'STATUS:0>10'],
+            '12' => ['untuk kembali ke menu sebelumnya', 'BACK'],
         ]],
         'M-08' => ['title' => 'Pelayanan Izin Tinggal (For Foreigners)', 'path' => '1', 'parent' => 'M-00', 'options' => [
-            '1' => ['Izin Tinggal (Residence Permit)', 'ESK:1>1'],
-            '2' => ['Pengaduan Orang Asing (Foreigner Complaint)', 'ESK:1>2'],
-            '3' => ['Lokasi Kami', 'ANS:1>3'],
+            '1' => ['Tarif Izin Tinggal dan Visa (Stay Permit & Visa Fees)', 'M-09'],
+            '2' => ['Pelaporan WNA Meninggal (Death Report of a Foreigner)', 'M-10'],
+            '3' => ['Lokasi Kami (Our Locations)', 'ANS:1>3'],
+            '4' => ['untuk kembali ke menu sebelumnya', 'BACK'],
+        ]],
+        'M-09' => ['title' => 'Tarif Izin Tinggal dan Visa', 'path' => '1>1', 'parent' => 'M-08', 'options' => [
+            '1' => ['Izin Masuk Kembali (Re-entry Permit)', 'ANS:1>1>1'],
+            '2' => ['Izin Tinggal Kunjungan / ITK (Visit Stay Permit)', 'ANS:1>1>2'],
+            '3' => ['Izin Tinggal Terbatas / ITAS (Limited Stay Permit)', 'ANS:1>1>3'],
+            '4' => ['Izin Tinggal Tetap / ITAP (Permanent Stay Permit)', 'ANS:1>1>4'],
+            '5' => ['Exit Permit Only (EPO)', 'ANS:1>1>5'],
+            '6' => ['Visa Kunjungan Beberapa Kali Perjalanan (Multiple-Entry Visit Visa)', 'ANS:1>1>6'],
+            '7' => ['untuk kembali ke menu sebelumnya', 'BACK'],
+        ]],
+        'M-10' => ['title' => 'Pelaporan WNA Meninggal', 'path' => '1>2', 'parent' => 'M-08', 'options' => [
+            '1' => ['Pelapor dan Batas Waktu (Reporter & Deadline)', 'ANS:1>2>1'],
+            '2' => ['Dokumen Pelaporan (Required Documents)', 'ANS:1>2>2'],
+            '3' => ['Alur Pelaporan (Procedure)', 'ANS:1>2>3'],
             '4' => ['untuk kembali ke menu sebelumnya', 'BACK'],
         ]],
     ];
 
     /**
-     * Jawaban per jalur. 'text' = isi jawaban (null = dinamis, lihat locationText()).
-     * 'code' = kode Matriks Eskalasi bila pemohon memilih "hubungi Petugas" setelah jawaban itu (C1 = paspor hilang, C2 = anak).
+     * Jawaban per jalur menu Bogor. 'faq' = kode FAQ sumber (Inventarisasi 3.1, urut tampil); isi diambil dari tabel FAQ
+     * lewat MenuAnswerResolver dan tunduk pada gate status (belum Aktif = Pesan 5). 'faq' null = dinamis (locationText()).
+     * 'code' = kode Matriks Eskalasi bila pemohon memilih "hubungi Petugas" setelah jawaban itu (C1 = paspor hilang, C2 = anak,
+     * C6 = WNA meninggal). 'pnbp' = baris tarif PNBP yang ditampilkan terpisah di bawah jawaban (config kancil.pnbp; feedback
+     * Imigrasi 20 Nov: tarif dasar dan denda disebut sendiri-sendiri, tidak pernah dijumlahkan).
      */
+    private const PNBP_PASPOR = ['paspor_5', 'paspor_10'];
+
     public const ANSWERS = [
-        '0>1' => ['text' => "Sesuai dengan PP No. 45 Tahun 2024\n\nPNBP Paspor Elektronik 5 Tahun : Rp 650.000\nPNBP Paspor Elektronik 10 Tahun : Rp 950.000\n\nPNBP Percepatan Paspor Elektronik:\n\n* 5 Tahun : Rp 1.650.000\n* 10 Tahun : Rp 1.950.000\n\nPNBP Denda:\n\n* Paspor Hilang : Rp 1.000.000\n* Paspor Rusak : Rp 500.000\n\nKhusus paspor hilang, rusak, dan penambahan nama:\n\n* Tidak melalui aplikasi M-Paspor\n* Tidak dapat mengajukan permohonan paspor baru\n* Berita Acara Pemeriksaan (BAP) dapat diajukan online melalui https://sipantas.kanimcilacap.com/\n* Pemohon wajib datang ke Kantor Imigrasi setelah terverifikasi oleh petugas", 'code' => null],
-        '0>2' => ['text' => "Dokumen persyaratan Paspor Baru:\n\n* e-KTP\n* Kartu Keluarga\n* Akta Lahir / Ijazah / Buku Nikah\n* Materai Rp 10.000\n\nSebelum datang ke Kantor Imigrasi,\nwajib melakukan pendaftaran terlebih dahulu melalui aplikasi M-Paspor.", 'code' => null],
-        '0>3' => ['text' => "Dokumen persyaratan Penggantian Paspor:\n\n* e-KTP\n* Kartu Keluarga\n* Akta Lahir / Ijazah / Buku Nikah\n* Paspor Lama\n* Materai Rp 10.000\n\nSebelum datang ke Kantor Imigrasi,\nwajib melakukan pendaftaran melalui aplikasi M-Paspor.\n\nPastikan paspor lama masih tersedia dan dalam kondisi baik.", 'code' => null],
-        '0>4' => ['text' => "Persyaratan Paspor Anak (Usia di bawah 17 tahun):\n\n* Akta Lahir Anak\n* e-KTP kedua Orang Tua\n* Kartu Keluarga\n* Buku Nikah / Akta Perkawinan\n* Paspor kedua Orang Tua (masih berlaku)\n* Paspor Lama Anak (jika ada)\n* Materai Rp 10.000\n\n---------------\n\nPersyaratan Paspor Anak (Orang Tua Bercerai):\n\n* Akta Lahir Anak\n* e-KTP kedua Orang Tua\n* Kartu Keluarga\n* Akta Perceraian\n* Paspor Orang Tua (masih berlaku)\n* Surat Penetapan Hak Asuh dari Pengadilan\n* Paspor Lama Anak (jika ada)\n* Materai Rp 10.000\n\n---------------\n\nPersyaratan Paspor Anak (Berstatus Anak Ibu):\n\n* Akta Lahir Anak (mencantumkan nama Ibu)\n* e-KTP Ibu\n* Kartu Keluarga\n* Paspor Lama Anak (jika ada)\n* Materai Rp 10.000\n\n---------------\n\nSebelum datang ke Kantor Imigrasi,\nwajib melakukan pendaftaran melalui aplikasi M-Paspor.", 'code' => 'C2'],
-        '0>5' => ['text' => "Silakan unduh aplikasi M-Paspor:\n\nAndroid:\nhttps://play.google.com/store/apps/details?id=id.go.imigrasi.paspor_online\n\niOS:\nhttps://apps.apple.com/id/app/m-paspor/id1576336459\n\nLangkah pendaftaran:\n✅ Daftar dan login akun\n✅ Lengkapi data diri\n✅ Pilih jenis paspor, tanggal, dan lokasi\n✅ Lakukan pembayaran\n\nBatas waktu pembayaran adalah 120 menit\nsetelah kode billing diterbitkan.\n\n⚠️ PERHATIAN ⚠️\nKesalahan pengisian data dapat menyebabkan\npermohonan dibatalkan dan biaya tidak dapat dikembalikan.", 'code' => null],
-        '0>6' => ['text' => "Layanan prioritas diperuntukkan bagi:\n\n* Lansia (usia 60 tahun ke atas)\n* Balita (usia 5 tahun ke bawah)\n* Ibu Hamil\n* Ibu Menyusui\n* Penyandang Disabilitas\n\nPemohon dapat datang langsung ke Kantor Imigrasi\npada jam layanan dengan membawa dokumen asli.\n\nBiaya Paspor Elektronik:\n\n* 5 Tahun : Rp 650.000\n* 10 Tahun : Rp 950.000", 'code' => null],
-        '0>7' => ['text' => "Permohonan paspor hilang tidak melalui aplikasi M-Paspor.\nBerita Acara Pemeriksaan (BAP) diajukan online melalui:\nhttps://sipantas.kanimcilacap.com/\n\nPemohon wajib datang ke Kantor Imigrasi setelah permohonan terverifikasi oleh petugas melalui web tersebut.\n\nPersyaratan:\n✅ e-KTP\n✅ Kartu Keluarga\n✅ Akta Lahir / Buku Nikah / Ijazah\n✅ Salinan Paspor Lama\n✅ Surat Kehilangan dari Kepolisian\n✅ Materai Rp 10.000\n\nPNBP:\n\n* 5 Tahun : Rp 1.650.000\n* 10 Tahun : Rp 1.950.000\n(Termasuk denda paspor hilang Rp 1.000.000)", 'code' => 'C1'],
-        '0>8' => ['text' => "Permohonan paspor rusak tidak melalui aplikasi M-Paspor.\nBerita Acara Pemeriksaan (BAP) diajukan online melalui:\nhttps://sipantas.kanimcilacap.com/\n\nPemohon wajib datang ke Kantor Imigrasi setelah permohonan terverifikasi oleh petugas melalui web tersebut.\n\nPersyaratan:\n✅ e-KTP\n✅ Kartu Keluarga\n✅ Akta Lahir / Buku Nikah / Ijazah\n✅ Paspor Lama yang rusak\n✅ Materai Rp 10.000\n\nPNBP:\n\n* 5 Tahun : Rp 1.150.000\n* 10 Tahun : Rp 1.450.000", 'code' => null],
-        '0>9' => ['text' => "Persyaratan Penambahan Nama:\n\n▪ Paspor masih aktif\n▪ e-KTP\n▪ Kartu Keluarga\n▪ Akta Lahir / Buku Nikah / Ijazah\n▪ Surat rekomendasi travel (Umrah) atau BPIH (Haji)\n▪ Materai Rp 10.000\n\nBerita Acara Pemeriksaan (BAP) penambahan nama dapat diajukan online melalui:\nhttps://sipantas.kanimcilacap.com/\n\nPemohon wajib datang langsung ke Kantor Imigrasi\ndengan membawa dokumen asli dan fotokopi A4 utuh.", 'code' => null],
-        '1>3' => ['text' => null, 'code' => null],
+        '0>1' => ['faq' => ['TRF-001', 'TRF-002', 'TRF-004', 'TRF-003', 'TRF-011'], 'code' => null],
+        '0>2' => ['faq' => ['PSP-001'], 'code' => null, 'pnbp' => self::PNBP_PASPOR],
+        '0>3' => ['faq' => ['PSP-002'], 'code' => null, 'pnbp' => self::PNBP_PASPOR],
+        '0>4' => ['faq' => ['ANK-001', 'ANK-002', 'ANK-003', 'ANK-004', 'ANK-005', 'ANK-006', 'ANK-007', 'ANK-008', 'ANK-009'], 'code' => 'C2', 'pnbp' => ['paspor_5']],
+        '0>5' => ['faq' => ['PSP-013'], 'code' => null, 'pnbp' => self::PNBP_PASPOR],
+        '0>6' => ['faq' => ['LYK-002'], 'code' => null, 'pnbp' => self::PNBP_PASPOR],
+        '0>7' => ['faq' => ['PSP-011'], 'code' => 'C1', 'pnbp' => [...self::PNBP_PASPOR, 'denda_hilang']],
+        '0>8' => ['faq' => ['PSP-014'], 'code' => null, 'pnbp' => [...self::PNBP_PASPOR, 'denda_rusak']],
+        '0>12' => ['faq' => ['PSP-016'], 'code' => null, 'pnbp' => self::PNBP_PASPOR],
+        '0>9' => ['faq' => ['PSP-015'], 'code' => null, 'pnbp' => self::PNBP_PASPOR],
+        // Izin Tinggal (Skenario 3.2: 1>1>1..6 = TRF-005..010 + TRF-011; 1>2>1..3 = WNA-001..004).
+        '1>1>1' => ['faq' => ['TRF-005', 'TRF-011'], 'code' => null],
+        '1>1>2' => ['faq' => ['TRF-006', 'TRF-011'], 'code' => null],
+        '1>1>3' => ['faq' => ['TRF-007', 'TRF-011'], 'code' => null],
+        '1>1>4' => ['faq' => ['TRF-008', 'TRF-011'], 'code' => null],
+        '1>1>5' => ['faq' => ['TRF-009', 'TRF-011'], 'code' => null],
+        '1>1>6' => ['faq' => ['TRF-010', 'TRF-011'], 'code' => null],
+        '1>2>1' => ['faq' => ['WNA-001', 'WNA-002'], 'code' => 'C6'],
+        '1>2>2' => ['faq' => ['WNA-003'], 'code' => 'C6'],
+        '1>2>3' => ['faq' => ['WNA-004'], 'code' => 'C6'],
+        '1>3' => ['faq' => null, 'code' => null],
     ];
 
     /** Kode Matriks Eskalasi bila pemohon minta Petugas setelah AI menjawab dari FAQ ini (kode FAQ pertama yang dipakai). */
@@ -138,23 +172,51 @@ final class BotScript
             ->implode("\n");
     }
 
-    /** Prompt nomor permohonan untuk Cek Status Paspor. */
+    /** Cek Status Paspor langkah 1: nomor permohonan, dengan daftar tempat permohonan (feedback Imigrasi 20 Nov). */
     public static function statusPrompt(): string
     {
-        return "Silakan ketik *Nomor Permohonan* paspor Anda.\nContoh: 1498000000012345\n\nKetik *0* untuk kembali ke menu utama.";
+        $places = collect(config('kancil.application_places'))->pluck('label')->implode(' / ');
+
+        return "Silakan ketik *Nomor Permohonan* paspor Anda.\nContoh: 1498000000012345\n"
+            ."Tempat permohonan: {$places}\n\nKetik *0* untuk kembali ke menu utama.";
     }
 
-    /** Lokasi Kami: identitas kantor Cilacap (config kancil.office). */
+    /** Cek Status Paspor langkah 2: pilih tempat permohonan. */
+    public static function placePrompt(string $number): string
+    {
+        $options = collect(config('kancil.application_places'))
+            ->map(fn ($place, $key) => "Ketik *{$key}* {$place['label']}")->implode("\n");
+
+        return "Nomor permohonan: *{$number}*\n\nPilih *tempat permohonan* paspor Anda:\n{$options}\n\nKetik *0* untuk kembali ke menu utama.";
+    }
+
+    /** Blok PNBP terpisah per komponen (tidak pernah dijumlahkan). @param list<string> $items kunci config kancil.pnbp.items */
+    public static function pnbpBlock(array $items): string
+    {
+        $config = config('kancil.pnbp');
+        $lines = collect($items)->map(function (string $key) use ($config) {
+            $item = $config['items'][$key] ?? throw new \InvalidArgumentException("Komponen PNBP {$key} tidak dikenal.");
+
+            return "• {$item['label']}: ".self::rupiah((int) $item['amount']);
+        });
+
+        return "*PNBP ({$config['legal_basis']}):*\n".$lines->implode("\n");
+    }
+
+    public static function rupiah(int $amount): string
+    {
+        return 'Rp'.number_format($amount, 0, ',', '.');
+    }
+
+    /** Lokasi Kami: kantor dan lokasi layanan lain dengan format sama (nama, alamat, peta; config kancil.office). */
     public static function locationText(): string
     {
         $office = config('kancil.office');
-        $lines = ["📍 {$office['name']}\n{$office['address']}\n{$office['maps']}"];
+        $places = [['name' => $office['name'], 'address' => $office['address'], 'maps' => $office['maps']], ...($office['other_locations'] ?? [])];
 
-        foreach ($office['other_locations'] ?? [] as $name => $maps) {
-            $lines[] = "📍 {$name}\n{$maps}";
-        }
-
-        return implode("\n\n", $lines);
+        return collect($places)
+            ->map(fn (array $place) => "📍 {$place['name']}\n{$place['address']}\n{$place['maps']}")
+            ->implode("\n\n");
     }
 
     /** Jawaban dengan pembuka dan penutup gaya layanan informasi. */
@@ -218,16 +280,12 @@ final class BotScript
             .'Ketik *0* untuk kembali ke menu utama.';
     }
 
-    /** Petugas mengalihkan tiket antrean menjadi pengaduan resmi. */
+    /** Petugas mengalihkan tiket antrean menjadi pengaduan resmi (nomor ADU tidak ditampilkan, feedback user 2). */
     public static function ticketToComplaint(): string
     {
-        return 'Permintaan Anda telah kami catat sebagai *pengaduan resmi*.
-
-'
-            .'Tanggapan Petugas akan dikirim ke chat ini.
-
-'
-            .'Ketik *0* untuk kembali ke menu utama';
+        return "Permintaan Anda telah kami catat sebagai *pengaduan resmi*.\n\n"
+            ."Tanggapan Petugas akan dikirim ke chat ini.\n\n"
+            .self::MAIN_MENU_FOOTER;
     }
 
     public static function ticketExpired(): string
@@ -255,16 +313,21 @@ Ketik *88* untuk masuk antrean Petugas kembali';
 ', $lines);
     }
 
+    /** Footer setelah cek status ADU di luar alur PGD (diketik langsung): hanya menu utama. */
+    public const MAIN_MENU_FOOTER = 'Ketik *0* untuk kembali ke menu utama';
+
     public static function msg(string $id, ?string $fill = null): string
     {
         return match ($id) {
-            'MSG-01' => 'Mohon maaf, pilihan Anda tidak tersedia. Silakan ketik angka sesuai menu di bawah ini.',
-            'MSG-02' => 'Mohon maaf, pilihan Anda masih belum sesuai. Silakan ketik angka pilihan saja, misalnya *1*.',
-            'MSG-03' => "Mohon maaf, kami belum dapat memahami pesan Anda.\n\nKetik *0* untuk kembali ke menu utama\nKetik *88* untuk menghubungi Petugas",
-            'MSG-04' => 'Mohon maaf, layanan ini hanya menerima pesan teks berupa angka pilihan. Silakan ketik angka sesuai menu.',
-            'MSG-05' => 'Mohon maaf, informasi untuk topik ini sedang diperbarui.',
-            'MSG-06' => 'Sesi sebelumnya telah berakhir.',
-            'MSG-07' => '_Saat ini di luar jam layanan petugas. Petugas akan membalas pesan Anda pada jam layanan'.($fill ? ": {$fill}._" : ' berikutnya._'),
+            // Teks Dokumen Skenario 3.2 (Pesan 1-9). Adaptasi menu Bogor: "0" = menu utama (99 tetap diterima), petugas
+            // lewat antrean (bot tidak menyebut nomor/email karena pemohon sudah menghubungi nomor resmi kantor).
+            'MSG-01' => 'Maaf, pilihan tidak valid. Silakan ketik angka sesuai daftar menu.',
+            'MSG-02' => 'Maaf, pilihan masih belum sesuai. Bot ini hanya menerima angka pilihan seperti pada menu.',
+            'MSG-03' => "Mohon maaf, bot belum dapat memahami pesan Anda.\n\nKetik *88* untuk menghubungi Petugas\nKetik *0* untuk menu utama",
+            'MSG-04' => 'Maaf, bot hanya menerima pesan teks berupa angka pilihan. Silakan ketik angka sesuai menu.',
+            'MSG-05' => 'Informasi ini sedang diperbarui. Untuk kepastian, silakan hubungi Petugas.',
+            'MSG-06' => 'Sesi sebelumnya telah berakhir. Silakan pilih layanan kembali:',
+            'MSG-07' => '_Saat ini di luar jam layanan petugas. Jam layanan: '.($fill ?: 'hari kerja').'. Permintaan Anda tetap tercatat dalam antrean._',
             'MSG-08' => 'Pengaduan dibatalkan. Anda dapat memulai kembali kapan saja.',
             'MSG-09' => 'Sesi sebelumnya telah berakhir, dan pengaduan yang belum dikirim tidak tersimpan. Pilih *3* (Layanan Pengaduan) untuk memulai lagi.',
             'AI-UNKNOWN' => 'Mohon maaf, pertanyaan Anda belum dapat dijawab otomatis.',
@@ -292,13 +355,15 @@ Ketik *88* untuk masuk antrean Petugas kembali';
                 .($data['attachments'] > 0 ? "{$data['attachments']} berkas" : 'tidak ada')
                 ."\n\nKetik *1* Kirim pengaduan\nKetik *2* Batalkan",
             'PGD-08' => "Terima kasih, pengaduan Anda sudah kami terima.\n\nNomor tiket: *{$data['ticket']}*\n_Status awal tiket: Baru._\n\n"
-                ."Cek status kapan saja lewat menu *3* (Layanan Pengaduan) lalu *2* (Cek status pengaduan).\n\n"
-                .'Ketik *0* untuk kembali ke menu utama',
+                ."Untuk cek status, ketik nomor tiket tersebut kapan saja.\n\n"
+                .self::MAIN_MENU_FOOTER,
             'PGD-09' => "Silakan ketik nomor tiket Anda.\n\n".self::FOOTER,
             'PGD-10' => "Status pengaduan *{$data['ticket']}*: *{$data['status']}*."
                 .($data['response'] ? "\nTanggapan petugas: {$data['response']}" : '')
-                ."\n\n".self::FOOTER,
-            'PGD-10-NOTFOUND' => "Nomor tiket tidak ditemukan untuk nomor WhatsApp ini. Pastikan nomor tiket benar (contoh: ADU-202611-0001).\n\n".self::FOOTER,
+                ."\n\n".($data['footer'] ?? self::FOOTER),
+            // Skenario 3.2 no. 57: nomor milik WhatsApp lain diperlakukan sama dengan tidak ditemukan (tidak membocorkan data).
+            'PGD-10-NOTFOUND' => "Nomor tiket tidak ditemukan untuk nomor WhatsApp ini. Pastikan nomor tiket benar (contoh: ADU-202611-0001).\n\n"
+                .($data['footer'] ?? self::FOOTER),
             default => throw new \InvalidArgumentException("Pesan {$id} tidak dikenal."),
         };
     }

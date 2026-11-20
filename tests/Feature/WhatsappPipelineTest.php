@@ -23,6 +23,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\Concerns\BotHelpers;
@@ -152,6 +153,39 @@ class WhatsappPipelineTest extends TestCase
         $this->assertSame('BOT_ACTIVE', Conversation::sole()->conversation_mode);
     }
 
+    public function test_audit_prod_echo_pair_keeps_bot_active_and_next_choice_is_answered(): void
+    {
+        // Audit Excel Sheet1 (20 Nov): setelah jawaban 1>7/1>8, ketik 0/1 tidak dibalas karena echo #543 dianggap petugas.
+        $pair = json_decode(file_get_contents(base_path('tests/Fixtures/echo-prod-2026-11-20.json')), true);
+
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
+        $bot = Message::where('sender_type', 'bot')->sole();
+        $bot->update(['external_message_id' => null, 'message_text' => $pair['bot']]);
+
+        $this->postWebhook($this->incomingPayload(['message_id' => 'ECHO-PROD-543', 'message_body' => $pair['echo']], 'outgoing_chat'));
+
+        $this->assertSame('ECHO-PROD-543', $bot->fresh()->external_message_id);
+        $this->assertSame(0, Message::where('sender_type', 'petugas')->count());
+        $this->assertSame('BOT_ACTIVE', Conversation::sole()->conversation_mode);
+
+        $this->postWebhook($this->incomingPayload(['message_body' => '0']));
+
+        $this->assertSame(['codes' => ['M-00']], $this->lastBotMessage()->meta);
+    }
+
+    public function test_takeover_from_office_device_is_logged_and_flagged(): void
+    {
+        Log::spy();
+        $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
+
+        $this->postWebhook($this->incomingPayload(['message_id' => 'HP-LOG', 'message_body' => 'Baik Pak, saya bantu.'], 'outgoing_chat'));
+
+        $this->assertTrue(Message::where('external_message_id', 'HP-LOG')->sole()->meta['takeover']);
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($message, $context) => str_contains($message, 'diambil alih') && $context['external_message_id'] === 'HP-LOG')
+            ->once();
+    }
+
     public function test_blank_outgoing_event_does_not_trigger_takeover(): void
     {
         $this->postWebhook($this->incomingPayload(['message_body' => 'Halo']));
@@ -203,7 +237,7 @@ class WhatsappPipelineTest extends TestCase
         }
 
         $last = Message::where('sender_type', 'bot')->latest('id')->first();
-        $this->assertStringContainsString('Dokumen persyaratan Paspor Baru:', $last->message_text);
+        $this->assertStringContainsString('KTP elektronik, Kartu Keluarga, dan salah satu dari akta lahir/ijazah/buku nikah.', $last->message_text);
         $this->assertSame(3, Message::where('sender_type', 'bot')->count());
         $this->assertSame(1, Conversation::count());
     }
@@ -547,7 +581,7 @@ class WhatsappPipelineTest extends TestCase
         $this->postWebhook($this->incomingPayload(['message_body' => '1']));
         $this->assertStringContainsString('Persyaratan Paspor Baru', $this->lastBotMessage()->message_text);
         $this->postWebhook($this->incomingPayload(['message_body' => '2']));
-        $this->assertStringContainsString('Dokumen persyaratan Paspor Baru', $this->lastBotMessage()->message_text);
+        $this->assertStringContainsString('KTP elektronik, Kartu Keluarga, dan salah satu dari akta lahir/ijazah/buku nikah.', $this->lastBotMessage()->message_text);
 
         // Minta Petugas lagi: tiket yang sama dipakai, posisi antrean diberitahukan lagi.
         $this->postWebhook($this->incomingPayload(['message_body' => '1']));

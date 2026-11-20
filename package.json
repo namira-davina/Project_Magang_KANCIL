@@ -4,9 +4,11 @@
     "packageManager": "pnpm@11.0.9",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "test:e2e": "playwright test"
     },
     "devDependencies": {
+        "@playwright/test": "1.64.1",
         "@tailwindcss/vite": "^4.0.0",
         "axios": "^1.7.4",
         "concurrently": "^9.0.1",

@@ -75,7 +75,7 @@ class AntreanController extends Controller
 
     /**
      * Alihkan tiket antrean menjadi pengaduan resmi (ADU): pengaduan dibuat dari data tiket,
-     * tiket antrean ditutup, dan pemohon menerima nomor pengaduan.
+     * tiket antrean ditutup, dan pemohon diberi tahu (tanpa nomor ADU, sesuai feedback user 2).
      */
     public function toComplaint(Request $request, ServiceTicket $ticket, ComplaintService $complaints, WhatsappMessenger $messenger): JsonResponse
     {

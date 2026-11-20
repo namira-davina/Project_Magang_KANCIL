@@ -39,7 +39,7 @@ class SchemaAndSeederTest extends TestCase
 
         $this->assertSame(8, DB::table('faq_categories')->count());
         $this->assertSame(4, DB::table('complaint_categories')->count());
-        $this->assertSame(61, DB::table('faqs')->count());
+        $this->assertSame(65, DB::table('faqs')->count());
         $this->assertSame(1, DB::table('users')->count());
     }
 

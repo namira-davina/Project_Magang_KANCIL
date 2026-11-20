@@ -41,6 +41,7 @@
         <div class="stat-metric-card">
             <div class="stat-metric-header"><span class="stat-metric-label">RATA-RATA TUNGGU HARI INI</span></div>
             <div class="stat-metric-value" id="statRataTunggu">{{ $stats['rata_tunggu_menit'] !== null ? $stats['rata_tunggu_menit'].' mnt' : '-' }}</div>
+            <div class="stat-metric-footer">Dari tiket masuk hari ini yang sudah diambil</div>
         </div>
     </div>
 
@@ -107,7 +108,7 @@
         <form id="formPengaduan">
             <h3>Jadikan Pengaduan Resmi</h3>
             <p class="text-secondary-cell">
-                Tiket <strong id="dialogPengaduanTiket">-</strong> ditutup dan pemohon menerima nomor pengaduan (ADU).
+                Tiket <strong id="dialogPengaduanTiket">-</strong> ditutup dan pemohon diberi tahu bahwa permintaannya dicatat sebagai pengaduan resmi (nomor ADU hanya untuk petugas).
                 Pengaduan lalu ditindaklanjuti Admin/Pimpinan di halaman Pengaduan.
             </p>
 

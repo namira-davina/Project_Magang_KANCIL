@@ -107,7 +107,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const paginationInfo = document.getElementById('pengaduanPaginationInfo');
         if (paginationInfo) {
-            paginationInfo.textContent = `Menampilkan ${tampil.length} dari ${hasil.length} tiket`;
+            const awal = hasil.length === 0 ? 0 : (halaman - 1) * perPage + 1;
+            const akhir = (halaman - 1) * perPage + tampil.length;
+            paginationInfo.textContent = hasil.length === 0
+                ? `Menampilkan 0 dari ${dataPengaduan.length} tiket`
+                : `Menampilkan ${awal}–${akhir} dari ${hasil.length} tiket`
+                    + (hasil.length !== dataPengaduan.length ? ` (difilter dari ${dataPengaduan.length})` : '');
         }
 
         renderPagination(totalHalaman);

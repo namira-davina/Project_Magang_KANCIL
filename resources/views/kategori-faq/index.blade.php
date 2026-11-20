@@ -130,7 +130,7 @@
         </div>
 
         <div class="table-pagination-footer">
-            <span class="pagination-info" id="kategoriPaginationInfo">Menampilkan 1 - 6 dari 6 entri</span>
+            <span class="pagination-info" id="kategoriPaginationInfo">Menampilkan {{ min(1, count($categories)) }} - {{ count($categories) }} dari {{ count($categories) }} entri</span>
 
             <div class="pagination-buttons">
                 <button type="button" class="btn-page-nav" disabled>&laquo;</button>

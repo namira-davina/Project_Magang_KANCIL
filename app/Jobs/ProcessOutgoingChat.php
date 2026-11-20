@@ -7,9 +7,11 @@ use App\Models\Message;
 use App\Models\WebhookEvent;
 use App\Services\BalesOtomatis\WebhookData;
 use App\Services\Tickets\TicketQueueService;
+use App\Services\Whatsapp\EchoText;
 use App\Services\Whatsapp\WhatsappMessenger;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -84,12 +86,19 @@ class ProcessOutgoingChat implements ShouldQueue
             'sent_at' => $data->sentAt(),
             'external_message_id' => $externalId,
             'delivery_status' => 'sent',
-            'meta' => ['source' => 'outgoing_chat'],
+            'meta' => array_filter(['source' => 'outgoing_chat', 'takeover' => $engineIsLaravel ?: null]),
         ]);
 
         $update = ['last_message_at' => now()];
 
         if ($engineIsLaravel) {
+            // Jejak audit: bila echo bot gagal dicocokkan (kasus 20 Nov), kejadiannya langsung terlihat di log.
+            Log::warning('Bot diambil alih oleh pesan keluar dari perangkat kantor.', [
+                'conversation_id' => $conversation->id,
+                'external_message_id' => $externalId,
+                'text' => mb_substr((string) $data->body(), 0, 200),
+            ]);
+
             // Sama seperti "hentikan AI jika CS membalas manual".
             $update['conversation_mode'] = Conversation::MODE_HUMAN;
             $update['bot_paused_until'] = now()->addMinutes((int) config('kancil.handoff_minutes', 120));
@@ -129,29 +138,12 @@ class ProcessOutgoingChat implements ShouldQueue
             ->orderByDesc('id')
             ->get();
 
-        // Utamakan kecocokan persis; bila BalesOtomatis/WA menghapus garis pemisah (---), mengubah baris kosong,
-        // atau memadatkan spasi ganda, cocokkan teks ternormalisasi agar echo bot tidak disangka balasan petugas dari HP.
+        // Utamakan kecocokan persis; bila BalesOtomatis/WA mengubah teks secara kosmetik (spasi ganda, garis pemisah,
+        // emoji, kutip), cocokkan teks ternormalisasi agar echo bot tidak disangka balasan petugas dari HP.
         if ($exact = $candidates->firstWhere('message_text', $body)) {
             return $exact;
         }
 
-        $normalizedBody = $this->normalizeEchoText($body);
-
-        if ($normalizedBody === '') {
-            return null;
-        }
-
-        return $candidates->first(
-            fn (Message $message) => $this->normalizeEchoText((string) $message->message_text) === $normalizedBody
-        );
-    }
-
-    private function normalizeEchoText(string $text): string
-    {
-        $text = str_replace(["\r\n", "\r"], "\n", $text);
-        $text = preg_replace('/^\s*-{3,}\s*$/m', '', $text) ?? $text;
-
-        // Semua whitespace (spasi ganda, NBSP, baris kosong, spasi awal baris) dianggap satu spasi.
-        return trim(preg_replace('/[\s\x{00A0}\x{200B}]+/u', ' ', $text) ?? $text);
+        return $candidates->first(fn (Message $message) => EchoText::same($body, $message->message_text));
     }
 }

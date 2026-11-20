@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (filteredRows.length === 0) {
                 dataInfo.textContent = 'Tidak ada FAQ yang cocok.';
             } else {
-                dataInfo.textContent = `Menampilkan ${startIndex + 1} - ${endIndex} dari 42 entri`;
+                dataInfo.textContent = `Menampilkan ${startIndex + 1} - ${endIndex} dari ${filteredRows.length} entri`;
             }
         }
 
@@ -94,23 +94,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderTable();
             });
             pagination.appendChild(pageBtn);
-        }
-
-        // Ellipsis & final page representation matching design if needed
-        if (totalPages > 1 && totalPages < 7) {
-            const ellipsis = document.createElement('span');
-            ellipsis.className = 'pagination-ellipsis';
-            ellipsis.textContent = '...';
-            pagination.appendChild(ellipsis);
-
-            const lastBtn = document.createElement('button');
-            lastBtn.type = 'button';
-            lastBtn.className = 'btn-page-num';
-            lastBtn.textContent = '7';
-            lastBtn.addEventListener('click', function () {
-                alert('Menampilkan halaman 7');
-            });
-            pagination.appendChild(lastBtn);
         }
 
         // Next button
