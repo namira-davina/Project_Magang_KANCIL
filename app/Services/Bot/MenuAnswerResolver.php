@@ -25,20 +25,33 @@ class MenuAnswerResolver
             return ['text' => BotScript::locationText(), 'held' => false, 'faq_id' => null, 'codes' => []];
         }
 
-        $faqs = $this->allowed($codes);
+        // Blok PNBP ikut gate: FAQ tarif sumbernya (TRF-001..004) juga harus boleh tampil.
+        $pnbp = $definition['pnbp'] ?? [];
+        $gate = array_values(array_unique([...$codes, ...self::pnbpSources($pnbp)]));
+        $faqs = $this->allowed($gate);
 
-        if ($faqs->count() !== count($codes)) {
+        if ($faqs->count() !== count($gate)) {
             return ['text' => BotScript::msg('MSG-05'), 'held' => true, 'faq_id' => null, 'codes' => $codes];
         }
 
         $ordered = collect($codes)->map(fn (string $code) => $faqs[$code]);
+        $text = self::compose($ordered);
 
         return [
-            'text' => self::compose($ordered),
+            'text' => $pnbp === [] ? $text : $text."\n\n".BotScript::pnbpBlock($pnbp),
             'held' => false,
             'faq_id' => $ordered->first()->id,
             'codes' => $codes,
         ];
+    }
+
+    /** @param list<string> $items @return list<string> kode FAQ tarif yang menjadi sumber komponen PNBP */
+    public static function pnbpSources(array $items): array
+    {
+        return array_values(array_unique(array_map(
+            fn (string $key) => config("kancil.pnbp.items.{$key}.faq") ?? throw new \InvalidArgumentException("Komponen PNBP {$key} tidak dikenal."),
+            $items,
+        )));
     }
 
     /** @param list<string> $codes */

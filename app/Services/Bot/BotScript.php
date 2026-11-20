@@ -26,7 +26,9 @@ final class BotScript
      * Menu: judul (hanya untuk label petugas), jalur, induk, pilihan (angka => [label, tujuan]).
      * Tujuan: kode menu (M-xx), "ANS:<jalur>", "STATUS:<jalur>", "ESK:<jalur>" (masuk antrean petugas),
      * "BACK" (menu sebelumnya) atau "PGD-01" (alur pengaduan bot, tidak dipakai di menu utama gaya Bogor).
-     * Urutan dan teks mengikuti layanan WhatsApp Imigrasi Bogor, tanpa Drive Thru dan tanpa persyaratan berdasarkan tujuan.
+     * Menu Paspor mengikuti layanan WhatsApp Imigrasi Bogor (tanpa Drive Thru dan persyaratan berdasarkan tujuan) + Beda Data
+     * (feedback Imigrasi 20 Nov). Menu Izin Tinggal mengikuti Dokumen Skenario 3.2 (bukan Bogor, feedback 20 Nov).
+     * Kunci jalur jawaban dibuat stabil (data tiket/log lama tetap berlabel benar), tidak harus sama dengan angka pilihan.
      */
     public const MENUS = [
         'M-00' => ['title' => null, 'path' => '', 'parent' => null, 'options' => [
@@ -43,14 +45,30 @@ final class BotScript
             '6' => ['Layanan Prioritas Ramah HAM', 'ANS:0>6'],
             '7' => ['Permohonan Paspor Hilang', 'ANS:0>7'],
             '8' => ['Permohonan Paspor Rusak', 'ANS:0>8'],
-            '9' => ['Penambahan Nama pada Paspor', 'ANS:0>9'],
-            '10' => ['Cek Status Paspor', 'STATUS:0>10'],
-            '11' => ['untuk kembali ke menu sebelumnya', 'BACK'],
+            '9' => ['Permohonan Paspor Beda Data', 'ANS:0>12'],
+            '10' => ['Penambahan Nama pada Paspor', 'ANS:0>9'],
+            '11' => ['Cek Status Paspor', 'STATUS:0>10'],
+            '12' => ['untuk kembali ke menu sebelumnya', 'BACK'],
         ]],
         'M-08' => ['title' => 'Pelayanan Izin Tinggal (For Foreigners)', 'path' => '1', 'parent' => 'M-00', 'options' => [
-            '1' => ['Izin Tinggal (Residence Permit)', 'ESK:1>1'],
-            '2' => ['Pengaduan Orang Asing (Foreigner Complaint)', 'ESK:1>2'],
-            '3' => ['Lokasi Kami', 'ANS:1>3'],
+            '1' => ['Tarif Izin Tinggal dan Visa (Stay Permit & Visa Fees)', 'M-09'],
+            '2' => ['Pelaporan WNA Meninggal (Death Report of a Foreigner)', 'M-10'],
+            '3' => ['Lokasi Kami (Our Locations)', 'ANS:1>3'],
+            '4' => ['untuk kembali ke menu sebelumnya', 'BACK'],
+        ]],
+        'M-09' => ['title' => 'Tarif Izin Tinggal dan Visa', 'path' => '1>1', 'parent' => 'M-08', 'options' => [
+            '1' => ['Izin Masuk Kembali (Re-entry Permit)', 'ANS:1>1>1'],
+            '2' => ['Izin Tinggal Kunjungan / ITK (Visit Stay Permit)', 'ANS:1>1>2'],
+            '3' => ['Izin Tinggal Terbatas / ITAS (Limited Stay Permit)', 'ANS:1>1>3'],
+            '4' => ['Izin Tinggal Tetap / ITAP (Permanent Stay Permit)', 'ANS:1>1>4'],
+            '5' => ['Exit Permit Only (EPO)', 'ANS:1>1>5'],
+            '6' => ['Visa Kunjungan Beberapa Kali Perjalanan (Multiple-Entry Visit Visa)', 'ANS:1>1>6'],
+            '7' => ['untuk kembali ke menu sebelumnya', 'BACK'],
+        ]],
+        'M-10' => ['title' => 'Pelaporan WNA Meninggal', 'path' => '1>2', 'parent' => 'M-08', 'options' => [
+            '1' => ['Pelapor dan Batas Waktu (Reporter & Deadline)', 'ANS:1>2>1'],
+            '2' => ['Dokumen Pelaporan (Required Documents)', 'ANS:1>2>2'],
+            '3' => ['Alur Pelaporan (Procedure)', 'ANS:1>2>3'],
             '4' => ['untuk kembali ke menu sebelumnya', 'BACK'],
         ]],
     ];
@@ -58,18 +76,33 @@ final class BotScript
     /**
      * Jawaban per jalur menu Bogor. 'faq' = kode FAQ sumber (Inventarisasi 3.1, urut tampil); isi diambil dari tabel FAQ
      * lewat MenuAnswerResolver dan tunduk pada gate status (belum Aktif = Pesan 5). 'faq' null = dinamis (locationText()).
-     * 'code' = kode Matriks Eskalasi bila pemohon memilih "hubungi Petugas" setelah jawaban itu (C1 = paspor hilang, C2 = anak).
+     * 'code' = kode Matriks Eskalasi bila pemohon memilih "hubungi Petugas" setelah jawaban itu (C1 = paspor hilang, C2 = anak,
+     * C6 = WNA meninggal). 'pnbp' = baris tarif PNBP yang ditampilkan terpisah di bawah jawaban (config kancil.pnbp; feedback
+     * Imigrasi 20 Nov: tarif dasar dan denda disebut sendiri-sendiri, tidak pernah dijumlahkan).
      */
+    private const PNBP_PASPOR = ['paspor_5', 'paspor_10'];
+
     public const ANSWERS = [
         '0>1' => ['faq' => ['TRF-001', 'TRF-002', 'TRF-004', 'TRF-003', 'TRF-011'], 'code' => null],
-        '0>2' => ['faq' => ['PSP-001'], 'code' => null],
-        '0>3' => ['faq' => ['PSP-002'], 'code' => null],
-        '0>4' => ['faq' => ['ANK-001', 'ANK-002', 'ANK-003', 'ANK-004', 'ANK-005', 'ANK-006', 'ANK-007', 'ANK-008', 'ANK-009'], 'code' => 'C2'],
-        '0>5' => ['faq' => ['PSP-013'], 'code' => null],
-        '0>6' => ['faq' => ['LYK-002'], 'code' => null],
-        '0>7' => ['faq' => ['PSP-011'], 'code' => 'C1'],
-        '0>8' => ['faq' => ['PSP-014'], 'code' => null],
-        '0>9' => ['faq' => ['PSP-015'], 'code' => null],
+        '0>2' => ['faq' => ['PSP-001'], 'code' => null, 'pnbp' => self::PNBP_PASPOR],
+        '0>3' => ['faq' => ['PSP-002'], 'code' => null, 'pnbp' => self::PNBP_PASPOR],
+        '0>4' => ['faq' => ['ANK-001', 'ANK-002', 'ANK-003', 'ANK-004', 'ANK-005', 'ANK-006', 'ANK-007', 'ANK-008', 'ANK-009'], 'code' => 'C2', 'pnbp' => ['paspor_5']],
+        '0>5' => ['faq' => ['PSP-013'], 'code' => null, 'pnbp' => self::PNBP_PASPOR],
+        '0>6' => ['faq' => ['LYK-002'], 'code' => null, 'pnbp' => self::PNBP_PASPOR],
+        '0>7' => ['faq' => ['PSP-011'], 'code' => 'C1', 'pnbp' => [...self::PNBP_PASPOR, 'denda_hilang']],
+        '0>8' => ['faq' => ['PSP-014'], 'code' => null, 'pnbp' => [...self::PNBP_PASPOR, 'denda_rusak']],
+        '0>12' => ['faq' => ['PSP-016'], 'code' => null, 'pnbp' => self::PNBP_PASPOR],
+        '0>9' => ['faq' => ['PSP-015'], 'code' => null, 'pnbp' => self::PNBP_PASPOR],
+        // Izin Tinggal (Skenario 3.2: 1>1>1..6 = TRF-005..010 + TRF-011; 1>2>1..3 = WNA-001..004).
+        '1>1>1' => ['faq' => ['TRF-005', 'TRF-011'], 'code' => null],
+        '1>1>2' => ['faq' => ['TRF-006', 'TRF-011'], 'code' => null],
+        '1>1>3' => ['faq' => ['TRF-007', 'TRF-011'], 'code' => null],
+        '1>1>4' => ['faq' => ['TRF-008', 'TRF-011'], 'code' => null],
+        '1>1>5' => ['faq' => ['TRF-009', 'TRF-011'], 'code' => null],
+        '1>1>6' => ['faq' => ['TRF-010', 'TRF-011'], 'code' => null],
+        '1>2>1' => ['faq' => ['WNA-001', 'WNA-002'], 'code' => 'C6'],
+        '1>2>2' => ['faq' => ['WNA-003'], 'code' => 'C6'],
+        '1>2>3' => ['faq' => ['WNA-004'], 'code' => 'C6'],
         '1>3' => ['faq' => null, 'code' => null],
     ];
 
@@ -139,23 +172,51 @@ final class BotScript
             ->implode("\n");
     }
 
-    /** Prompt nomor permohonan untuk Cek Status Paspor. */
+    /** Cek Status Paspor langkah 1: nomor permohonan, dengan daftar tempat permohonan (feedback Imigrasi 20 Nov). */
     public static function statusPrompt(): string
     {
-        return "Silakan ketik *Nomor Permohonan* paspor Anda.\nContoh: 1498000000012345\n\nKetik *0* untuk kembali ke menu utama.";
+        $places = collect(config('kancil.application_places'))->pluck('label')->implode(' / ');
+
+        return "Silakan ketik *Nomor Permohonan* paspor Anda.\nContoh: 1498000000012345\n"
+            ."Tempat permohonan: {$places}\n\nKetik *0* untuk kembali ke menu utama.";
     }
 
-    /** Lokasi Kami: identitas kantor Cilacap (config kancil.office). */
+    /** Cek Status Paspor langkah 2: pilih tempat permohonan. */
+    public static function placePrompt(string $number): string
+    {
+        $options = collect(config('kancil.application_places'))
+            ->map(fn ($place, $key) => "Ketik *{$key}* {$place['label']}")->implode("\n");
+
+        return "Nomor permohonan: *{$number}*\n\nPilih *tempat permohonan* paspor Anda:\n{$options}\n\nKetik *0* untuk kembali ke menu utama.";
+    }
+
+    /** Blok PNBP terpisah per komponen (tidak pernah dijumlahkan). @param list<string> $items kunci config kancil.pnbp.items */
+    public static function pnbpBlock(array $items): string
+    {
+        $config = config('kancil.pnbp');
+        $lines = collect($items)->map(function (string $key) use ($config) {
+            $item = $config['items'][$key] ?? throw new \InvalidArgumentException("Komponen PNBP {$key} tidak dikenal.");
+
+            return "• {$item['label']}: ".self::rupiah((int) $item['amount']);
+        });
+
+        return "*PNBP ({$config['legal_basis']}):*\n".$lines->implode("\n");
+    }
+
+    public static function rupiah(int $amount): string
+    {
+        return 'Rp'.number_format($amount, 0, ',', '.');
+    }
+
+    /** Lokasi Kami: kantor dan lokasi layanan lain dengan format sama (nama, alamat, peta; config kancil.office). */
     public static function locationText(): string
     {
         $office = config('kancil.office');
-        $lines = ["📍 {$office['name']}\n{$office['address']}\n{$office['maps']}"];
+        $places = [['name' => $office['name'], 'address' => $office['address'], 'maps' => $office['maps']], ...($office['other_locations'] ?? [])];
 
-        foreach ($office['other_locations'] ?? [] as $name => $maps) {
-            $lines[] = "📍 {$name}\n{$maps}";
-        }
-
-        return implode("\n\n", $lines);
+        return collect($places)
+            ->map(fn (array $place) => "📍 {$place['name']}\n{$place['address']}\n{$place['maps']}")
+            ->implode("\n\n");
     }
 
     /** Jawaban dengan pembuka dan penutup gaya layanan informasi. */

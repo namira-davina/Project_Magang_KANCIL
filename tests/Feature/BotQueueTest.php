@@ -509,7 +509,12 @@ class BotQueueTest extends TestCase
             'menu 3' => ['3', 'Layanan Pengaduan (menu utama)'],
             'jawaban' => ['0>2', 'Pelayanan Paspor WNI › Persyaratan Paspor Baru'],
             'cek status' => ['0>10', 'Pelayanan Paspor WNI › Cek Status Paspor'],
-            'menu' => ['1>1', 'Pelayanan Izin Tinggal (For Foreigners) › Izin Tinggal (Residence Permit)'],
+            'menu tarif izin tinggal' => ['1>1', 'Tarif Izin Tinggal dan Visa'],
+            'jawaban ITK' => ['1>1>2', 'Tarif Izin Tinggal dan Visa › Izin Tinggal Kunjungan / ITK (Visit Stay Permit)'],
+            'jawaban WNA meninggal' => ['1>2>1', 'Pelaporan WNA Meninggal › Pelapor dan Batas Waktu (Reporter & Deadline)'],
+            'beda data (kunci stabil)' => ['0>12', 'Pelayanan Paspor WNI › Permohonan Paspor Beda Data'],
+            'penambahan nama (kunci stabil)' => ['0>9', 'Pelayanan Paspor WNI › Penambahan Nama pada Paspor'],
+            'lokasi' => ['1>3', 'Pelayanan Izin Tinggal (For Foreigners) › Lokasi Kami (Our Locations)'],
             'submenu paspor' => ['0', 'Pelayanan Paspor WNI'],
             'tidak dikenal' => ['9>9', '9>9'],
         ];

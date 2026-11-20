@@ -17,7 +17,7 @@ class FaqSyncCommandTest extends TestCase
     private function prodLikeState(): void
     {
         $this->seed(DatabaseSeeder::class);
-        Faq::whereIn('code', ['PSP-013', 'PSP-014', 'PSP-015'])->each(fn (Faq $faq) => $faq->keywords()->delete() && $faq->delete());
+        Faq::whereIn('code', ['PSP-013', 'PSP-014', 'PSP-015', 'PSP-016'])->each(fn (Faq $faq) => $faq->keywords()->delete() && $faq->delete());
         Faq::query()->update(['verification_status' => 'terverifikasi', 'is_active' => true]);
         Faq::where('code', 'AMB-004')->update(['answer' => "• Lama penyelesaian tidak tercantum\n• silakan hubungi petugas."]);
     }
@@ -31,7 +31,7 @@ class FaqSyncCommandTest extends TestCase
             ->expectsOutputToContain('+ PSP-013')
             ->expectsOutputToContain('~ AMB-004')
             ->expectsOutputToContain('(tidak diubah; pakai --reset-status)')
-            ->expectsOutputToContain('Dry-run (tidak ada perubahan): baru 3, isi 1, status 0, status beda (dibiarkan) 61, dilewati 0, sama 0')
+            ->expectsOutputToContain('Dry-run (tidak ada perubahan): baru 4, isi 1, status 0, status beda (dibiarkan) 61, dilewati 0, sama 0')
             ->assertSuccessful();
 
         $this->assertSame($before, Faq::orderBy('id')->get()->toArray());
@@ -43,7 +43,7 @@ class FaqSyncCommandTest extends TestCase
 
         $this->artisan('kancil:faq-sync --apply')->assertSuccessful();
 
-        $this->assertSame(64, Faq::count());
+        $this->assertSame(65, Faq::count());
         $this->assertStringContainsString('tidak tercantum; silakan hubungi petugas.', Faq::where('code', 'AMB-004')->value('answer'));
         $this->assertSame(61, Faq::published()->count(), 'Status lama dipertahankan tanpa --reset-status.');
 
@@ -53,7 +53,7 @@ class FaqSyncCommandTest extends TestCase
         $this->assertNotNull($new->category_id);
         $this->assertTrue(FaqKeyword::where('faq_id', $new->id)->where('keyword', 'psp-014')->exists());
 
-        $this->artisan('kancil:faq-sync')->expectsOutputToContain('baru 0, isi 0, status 0, status beda (dibiarkan) 61, dilewati 0, sama 3')->assertSuccessful();
+        $this->artisan('kancil:faq-sync')->expectsOutputToContain('baru 0, isi 0, status 0, status beda (dibiarkan) 61, dilewati 0, sama 4')->assertSuccessful();
     }
 
     public function test_dashboard_edits_are_protected_unless_forced(): void
@@ -76,7 +76,7 @@ class FaqSyncCommandTest extends TestCase
         $this->artisan('kancil:faq-sync --apply --reset-status')->assertSuccessful();
 
         $this->assertSame(0, Faq::published()->count());
-        $this->assertSame(64, Faq::where('verification_status', 'perlu_verifikasi')->where('is_active', false)->count());
+        $this->assertSame(65, Faq::where('verification_status', 'perlu_verifikasi')->where('is_active', false)->count());
     }
 
     public function test_reset_status_without_apply_is_still_dry_run(): void

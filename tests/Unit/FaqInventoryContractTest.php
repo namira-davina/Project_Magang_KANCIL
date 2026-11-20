@@ -13,7 +13,6 @@ class FaqInventoryContractTest extends TestCase
 {
     /** Deviasi terdokumentasi: isi 3.1 tetap utuh di awal, lalu ada tambahan yang disebutkan. */
     private const APPENDED = [
-        'PSP-011' => 'sipantas.kanimcilacap.com', // feedback user 2: BAP online SIPANTAS
         'TRF-003' => 'sipantas.kanimcilacap.com',
     ];
 
@@ -23,10 +22,12 @@ class FaqInventoryContractTest extends TestCase
      */
     private const REPLACED = [
         'PSP-002' => ['ktp elektronik', 'kartu keluarga', 'akta lahir / ijazah / buku nikah', 'paspor lama'],
+        // Feedback user 3 (20 Nov sore): syarat paspor hilang mengikuti SIPANTAS (screenshot WA0034).
+        'PSP-011' => ['kartu tanda penduduk (ktp)', 'kartu keluarga', 'surat kehilangan (kepolisian)', 'akte / ijazah / surat nikah', 'dokumen pendukung lainnya', 'paspor lama', 'sipantas.kanimcilacap.com'],
     ];
 
     /** FAQ baru di luar 3.1 (jawaban menu Bogor yang belum ada di inventaris). */
-    private const EXTRA = ['PSP-013', 'PSP-014', 'PSP-015'];
+    private const EXTRA = ['PSP-013', 'PSP-014', 'PSP-015', 'PSP-016'];
 
     private static function inventory(): array
     {

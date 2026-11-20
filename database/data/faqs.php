@@ -2,7 +2,8 @@
 
 // Sumber: Dokumen Inventarisasi FAQ 3.1 (30 Okt 2026), 61 FAQ; dikalibrasi ulang 20 Nov 2026 (audit).
 // Isi wajib sama dengan 3.1 (dikunci tests/Unit/FaqInventoryContractTest). Deviasi terdokumentasi (feedback user 2,
-// 20 Nov, lebih baru dari 3.1): PSP-011/TRF-003 ditambah info SIPANTAS; PSP-002 syarat penggantian ditambah KK + akta; PSP-013..015 = jawaban menu Bogor di luar 3.1 (perlu verifikasi).
+// 20 Nov, lebih baru dari 3.1): PSP-011/TRF-003 ditambah info SIPANTAS; PSP-002 syarat penggantian ditambah KK + akta; PSP-013..016 = jawaban menu Bogor di luar 3.1 (perlu verifikasi).
+// Feedback user 3 (20 Nov sore): PSP-011/014/016 syarat SIPANTAS; angka PNBP tidak ditulis di FAQ menu (blok PNBP terpisah).
 // Data awal untuk FaqSeeder / kancil:faq-sync; setelah seeding, FAQ dikelola lewat dashboard.
 
 return [
@@ -152,15 +153,16 @@ Bawa berkas asli dan fotokopi ukuran A4.',
         'code' => 'PSP-011',
         'group' => 'Permohonan Paspor WNI',
         'question' => 'Apa syarat membuat paspor yang hilang?',
-        'answer' => '*Persyaratan:*
-• KTP elektronik
-• Kartu Keluarga
-• Akta lahir / ijazah / buku nikah
-• Surat keterangan kehilangan dari kepolisian setempat
-• Fotokopi paspor lama (dapat diminta ke kantor imigrasi yang menerbitkan).
-Bawa berkas asli dan fotokopi ukuran A4. Denda paspor hilang Rp1.000.000.
+        'answer' => 'Permohonan paspor hilang tidak melalui aplikasi M-Paspor. Daftar dan unggah dokumen melalui https://sipantas.kanimcilacap.com/, lalu datang ke kantor imigrasi setelah permohonan terverifikasi oleh petugas.
 
-Berita Acara Pemeriksaan (BAP) diajukan online melalui https://sipantas.kanimcilacap.com/. Pemohon wajib datang ke kantor imigrasi setelah permohonan terverifikasi oleh petugas.',
+*Persyaratan:*
+• Kartu Tanda Penduduk (KTP)
+• Kartu Keluarga
+• Surat kehilangan (kepolisian)
+• Akte / ijazah / surat nikah (terdapat tanggal, bulan, dan tahun lahir)
+• Dokumen pendukung lainnya (rekomendasi biro umrah / BPIH, dokumen pelaut, rekomendasi perusahaan / LPK / kontrak kerja, lainnya)
+• Paspor lama
+Bawa berkas asli dan fotokopi ukuran A4.',
         'menu_path' => '0>1>5',
         'status' => 'perlu_verifikasi',
     ],
@@ -419,7 +421,7 @@ Simpan bukti pembayaran.',
         'question' => 'Berapa denda paspor hilang dan paspor rusak?',
         'answer' => '• Denda paspor hilang: Rp1.000.000
 • Denda paspor rusak: Rp500.000.
-Berita Acara Pemeriksaan (BAP) paspor hilang, rusak, dan penambahan nama dapat diajukan online melalui https://sipantas.kanimcilacap.com/.',
+Berita Acara Pemeriksaan (BAP) paspor hilang, rusak, dan beda data dapat diajukan online melalui https://sipantas.kanimcilacap.com/.',
         'menu_path' => '0>6',
         'status' => 'perlu_verifikasi',
     ],
@@ -689,22 +691,18 @@ Kesalahan pengisian data dapat menyebabkan permohonan dibatalkan dan biaya tidak
         'code' => 'PSP-014',
         'group' => 'Permohonan Paspor WNI',
         'question' => 'Apa syarat permohonan paspor yang rusak?',
-        'answer' => 'Permohonan paspor rusak tidak melalui aplikasi M-Paspor. Berita Acara Pemeriksaan (BAP) diajukan online melalui https://sipantas.kanimcilacap.com/. Pemohon wajib datang ke kantor imigrasi setelah permohonan terverifikasi oleh petugas.
+        'answer' => 'Permohonan paspor rusak tidak melalui aplikasi M-Paspor. Daftar dan unggah dokumen melalui https://sipantas.kanimcilacap.com/, lalu datang ke kantor imigrasi setelah permohonan terverifikasi oleh petugas.
 
 *Persyaratan:*
-• KTP elektronik
+• Kartu Tanda Penduduk (KTP)
 • Kartu Keluarga
-• Akta lahir / ijazah / buku nikah
-• Paspor lama yang rusak
-• Meterai Rp10.000
-Bawa berkas asli dan fotokopi ukuran A4.
-
-*PNBP (termasuk denda paspor rusak Rp500.000):*
-• 5 tahun: Rp1.150.000
-• 10 tahun: Rp1.450.000',
+• Akte / ijazah / surat nikah (terdapat tanggal, bulan, dan tahun lahir)
+• Dokumen pendukung lainnya (rekomendasi biro umrah / BPIH, dokumen pelaut, rekomendasi perusahaan / LPK / kontrak kerja, lainnya)
+• Paspor lama
+Bawa berkas asli dan fotokopi ukuran A4.',
         'menu_path' => '1>8 (menu Bogor)',
         'status' => 'perlu_verifikasi',
-        'source' => 'Menu Bogor + feedback user 2 (SIPANTAS), di luar Inventarisasi 3.1',
+        'source' => 'Feedback user 3 + syarat SIPANTAS (20 Nov), di luar Inventarisasi 3.1',
     ],
     [
         'code' => 'PSP-015',
@@ -717,9 +715,27 @@ Bawa berkas asli dan fotokopi ukuran A4.
 • Akta lahir / ijazah / buku nikah
 • Surat rekomendasi travel (umrah) atau BPIH (haji)
 • Meterai Rp10.000
-Berita Acara Pemeriksaan (BAP) penambahan nama diajukan online melalui https://sipantas.kanimcilacap.com/. Pemohon wajib datang ke kantor imigrasi dengan membawa dokumen asli dan fotokopi A4 utuh.',
+Pemohon wajib datang langsung ke kantor imigrasi dengan membawa dokumen asli dan fotokopi A4 utuh.',
+        'menu_path' => '1>10 (menu Bogor)',
+        'status' => 'perlu_verifikasi',
+        'source' => 'Menu Bogor (feedback user 1), di luar Inventarisasi 3.1',
+    ],
+    [
+        'code' => 'PSP-016',
+        'group' => 'Permohonan Paspor WNI',
+        'question' => 'Apa syarat permohonan paspor beda data?',
+        'answer' => 'Permohonan paspor beda data (data paspor lama berbeda dengan dokumen kependudukan) tidak melalui aplikasi M-Paspor. Daftar dan unggah dokumen melalui https://sipantas.kanimcilacap.com/, lalu datang ke kantor imigrasi setelah permohonan terverifikasi oleh petugas.
+
+*Persyaratan:*
+• Kartu Tanda Penduduk (KTP)
+• Kartu Keluarga
+• Akte / ijazah / surat nikah (terdapat tanggal, bulan, dan tahun lahir)
+• Dokumen pendukung lainnya (rekomendasi biro umrah / BPIH, dokumen pelaut, rekomendasi perusahaan / LPK / kontrak kerja, lainnya)
+• Paspor lama
+• Penetapan pengadilan
+Bawa berkas asli dan fotokopi ukuran A4.',
         'menu_path' => '1>9 (menu Bogor)',
         'status' => 'perlu_verifikasi',
-        'source' => 'Menu Bogor + feedback user 2 (SIPANTAS), di luar Inventarisasi 3.1',
+        'source' => 'Feedback user 3 + syarat SIPANTAS (20 Nov), di luar Inventarisasi 3.1',
     ],
 ];

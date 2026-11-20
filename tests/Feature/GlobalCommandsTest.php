@@ -23,6 +23,7 @@ class GlobalCommandsTest extends TestCase
         $this->atOfficeHours();
         $this->configureIntegration('laravel');
         $this->seedFaqs();
+        $this->holdFaq('PSP-016'); // Beda Data belum diverifikasi: jawaban = Pesan 5
     }
 
     protected function tearDown(): void
@@ -39,9 +40,13 @@ class GlobalCommandsTest extends TestCase
             'menu paspor' => [['1']],
             'menu izin tinggal' => [['2']],
             'setelah jawaban' => [['1', '2']],
-            'setelah jawaban tertahan (Pesan 5)' => [['1', '5']],
+            'setelah jawaban tertahan (Pesan 5)' => [['1', '9']], // PSP-016 ditahan di setUp
             'setelah lokasi' => [['2', '3']],
-            'cek status paspor' => [['1', '10']],
+            'cek status paspor' => [['1', '11']],
+            'cek status: pilih tempat' => [['1', '11', '1498000000012345']],
+            'menu tarif izin tinggal' => [['2', '1']],
+            'menu pelaporan WNA meninggal' => [['2', '2']],
+            'setelah jawaban tarif ITAS' => [['2', '1', '3']],
             'setelah 1x salah input' => [['1', 'xyz']],
             'setelah MSG-03' => [['abc', 'def', 'ghi']],
         ];

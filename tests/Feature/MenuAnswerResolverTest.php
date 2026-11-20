@@ -41,9 +41,9 @@ class MenuAnswerResolverTest extends TestCase
     {
         $this->seedFaqs();
 
-        $answer = $this->resolver()->resolve('0>2');
+        $answer = $this->resolver()->resolve('1>2>2');
 
-        $this->assertSame(trim(Faq::where('code', 'PSP-001')->value('answer')), $answer['text']);
+        $this->assertSame(trim(Faq::where('code', 'WNA-003')->value('answer')), $answer['text']);
     }
 
     public function test_seeded_data_is_held_until_verified(): void
@@ -86,7 +86,27 @@ class MenuAnswerResolverTest extends TestCase
         $this->seedFaqs();
         Faq::where('code', 'PSP-001')->update(['answer' => 'Teks baru dari dashboard.']);
 
-        $this->assertSame('Teks baru dari dashboard.', $this->resolver()->resolve('0>2')['text']);
+        $this->assertStringStartsWith("Teks baru dari dashboard.\n\n*PNBP (PP Nomor 45 Tahun 2024):*", $this->resolver()->resolve('0>2')['text']);
+    }
+
+    public function test_pnbp_block_follows_answer_and_is_gated_by_tariff_faq(): void
+    {
+        $this->seedFaqs();
+
+        $this->assertStringEndsWith(
+            "*PNBP (PP Nomor 45 Tahun 2024):*\n• Paspor elektronik 5 tahun: Rp650.000\n• Paspor elektronik 10 tahun: Rp950.000\n• Denda paspor rusak: Rp500.000",
+            $this->resolver()->resolve('0>8')['text'],
+        );
+
+        // Tarif dasar belum terverifikasi: jawaban yang menampilkan PNBP ikut tertahan (Pesan 5), yang tidak memakai PNBP tetap tampil.
+        Faq::where('code', 'TRF-002')->update(['verification_status' => 'perlu_verifikasi', 'is_active' => false]);
+        $this->assertTrue($this->resolver()->resolve('0>8')['held']);
+        $this->assertTrue($this->resolver()->resolve('0>2')['held']);
+        $this->assertFalse($this->resolver()->resolve('0>4')['held'], 'Paspor anak hanya memakai tarif 5 tahun (TRF-001).');
+        $this->assertFalse($this->resolver()->resolve('1>2>3')['held']);
+
+        Faq::where('code', 'TRF-003')->update(['verification_status' => 'perlu_verifikasi', 'is_active' => false]);
+        $this->assertTrue($this->resolver()->resolve('0>7')['held'], 'Denda hilang bersumber TRF-003.');
     }
 
     public function test_unknown_path_throws(): void

@@ -50,10 +50,47 @@ return [
         'name' => 'Kantor Imigrasi Kelas I TPI Cilacap',
         'address' => 'Jl. Urip Sumoharjo No.249, Pantusan, Gumilir, Kec. Cilacap Utara, Kabupaten Cilacap, Jawa Tengah 53231',
         'maps' => 'https://maps.app.goo.gl/nsSRkK4pQqpF6rHM6',
-        // Lokasi layanan paspor lain (nama => tautan peta).
+        // Lokasi layanan paspor lain (feedback Imigrasi 20-21 Nov), format sama dengan kantor: nama, alamat, peta.
         'other_locations' => [
-            'Mal Pelayanan Publik (MPP) Cilacap' => 'https://maps.app.goo.gl/8JoubSb8oX5GQ1NQ9',
+            [
+                'name' => 'Mal Pelayanan Publik (MPP) Cilacap',
+                'address' => 'Jl. Gatot Subroto No.268 Lantai 2, Karang Lor, Gunungsimping, Kec. Cilacap Tengah, Kabupaten Cilacap, Jawa Tengah 53224',
+                'maps' => 'https://maps.app.goo.gl/8nMhuDQmjkW56mnE9',
+            ],
+            [
+                'name' => 'Mal Pelayanan Publik (MPP) Banyumas',
+                'address' => 'Jl. Dr. Angka No.45, Karangkobar, Sokanegara, Kec. Purwokerto Tim., Kabupaten Banyumas, Jawa Tengah 53115',
+                'maps' => 'https://maps.app.goo.gl/9NsKFWBDHz8kRGRi6',
+            ],
+            [
+                'name' => 'Mal Pelayanan Publik (MPP) Purbalingga',
+                'address' => 'Jl. Raya Mayjen Sungkono No. 16, Selabaya, Kecamatan Kalimanah, Kabupaten Purbalingga, Jawa Tengah 53371',
+                'maps' => 'https://maps.app.goo.gl/wFeYgwqUDX7Byi31A',
+            ],
         ],
+    ],
+
+    // Tarif PNBP paspor (PP Nomor 45 Tahun 2024). Feedback Imigrasi 20 Nov: ditampilkan terpisah per komponen,
+    // tidak pernah dijumlahkan. Angka wajib sama dengan FAQ TRF-001..004 (dikunci tests/Unit/PnbpConsistencyTest).
+    'pnbp' => [
+        'legal_basis' => 'PP Nomor 45 Tahun 2024',
+        'items' => [
+            'paspor_5' => ['label' => 'Paspor elektronik 5 tahun', 'amount' => 650000, 'faq' => 'TRF-001'],
+            'paspor_10' => ['label' => 'Paspor elektronik 10 tahun', 'amount' => 950000, 'faq' => 'TRF-002'],
+            'denda_hilang' => ['label' => 'Denda paspor hilang', 'amount' => 1000000, 'faq' => 'TRF-003'],
+            'denda_rusak' => ['label' => 'Denda paspor rusak', 'amount' => 500000, 'faq' => 'TRF-003'],
+            'percepatan' => ['label' => 'Layanan percepatan (opsional)', 'amount' => 1000000, 'faq' => 'TRF-004'],
+        ],
+    ],
+
+    // Tempat permohonan untuk Cek Status Paspor (feedback Imigrasi 20 Nov). Kunci = angka pilihan; 'match' = kata kunci
+    // untuk mengenali tempat bila pemohon mengetik nomor + nama tempat dalam satu pesan.
+    'application_places' => [
+        '1' => ['label' => 'Imigrasi Cilacap', 'match' => ['imigrasi cilacap', 'kanim cilacap', 'kantor imigrasi', 'kanim', 'cilacap']],
+        '2' => ['label' => 'MPP Banyumas', 'match' => ['mpp banyumas', 'mpp purwokerto', 'mpp bms']],
+        '3' => ['label' => 'MPP Purbalingga', 'match' => ['mpp purbalingga', 'mpp pbg']],
+        '4' => ['label' => 'Ngapak Banyumas', 'match' => ['ngapak banyumas', 'kancil ngapak banyumas', 'ngapak bms']],
+        '5' => ['label' => 'Ngapak Purbalingga', 'match' => ['ngapak purbalingga', 'kancil ngapak purbalingga', 'ngapak pbg']],
     ],
 
     'complaint' => [

@@ -26,8 +26,8 @@ class FaqIntegrationTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        $this->assertSame(64, Faq::count());
-        $this->assertSame(64, Faq::where('verification_status', 'perlu_verifikasi')->where('is_active', false)->count());
+        $this->assertSame(65, Faq::count());
+        $this->assertSame(65, Faq::where('verification_status', 'perlu_verifikasi')->where('is_active', false)->count());
         $this->assertSame(0, Faq::published()->count());
 
         $psp = Faq::where('code', 'PSP-001')->sole();
@@ -53,7 +53,7 @@ class FaqIntegrationTest extends TestCase
         $faq = Faq::where('code', 'PSP-001')->sole();
         $this->assertTrue($faq->isPublished());
         $this->assertSame('Dikoreksi petugas', $faq->answer);
-        $this->assertSame(64, Faq::count());
+        $this->assertSame(65, Faq::count());
         $this->assertSame($keywords, FaqKeyword::count());
     }
 
@@ -99,7 +99,7 @@ class FaqIntegrationTest extends TestCase
         $this->actingAs(User::where('username', 'admin')->sole());
 
         $this->get(route('faq.index'))->assertOk()
-            ->assertSee('Menampilkan 1 - 6 dari 64 entri')
+            ->assertSee('Menampilkan 1 - 6 dari 65 entri')
             ->assertDontSee('dari 42 entri');
 
         $js = file_get_contents(public_path('js/faq.js'));
@@ -116,7 +116,7 @@ class FaqIntegrationTest extends TestCase
         $html = $this->get(route('faq.index'))->assertOk()->getContent();
 
         $this->assertSame(1, substr_count($html, '● Aktif<'));
-        $this->assertSame(63, substr_count($html, 'Perlu Verifikasi</span>') + substr_count($html, "● Perlu Verifikasi\n"));
+        $this->assertSame(64, substr_count($html, 'Perlu Verifikasi</span>') + substr_count($html, "● Perlu Verifikasi\n"));
     }
 
     public function test_integration_schema(): void

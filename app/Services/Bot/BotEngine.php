@@ -173,7 +173,7 @@ class BotEngine
 
     private static function freshState(): array
     {
-        return ['menu' => 'M-00', 'pgd' => null, 'status' => false, 'queued' => false, 'answer' => null, 'shown' => false, 'invalid' => 0, 'after_msg03' => false, 'complaint' => null];
+        return ['menu' => 'M-00', 'pgd' => null, 'status' => false, 'queued' => false, 'status_number' => null, 'answer' => null, 'shown' => false, 'invalid' => 0, 'after_msg03' => false, 'complaint' => null];
     }
 
     // ---------------------------------------------------------------- menu
@@ -224,6 +224,7 @@ class BotEngine
 
         if (str_starts_with($target, 'STATUS:')) {
             $this->state['status'] = true;
+            $this->state['status_number'] = null;
             $this->state['answer'] = null;
 
             return [$this->reply(BotScript::statusPrompt(), ['STATUS'])];
@@ -244,6 +245,7 @@ class BotEngine
         $this->state['menu'] = $code;
         $this->state['answer'] = null;
         $this->state['status'] = false;
+        $this->state['status_number'] = null;
 
         if ($code === 'M-00') {
             return $this->reply($this->mainMenuText(), ['M-00']);
@@ -280,8 +282,10 @@ class BotEngine
     }
 
     /**
-     * Cek Status Paspor: pemohon mengetik nomor permohonan; hasilnya dibalas petugas lewat antrean
-     * (kantor Cilacap tidak punya akses otomatis ke sistem status paspor).
+     * Cek Status Paspor (kantor Cilacap tidak punya akses otomatis ke sistem status paspor; petugas membalas lewat antrean):
+     *  langkah 1  nomor permohonan (boleh sekaligus dengan nama tempat, mis. "1498... MPP Banyumas")
+     *  langkah 2  tempat permohonan 1-5 (feedback Imigrasi 20 Nov)
+     * 0/99/menu = menu utama, 88 = petugas di kedua langkah.
      *
      * @return list<BotReply>
      */
@@ -294,20 +298,63 @@ class BotEngine
         // Skenario 3.2: 88 = hubungi petugas dari menu mana pun (termasuk saat diminta nomor permohonan).
         if ($command === '88') {
             $this->state['status'] = false;
+            $this->state['status_number'] = null;
 
             return [$this->escalate(viaMenu: false)];
         }
 
-        $number = preg_replace('/\s+/', '', $text);
+        if ($number = $this->state['status_number'] ?? null) {
+            $place = config("kancil.application_places.{$command}.label") ?? self::applicationPlace($text)[0];
+
+            return $place ? [$this->queueStatusCheck($number, $place)] : [$this->invalidInput($text)];
+        }
+
+        [$place, $rest] = self::applicationPlace($text);
+        // Dengan nama tempat: ambil semua digit ("1498... tempat MPP Banyumas"); tanpa tempat: hanya angka (+ spasi/titik/strip).
+        $number = $place ? preg_replace('/\D+/', '', $rest) : preg_replace('/[\s.\-]+/', '', $rest);
 
         if (! preg_match('/^\d{10,25}$/', $number)) {
             return [$this->invalidInput($text)];
         }
 
-        $log = $this->escalations->record($this->conversation, 'A2', "Cek status paspor, no. permohonan {$number}.", null, '0>10');
-        $ticket = $this->enqueue($log, "Cek status paspor, no. permohonan {$number}");
+        if ($place) {
+            return [$this->queueStatusCheck($number, $place)];
+        }
 
-        return [$this->reply($this->handoffText($ticket), ['STATUS', 'LYN', ...$this->outsideHoursCodes()])];
+        $this->validInput();
+        $this->state['status_number'] = $number;
+
+        return [$this->reply(BotScript::placePrompt($number), ['STATUS-PLACE'])];
+    }
+
+    private function queueStatusCheck(string $number, string $place): BotReply
+    {
+        $summary = "Cek status paspor, no. permohonan {$number}, tempat permohonan {$place}";
+        $log = $this->escalations->record($this->conversation, 'A2', $summary.'.', null, '0>10');
+        $ticket = $this->enqueue($log, $summary);
+
+        return $this->reply($this->handoffText($ticket), ['STATUS', 'LYN', ...$this->outsideHoursCodes()]);
+    }
+
+    /**
+     * Kenali tempat permohonan dalam teks bebas (kata kunci terpanjang menang, mis. "ngapak banyumas" sebelum "banyumas").
+     *
+     * @return array{0: string|null, 1: string} [label tempat atau null, sisa teks tanpa kata kunci]
+     */
+    public static function applicationPlace(string $text): array
+    {
+        $lower = mb_strtolower($text);
+        $candidates = collect(config('kancil.application_places'))
+            ->flatMap(fn ($place) => collect($place['match'])->map(fn ($keyword) => [$keyword, $place['label']]))
+            ->sortByDesc(fn ($pair) => mb_strlen($pair[0]));
+
+        foreach ($candidates as [$keyword, $label]) {
+            if (preg_match('/\b'.preg_quote($keyword, '/').'\b/u', $lower)) {
+                return [$label, trim(preg_replace('/\b'.preg_quote($keyword, '/').'\b/u', ' ', $lower))];
+            }
+        }
+
+        return [null, $text];
     }
 
     // ---------------------------------------------------------------- eskalasi
@@ -769,7 +816,7 @@ class BotEngine
         }
 
         if ($this->state['status'] ?? false) {
-            return BotScript::statusPrompt();
+            return ($number = $this->state['status_number'] ?? null) ? BotScript::placePrompt($number) : BotScript::statusPrompt();
         }
 
         if ($this->state['answer'] ?? null) {

@@ -140,20 +140,20 @@ test.describe.serial('Audit 20 Nov: antrean → pengaduan → tindak lanjut', ()
 
         await page.goto('/faq');
         const info = page.locator('#faqDataInfo');
-        await expect(info).toHaveText('Menampilkan 1 - 6 dari 64 entri');
+        await expect(info).toHaveText('Menampilkan 1 - 6 dari 65 entri');
 
         const pages = page.locator('#faqPagination .btn-page-num');
-        await expect(pages).toHaveCount(11); // 64 FAQ / 6 per halaman
+        await expect(pages).toHaveCount(11); // 65 FAQ / 6 per halaman
         await expect(page.locator('#faqPagination .pagination-ellipsis')).toHaveCount(0);
 
         await pages.last().click();
-        await expect(info).toHaveText('Menampilkan 61 - 64 dari 64 entri');
+        await expect(info).toHaveText('Menampilkan 61 - 65 dari 65 entri');
         expect(unexpectedAlert).toBeNull();
 
         await page.locator('#faqStatusFilter').selectOption('Perlu Verifikasi');
-        await expect(info).toHaveText('Menampilkan 1 - 3 dari 3 entri'); // PSP-013..015
+        await expect(info).toHaveText('Menampilkan 1 - 4 dari 4 entri'); // PSP-013..016
         const visible = page.locator('#faqTableBody tr.faq-row:visible');
-        await expect(visible).toHaveCount(3);
+        await expect(visible).toHaveCount(4);
         await expect(visible.filter({ hasText: 'Apa syarat permohonan paspor yang rusak?' })).toHaveCount(1);
     });
 });

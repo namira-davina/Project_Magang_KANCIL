@@ -44,7 +44,8 @@ class ExcelMatrixTest extends TestCase
     public static function excelPaths(): array
     {
         $cases = [];
-        $answers = ['1' => '0>1', '2' => '0>2', '3' => '0>3', '4' => '0>4', '5' => '0>5', '6' => '0>6', '7' => '0>7', '8' => '0>8', '9' => '0>9'];
+        // Menu Paspor setelah feedback Imigrasi 20 Nov: 9 = Beda Data (kunci 0>12), 10 = Penambahan Nama (kunci 0>9).
+        $answers = ['1' => '0>1', '2' => '0>2', '3' => '0>3', '4' => '0>4', '5' => '0>5', '6' => '0>6', '7' => '0>7', '8' => '0>8', '9' => '0>12', '10' => '0>9'];
 
         // Menu 1 (Paspor) → topik 0 = menu utama
         $cases['1 > 0'] = [['1', '0'], ['M-01', 'M-00']];
@@ -57,23 +58,37 @@ class ExcelMatrixTest extends TestCase
         }
 
         $cases['1 > 1 > 2 (angka lain setelah jawaban)'] = [['1', '1', '2'], ['M-01', 'ANS-0>1', 'MSG-01']];
-        $cases['1 > 10 (cek status) > 0'] = [['1', '10', '0'], ['M-01', 'STATUS', 'M-00']];
-        $cases['1 > 10 > nomor permohonan'] = [['1', '10', '1498000000012345'], ['M-01', 'STATUS', 'STATUS']];
-        $cases['1 > 11 (kembali)'] = [['1', '11'], ['M-01', 'M-00']];
+        $cases['1 > 11 (cek status) > 0'] = [['1', '11', '0'], ['M-01', 'STATUS', 'M-00']];
+        $cases['1 > 11 > nomor > tempat 2'] = [['1', '11', '1498000000012345', '2'], ['M-01', 'STATUS', 'STATUS-PLACE', 'STATUS']];
+        $cases['1 > 11 > nomor > 0'] = [['1', '11', '1498000000012345', '0'], ['M-01', 'STATUS', 'STATUS-PLACE', 'M-00']];
+        $cases['1 > 11 > nomor + tempat (1 pesan)'] = [['1', '11', '1498000000012345 MPP Banyumas'], ['M-01', 'STATUS', 'STATUS']];
+        $cases['1 > 12 (kembali)'] = [['1', '12'], ['M-01', 'M-00']];
 
-        // Menu 2 (Izin Tinggal)
+        // Menu 2 (Izin Tinggal, Skenario 3.2)
         $cases['2 > 0'] = [['2', '0'], ['M-08', 'M-00']];
-        $cases['2 > 1 (izin tinggal) > 0'] = [['2', '1', '0'], ['M-08', 'ESK-01', 'M-00']];
-        $cases['2 > 1 > 1 (cek posisi)'] = [['2', '1', '1'], ['M-08', 'ESK-01', 'LYN-STATUS']];
-        $cases['2 > 1 > 2 (batal)'] = [['2', '1', '2'], ['M-08', 'ESK-01', 'LYN-BATAL']];
-        $cases['2 > 2 (pengaduan WNA) > 0'] = [['2', '2', '0'], ['M-08', 'ESK-01', 'M-00']];
-        $cases['2 > 2 > 1'] = [['2', '2', '1'], ['M-08', 'ESK-01', 'LYN-STATUS']];
-        $cases['2 > 2 > 2'] = [['2', '2', '2'], ['M-08', 'ESK-01', 'LYN-BATAL']];
+        $cases['2 > 4 (kembali)'] = [['2', '4'], ['M-08', 'M-00']];
+        $cases['2 > 1 > 0'] = [['2', '1', '0'], ['M-08', 'M-09', 'M-00']];
+        $cases['2 > 1 > 7 (kembali) > 4'] = [['2', '1', '7', '4'], ['M-08', 'M-09', 'M-08', 'M-00']];
+
+        foreach (range(1, 6) as $option) {
+            $path = "1>1>{$option}";
+            $cases["2 > 1 > {$option} > 0"] = [['2', '1', (string) $option, '0'], ['M-08', 'M-09', 'ANS-'.$path, 'M-00']];
+            $cases["2 > 1 > {$option} > 1 (petugas) > 2"] = [['2', '1', (string) $option, '1', '2'], ['M-08', 'M-09', 'ANS-'.$path, 'ESK-01', 'LYN-BATAL']];
+        }
+
+        $cases['2 > 2 > 0'] = [['2', '2', '0'], ['M-08', 'M-10', 'M-00']];
+        $cases['2 > 2 > 4 (kembali) > 4'] = [['2', '2', '4', '4'], ['M-08', 'M-10', 'M-08', 'M-00']];
+
+        foreach (range(1, 3) as $option) {
+            $path = "1>2>{$option}";
+            $cases["2 > 2 > {$option} > 0"] = [['2', '2', (string) $option, '0'], ['M-08', 'M-10', 'ANS-'.$path, 'M-00']];
+            $cases["2 > 2 > {$option} > 1 (petugas) > 1"] = [['2', '2', (string) $option, '1', '1'], ['M-08', 'M-10', 'ANS-'.$path, 'ESK-01', 'LYN-STATUS']];
+        }
+
         $cases['2 > 3 (lokasi) > 0'] = [['2', '3', '0'], ['M-08', 'ANS-1>3', 'M-00']];
         $cases['2 > 3 > 1 > 0'] = [['2', '3', '1', '0'], ['M-08', 'ANS-1>3', 'ESK-01', 'M-00']];
         $cases['2 > 3 > 1 > 1'] = [['2', '3', '1', '1'], ['M-08', 'ANS-1>3', 'ESK-01', 'LYN-STATUS']];
         $cases['2 > 3 > 1 > 2'] = [['2', '3', '1', '2'], ['M-08', 'ANS-1>3', 'ESK-01', 'LYN-BATAL']];
-        $cases['2 > 4 (kembali)'] = [['2', '4'], ['M-08', 'M-00']];
 
         // Menu 3 (Pengaduan = antrean petugas)
         $cases['3 > 0'] = [['3', '0'], ['ESK-01', 'M-00']];
@@ -134,7 +149,7 @@ class ExcelMatrixTest extends TestCase
         // Satu sesi panjang seperti penguji: 1>7>0, lalu 1>8>0, lalu 1>7>1>0, lalu 1>8>1>2.
         $this->send('Halo');
 
-        foreach ([['1', '7', '0'], ['1', '8', '0'], ['1', '7', '1', '0'], ['1', '8', '1', '2']] as $path) {
+        foreach ([['1', '7', '0'], ['1', '8', '0'], ['1', '7', '1', '0'], ['1', '8', '1', '2'], ['1', '9', '0'], ['2', '1', '3', '0']] as $path) {
             foreach ($path as $input) {
                 $this->assertCount(1, $this->send($input), implode('>', $path)." input {$input}");
             }
