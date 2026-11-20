@@ -20,3 +20,9 @@ pnpm-debug.log*
 /.nova
 /.vscode
 /.zed
+
+# E2E (Playwright)
+/database/e2e.sqlite
+/test-results
+/playwright-report
+/blob-report
