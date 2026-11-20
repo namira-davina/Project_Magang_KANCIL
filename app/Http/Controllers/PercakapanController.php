@@ -14,12 +14,16 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Inbox percakapan WhatsApp dan simulasi: daftar thread, riwayat pesan, dan balas petugas.
+ */
 class PercakapanController extends Controller
 {
     private const LIMIT = 100;
 
     public function __construct(private readonly TicketQueueService $tickets) {}
 
+    /** Tampilkan halaman inbox percakapan petugas. */
     public function index(Request $request)
     {
         return view('percakapan.index', [

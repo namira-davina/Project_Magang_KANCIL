@@ -12,6 +12,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
+/**
+ * Pengelolaan tiket pengaduan warga (ADU): daftar, detail, dan tindak lanjut tanggapan.
+ */
 class PengaduanController extends Controller
 {
     public function __construct(private readonly ComplaintService $complaints) {}

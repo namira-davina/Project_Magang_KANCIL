@@ -8,11 +8,14 @@ use App\Services\FaqService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Pengelolaan basis pengetahuan FAQ bot KANCIL SAPA beserta kategori dan status verifikasi.
+ */
 class FaqController extends Controller
 {
     public function __construct(private readonly FaqService $faqs) {}
 
-    // Menampilkan daftar FAQ
+    /** Menampilkan daftar seluruh FAQ beserta nama kategori. */
     public function index()
     {
         $faqs = DB::table('faqs')

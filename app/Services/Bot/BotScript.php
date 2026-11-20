@@ -13,8 +13,10 @@ use Illuminate\Support\Carbon;
  */
 final class BotScript
 {
+    /** Footer navigasi standar pada setiap menu bertingkat. */
     public const FOOTER = "Ketik *9* untuk kembali ke menu sebelumnya\nKetik *0* untuk kembali ke menu utama";
 
+    /** Pemisah visual antara isi jawaban dan footer aksi. */
     public const DIVIDER = '------------------------';
 
     /** Pilihan pemohon selama menunggu Petugas (bot tetap aktif, tidak diam). */

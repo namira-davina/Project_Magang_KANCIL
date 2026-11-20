@@ -19,6 +19,8 @@ class Conversation extends Model
 
     public const MODE_CLOSED = 'CLOSED';
 
+    private const FALLBACK_CODE_PREFIX = 'KS-';
+
     protected $fillable = [
         'wa_chat_id',
         'device_key',
@@ -49,7 +51,7 @@ class Conversation extends Model
     /** Kode tampilan di dashboard, mis. KS-00012. */
     public function displayCode(): string
     {
-        return $this->ticket_number ?: 'KS-'.str_pad((string) $this->id, 5, '0', STR_PAD_LEFT);
+        return $this->ticket_number ?: self::FALLBACK_CODE_PREFIX.str_pad((string) $this->id, 5, '0', STR_PAD_LEFT);
     }
 
     /** Pemohon di antrean petugas: bot diam sampai petugas membalas atau batas tunggu habis. */
