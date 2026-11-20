@@ -15,7 +15,12 @@ return [
         'code' => 'PSP-002',
         'group' => 'Permohonan Paspor WNI',
         'question' => 'Apa saja persyaratan untuk penggantian paspor?',
-        'answer' => 'Untuk paspor terbitan tahun 2009 ke atas dan paspor terbitan luar negeri, cukup melampirkan KTP elektronik dan paspor lama.',
+        'answer' => '*Persyaratan:*
+• KTP elektronik
+• Kartu Keluarga
+• Akta lahir / ijazah / buku nikah
+• Paspor lama
+Daftar terlebih dahulu melalui aplikasi M-Paspor.',
         'menu_path' => '0>1>2',
     ],
     [
@@ -141,7 +146,7 @@ Bawa berkas asli dan fotokopi ukuran A4.',
 • Akta lahir / ijazah / buku nikah
 • Surat keterangan kehilangan dari kepolisian setempat
 • Fotokopi paspor lama (dapat diminta ke kantor imigrasi yang menerbitkan).
-Bawa berkas asli dan fotokopi ukuran A4. Denda paspor hilang Rp1.000.000.',
+Berita Acara Pemeriksaan (BAP) diajukan online melalui https://sipantas.kanimcilacap.com/. Pemohon wajib datang ke kantor imigrasi setelah permohonan terverifikasi oleh petugas, dengan membawa berkas asli dan fotokopi ukuran A4. Denda paspor hilang Rp1.000.000.',
         'menu_path' => '0>1>5',
     ],
     [
@@ -368,7 +373,8 @@ Simpan bukti pembayaran.',
         'group' => 'Tarif PNBP',
         'question' => 'Berapa denda paspor hilang dan paspor rusak?',
         'answer' => '• Denda paspor hilang: Rp1.000.000
-• Denda paspor rusak: Rp500.000.',
+• Denda paspor rusak: Rp500.000.
+Berita Acara Pemeriksaan (BAP) paspor hilang, rusak, dan penambahan nama dapat diajukan online melalui https://sipantas.kanimcilacap.com/.',
         'menu_path' => '0>6',
     ],
     [
