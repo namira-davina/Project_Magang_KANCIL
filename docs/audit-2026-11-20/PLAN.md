@@ -205,3 +205,18 @@ Checklist berbasis Excel (kolom "Harapan" berisi kode pesan/teks), dijalankan pe
 | Menu 3 / 88 = tampilkan kontak | 88 / "hubungi Petugas" = antrean petugas dashboard (+ Pesan 7 di luar jam) | Alur antrean yang terbukti di PDF 4 kategori. |
 | Pengaduan swalayan menu 2 (PGD) | Pengaduan lewat petugas → "Jadikan Pengaduan" | PDF 4 kategori. Engine PGD tetap ada (dorman), cek status ADU dibuka lewat ketik nomor. |
 | PSP-011, TRF-003 sesuai 3.1 | + info SIPANTAS | Feedback user 2 (lebih baru). |
+
+## 8. Realisasi (21 Nov 2026)
+
+Semua langkah 1–11 selesai di branch `fix/audit-kalibrasi-20nov`. Test: **748 PHPUnit lolos (5.373 assertion)**, naik dari 607 sebelumnya; **5 skenario Playwright lolos** (dijalankan 3x, stabil); Pint dan build frontend lolos.
+
+Koreksi plan selama eksekusi:
+- **F3 dikoreksi.** Nomor ADU/LYN memang *sengaja* disembunyikan dari pemohon (feedback user 2, commit 528dc29). Bug sebenarnya: alert dan teks modal dashboard menyatakan nomor sudah dikirim. Yang diperbaiki adalah teks dashboard. Pesan ke pemohon tetap tanpa nomor. Cek status ADU lewat chat tetap ditambahkan untuk kasus petugas memberitahukan nomornya.
+- **PSP-002** memakai versi feedback user 2 (e-KTP, KK, akta, paspor lama), bukan teks 3.1 ("cukup e-KTP + paspor lama"), karena feedback lebih baru. Dicatat sebagai deviasi di kontrak test. **Perlu dikonfirmasi pihak Imigrasi.**
+- **F11:** ambil alih dari HP dicatat lewat `Log::warning` + `meta.takeover` (bukan kode `H0` di escalation_logs), agar laporan eskalasi tidak berubah.
+- **MSG-05** tidak menyebut nomor/email kantor, karena 081217000900 adalah nomor bot itu sendiri. Pemohon diarahkan ke "Ketik 1" (petugas).
+- **Status 61 FAQ prod dibiarkan** (keputusan user 21 Nov). `--reset-status` tidak dipakai. PSP-013..015 baru berstatus *perlu verifikasi* dan harus diverifikasi admin, kalau tidak menu 1→5/1→8/1→9 menampilkan Pesan 5.
+- **Temuan tambahan dari test:** `88` saat bot meminta nomor permohonan (Cek Status Paspor) dianggap salah input. Sudah diperbaiki.
+- Playwright dipin ke 1.64.1, karena 1.49 hang di Node 24.
+
+Dokumen pendamping: `RUNBOOK-deploy.md`, `checklist-uji-ulang.md`.
