@@ -118,3 +118,17 @@ Tautan memakai format resmi Google Maps search (`https://www.google.com/maps/sea
 - **R8:** minta kode pairing ke Mba Tami / Bu Lessa, lalu pairing device BalesOtomatis dengan nomor kantor. Setelah pairing, perbarui `BOT_OWN_NUMBERS` dan cek webhook.
 - **Konfirmasi ke Imigrasi:** (a) alamat dan tautan peta MPP Banyumas dan Purbalingga; (b) jam layanan Ngapak (Sabtu–Minggu) untuk info tempat; (c) PSP-002 (penggantian) masih perlu konfirmasi dari audit sebelumnya.
 - **Setelah deploy:** admin memverifikasi PSP-013..016 di dashboard. Uji ulang memakai checklist (diperbarui).
+
+## 7. Realisasi (21 Nov 2026)
+
+Selesai di branch `fix/audit-kalibrasi-20nov`. **818 PHPUnit lolos (6.791 assertion)**, naik dari 748; **8 skenario Playwright lolos** (dijalankan 2x, stabil); Pint lolos.
+
+- R1 PNBP terpisah: `config kancil.pnbp` + `BotScript::pnbpBlock`, ikut gate FAQ TRF-001..004. `PnbpConsistencyTest` mengunci angka terhadap FAQ. Mutation check: menyisipkan "Rp1.150.000" ke PSP-014 membuat test gagal.
+- R2/R3/R4: PSP-016 Beda Data (menu 9). PSP-011/014 sesuai SIPANTAS. SIPANTAS dibuang dari penambahan nama dan TRF-003.
+- R5: Cek Status 2 langkah + satu pesan. `PassportStatusCheckTest` mencakup 17 kasus.
+- R6: Lokasi = Kantor + **MPP Cilacap** + MPP Banyumas + MPP Purbalingga. Alamat dan tautan dari petugas (21 Nov); petugas juga memberikan alamat MPP Cilacap, jadi MPP Cilacap tetap ditampilkan.
+- R7: menu 2 = Tarif Izin Tinggal dan Visa (M-09), Pelaporan WNA Meninggal (M-10, C6), Lokasi.
+- Matriks Excel diperluas ke 79 jalur, termasuk semua jalur baru dengan echo gateway.
+- E2E: tiket Cek Status menampilkan tempat; percakapan Rusak menampilkan PNBP terpisah tanpa angka gabungan; PSP-016 Perlu Verifikasi.
+
+**Penting saat deploy:** PSP-013, PSP-014, PSP-015, PSP-016 harus diverifikasi admin. Sebelum itu menu 1→5, 1→8, 1→9, 1→10 menampilkan Pesan 5 (termasuk Paspor Rusak yang sebelumnya tampil).

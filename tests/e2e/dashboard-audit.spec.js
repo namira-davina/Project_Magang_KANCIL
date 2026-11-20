@@ -38,10 +38,10 @@ test.describe.serial('Audit 20 Nov: antrean → pengaduan → tindak lanjut', ()
         await login(page);
         await page.goto('/antrean');
 
-        // Tiket kemarin (diambil hari ini) tidak dihitung; satu-satunya tiket hari ini menunggu 2 menit.
+        // Tiket kemarin (diambil hari ini) tidak dihitung; satu-satunya tiket hari ini yang sudah diambil menunggu 2 menit.
         await expect(page.locator('#statRataTunggu')).toHaveText('2 mnt');
         await expect(page.getByText('Dari tiket masuk hari ini yang sudah diambil')).toBeVisible();
-        await expect(page.locator('#statMenunggu')).toHaveText('1');
+        await expect(page.locator('#statMenunggu')).toHaveText('3'); // 1 seeder + 2 percakapan simulasi (global-setup)
     });
 
     test('ambil tiket lalu jadikan pengaduan "Pelayanan petugas": teks jujur soal nomor ADU', async () => {
@@ -151,9 +151,9 @@ test.describe.serial('Audit 20 Nov: antrean → pengaduan → tindak lanjut', ()
         expect(unexpectedAlert).toBeNull();
 
         await page.locator('#faqStatusFilter').selectOption('Perlu Verifikasi');
-        await expect(info).toHaveText('Menampilkan 1 - 4 dari 4 entri'); // PSP-013..016
+        await expect(info).toHaveText('Menampilkan 1 - 3 dari 3 entri'); // PSP-013, PSP-015, PSP-016
         const visible = page.locator('#faqTableBody tr.faq-row:visible');
-        await expect(visible).toHaveCount(4);
-        await expect(visible.filter({ hasText: 'Apa syarat permohonan paspor yang rusak?' })).toHaveCount(1);
+        await expect(visible).toHaveCount(3);
+        await expect(visible.filter({ hasText: 'Apa syarat permohonan paspor beda data?' })).toHaveCount(1);
     });
 });

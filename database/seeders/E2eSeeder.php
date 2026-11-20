@@ -27,8 +27,9 @@ class E2eSeeder extends Seeder
 
         $this->call(DatabaseSeeder::class);
 
-        // Seperti prod 20 Nov: 61 FAQ inventaris terverifikasi, PSP-013..016 baru (perlu verifikasi).
-        Faq::whereNotIn('code', ['PSP-013', 'PSP-014', 'PSP-015', 'PSP-016'])->update(['verification_status' => 'terverifikasi', 'is_active' => true]);
+        // Seperti prod 20 Nov: 61 FAQ inventaris terverifikasi; dari FAQ baru, admin sudah memverifikasi PSP-014 (Rusak),
+        // PSP-013/015/016 masih perlu verifikasi (jawaban menu-nya = Pesan 5).
+        Faq::whereNotIn('code', ['PSP-013', 'PSP-015', 'PSP-016'])->update(['verification_status' => 'terverifikasi', 'is_active' => true]);
 
         // Antrean: 1 menunggu (untuk Ambil + Jadikan Pengaduan), 1 dari kemarin yang diambil hari ini (tidak boleh
         // menggelembungkan rata-rata), 1 hari ini yang diambil setelah 2 menit.
