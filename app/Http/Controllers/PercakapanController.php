@@ -197,7 +197,9 @@ class PercakapanController extends Controller
 
         $text = $m->message_text;
 
-        if ($text === null && $m->message_type !== 'text') {
+        if (($text === null || $text === '') && ($m->meta['blank'] ?? false)) {
+            $text = '[Pesan WhatsApp tidak terbaca]';
+        } elseif ($text === null && $m->message_type !== 'text') {
             $text = match ($m->message_type) {
                 'image' => '[Foto]', 'document' => '[Dokumen]', 'audio' => '[Pesan suara]', default => '[Lampiran]',
             };

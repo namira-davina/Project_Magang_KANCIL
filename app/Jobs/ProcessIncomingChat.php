@@ -49,8 +49,9 @@ class ProcessIncomingChat implements ShouldQueue
                 return;
             }
 
-            // Stub/sistem WhatsApp tanpa isi: jangan disimpan dan jangan dibalas menu.
-            if ($data->isBlank()) {
+            // Stub WhatsApp tanpa isi. Pesan pertama kontak baru sering tiba begini (belum terdekripsi gateway),
+            // jadi tetap disapa menu utama; dilewati hanya bila dari nomor bot sendiri atau di tengah sesi.
+            if ($data->isBlank() && ! $this->shouldGreetBlank($data, $messenger)) {
                 $event->update(['processed_at' => now(), 'error' => 'Dilewati: pesan kosong (tanpa teks/media).']);
 
                 return;
@@ -74,6 +75,7 @@ class ProcessIncomingChat implements ShouldQueue
                     'sent_at' => $data->sentAt(),
                     'external_message_id' => $data->messageId(),
                     'meta' => array_filter([
+                        'blank' => $data->isBlank() ?: null,
                         'media_mime' => $data->mediaMime(),
                         'media_name' => $data->mediaName(),
                         'media_ref' => $data->hasMedia() && config('balesotomatis.channel') === 'waba' ? $data->mediaBody() : null,
@@ -112,6 +114,40 @@ class ProcessIncomingChat implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    /**
+     * Pesan kosong dibalas menu utama hanya bila kontak baru atau sesinya sudah habis (Opsi B),
+     * bukan dari nomor bot kantor sendiri, dan percakapan tidak sedang di petugas/antrean.
+     */
+    private function shouldGreetBlank(WebhookData $data, WhatsappMessenger $messenger): bool
+    {
+        if (config('kancil.bot_engine') !== 'laravel') {
+            return false;
+        }
+
+        $phone = $data->phone();
+        $ownNumbers = array_map(fn ($n) => WebhookData::normalizePhone(preg_replace('/\D/', '', (string) $n)), config('kancil.own_numbers', []));
+
+        if ($phone !== null && in_array($phone, $ownNumbers, true)) {
+            return false;
+        }
+
+        $conversation = $messenger->findConversation($data);
+
+        if (! $conversation) {
+            return true;
+        }
+
+        if (! in_array($conversation->conversation_mode, [Conversation::MODE_BOT, Conversation::MODE_CLOSED], true)) {
+            return false;
+        }
+
+        $last = $conversation->last_inbound_at;
+
+        return empty($conversation->session_state)
+            || $last === null
+            || $last->lt(now()->subMinutes((int) config('kancil.session_timeout_minutes', 30)));
     }
 
     private function runBot(Conversation $conversation, Message $message, $previousInbound, BotEngine $engine, WhatsappMessenger $messenger): void

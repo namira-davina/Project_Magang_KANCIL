@@ -34,6 +34,9 @@ return [
     // Balasan jadi ~2-3 detik; bila kirim gagal, otomatis dicoba ulang lewat antrean.
     'reply_inline' => (bool) env('BOT_REPLY_INLINE', false),
 
+    // Nomor WhatsApp bot kantor sendiri: pesan kosong dari nomor ini tidak dibalas menu (cegah bot saling balas).
+    'own_numbers' => array_values(array_filter(array_map('trim', explode(',', (string) env('BOT_OWN_NUMBERS', '6281217000900,6285184542256'))))),
+
     // Kontak resmi (satu-satunya yang boleh disebut bot).
     'contact' => [
         'whatsapp' => '081217000900',
