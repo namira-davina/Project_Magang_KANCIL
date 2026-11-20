@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\Complaint;
 use App\Models\Conversation;
 use App\Models\EscalationLog;
+use App\Models\Faq;
 use App\Models\ServiceTicket;
 use App\Services\Bot\BotScript;
+use App\Services\Bot\MenuAnswerResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -42,28 +44,29 @@ class BotScenarioTest extends TestCase
      */
     public static function answerScenarios(): array
     {
+        // Isi jawaban = FAQ Inventarisasi 3.1 (audit 20 Nov), bukan teks Bogor hardcode.
         return [
-            'biaya paspor' => [['1', '1'], 'PNBP Paspor Elektronik 5 Tahun : Rp 650.000', '0>1', null],
-            'paspor baru' => [['1', '2'], 'Dokumen persyaratan Paspor Baru:', '0>2', null],
-            'penggantian paspor' => [['1', '3'], 'Dokumen persyaratan Penggantian Paspor:', '0>3', null],
-            'paspor anak' => [['1', '4'], 'Persyaratan Paspor Anak (Orang Tua Bercerai):', '0>4', 'C2'],
-            'pendaftaran m-paspor' => [['1', '5'], 'Silakan unduh aplikasi M-Paspor:', '0>5', null],
-            'layanan prioritas' => [['1', '6'], 'Layanan prioritas diperuntukkan bagi:', '0>6', null],
-            'paspor hilang' => [['1', '7'], 'Surat Kehilangan dari Kepolisian', '0>7', 'C1'],
-            'paspor rusak' => [['1', '8'], 'Paspor Lama yang rusak', '0>8', null],
-            'penambahan nama' => [['1', '9'], 'Persyaratan Penambahan Nama:', '0>9', null],
-            'lokasi kami' => [['2', '3'], 'Jl. Urip Sumoharjo No.249', '1>3', null],
+            'biaya paspor' => [['1', '1'], 'Rp650.000 (paspor biasa elektronik laminasi, masa berlaku 5 tahun).', '0>1', null, ['TRF-001', 'TRF-002', 'TRF-004', 'TRF-003', 'TRF-011']],
+            'paspor baru' => [['1', '2'], 'KTP elektronik, Kartu Keluarga, dan salah satu dari akta lahir/ijazah/buku nikah.', '0>2', null, ['PSP-001']],
+            'penggantian paspor' => [['1', '3'], "• Kartu Keluarga\n• Akta lahir / ijazah / buku nikah\n• Paspor lama", '0>3', null, ['PSP-002']],
+            'paspor anak' => [['1', '4'], 'Anak di bawah 5 tahun dapat langsung datang ke kantor imigrasi tanpa mendaftar di M-Paspor.', '0>4', 'C2', ['ANK-001', 'ANK-002', 'ANK-003', 'ANK-004', 'ANK-005', 'ANK-006', 'ANK-007', 'ANK-008', 'ANK-009']],
+            'pendaftaran m-paspor' => [['1', '5'], 'Unduh aplikasi M-Paspor:', '0>5', null, ['PSP-013']],
+            'layanan prioritas' => [['1', '6'], 'antrean khusus berkode C-(nomor urut)', '0>6', null, ['LYK-002']],
+            'paspor hilang' => [['1', '7'], 'Surat keterangan kehilangan dari kepolisian setempat', '0>7', 'C1', ['PSP-011']],
+            'paspor rusak' => [['1', '8'], 'Paspor lama yang rusak', '0>8', null, ['PSP-014']],
+            'penambahan nama' => [['1', '9'], 'Surat rekomendasi travel (umrah) atau BPIH (haji)', '0>9', null, ['PSP-015']],
+            'lokasi kami' => [['2', '3'], 'Jl. Urip Sumoharjo No.249', '1>3', null, []],
         ];
     }
 
     #[DataProvider('answerScenarios')]
-    public function test_answer_scenario(array $path, string $fragment, string $internalPath, ?string $escalationCode): void
+    public function test_answer_scenario(array $path, string $fragment, string $internalPath, ?string $escalationCode, array $faqCodes): void
     {
         $this->assertSame(['M-00'], $this->reply('Halo')->codes);
 
         $answer = $this->conversation($path);
 
-        $this->assertSame(['ANS-'.$internalPath], $answer->codes);
+        $this->assertSame(['ANS-'.$internalPath, ...$faqCodes], $answer->codes);
         $this->assertStringContainsString($fragment, $answer->text);
         $this->assertStringStartsWith('*Berikut ini adalah informasi dan solusi yang Anda cari:*', $answer->text);
         $this->assertStringEndsWith(BotScript::answerFooter(), $answer->text);
@@ -120,8 +123,8 @@ class BotScenarioTest extends TestCase
         $this->assertStringNotContainsString('Tujuan', $reply->text);
         $this->assertStringNotContainsString('Affidavit', $reply->text);
 
-        foreach (BotScript::ANSWERS as $answer) {
-            $this->assertStringNotContainsString('Drive Thru', (string) $answer['text']);
+        foreach (array_keys(BotScript::ANSWERS) as $path) {
+            $this->assertStringNotContainsString('Drive Thru', app(MenuAnswerResolver::class)->resolve($path)['text']);
         }
     }
 
@@ -302,7 +305,7 @@ class BotScenarioTest extends TestCase
         $this->reply('Halo');
         $this->assertSame(['MSG-01', 'M-00'], $this->reply('9')->codes, '9 tidak ada di menu utama.');
         $this->reply('1');
-        $this->assertSame(['ANS-0>9'], $this->reply('9')->codes, '9 di menu paspor = Penambahan Nama pada Paspor.');
+        $this->assertSame(['ANS-0>9', 'PSP-015'], $this->reply('9')->codes, '9 di menu paspor = Penambahan Nama pada Paspor.');
     }
 
     public function test_after_answer_only_0_and_1_are_valid(): void
@@ -331,13 +334,54 @@ class BotScenarioTest extends TestCase
         $this->assertSame(['M-00'], $this->reply('', 'image')->codes);
     }
 
-    public function test_answers_do_not_depend_on_faq_verification(): void
+    public function test_s46_answer_with_unverified_faq_shows_message_5(): void
     {
-        $this->holdFaq('PSP-001', 'PSP-011');
+        // Dokumen Skenario 3.2: jawaban yang FAQ-nya belum Aktif diganti Pesan 5 (gate status, audit 20 Nov).
+        $this->holdFaq('PSP-001', 'ANK-003');
 
-        $this->assertSame(['ANS-0>2'], $this->conversation(['Halo', '1', '2'])->codes);
+        $held = $this->conversation(['Halo', '1', '2']);
+        $this->assertSame(['MSG-05', 'ANS-0>2'], $held->codes);
+        $this->assertStringStartsWith(BotScript::msg('MSG-05'), $held->text);
+        $this->assertStringNotContainsString('Kartu Keluarga', $held->text);
+        $this->assertStringEndsWith(BotScript::answerFooter(), $held->text, 'Tetap ada pilihan 0 = menu, 1 = petugas.');
+
         $this->reply('0');
-        $this->assertSame(['ANS-0>7'], $this->conversation(['1', '7'])->codes);
+        $anak = $this->conversation(['1', '4']);
+        $this->assertSame(['MSG-05', 'ANS-0>4'], $anak->codes, 'Satu FAQ sumber tertahan = seluruh jawaban tertahan.');
+
+        $this->reply('0');
+        $this->assertSame('ANS-0>7', $this->conversation(['1', '7'])->codes[0], 'FAQ lain tetap tampil.');
+
+        $this->reply('1');
+        $this->assertSame('C1', EscalationLog::latest('id')->first()->escalation_code);
+    }
+
+    public function test_escalation_after_held_answer_is_plain_a2(): void
+    {
+        $this->holdFaq('PSP-011');
+        $this->conversation(['Halo', '1', '7']);
+        $this->reply('1');
+
+        $this->assertSame('A2', EscalationLog::sole()->escalation_code, 'Jawaban tidak tampil: bukan kasus khusus C1.');
+    }
+
+    public function test_activating_faq_in_dashboard_takes_effect_immediately(): void
+    {
+        $this->holdFaq('PSP-001');
+        $this->assertSame('MSG-05', $this->conversation(['Halo', '1', '2'])->codes[0]);
+
+        Faq::where('code', 'PSP-001')->update(['verification_status' => 'terverifikasi', 'is_active' => true]);
+        $this->reply('0');
+
+        $this->assertSame(['ANS-0>2', 'PSP-001'], $this->conversation(['1', '2'])->codes);
+    }
+
+    public function test_scope_all_shows_unverified_faq_as_emergency_fallback(): void
+    {
+        config(['kancil.faq_scope' => 'all']);
+        $this->holdFaq('PSP-001');
+
+        $this->assertSame(['ANS-0>2', 'PSP-001'], $this->conversation(['Halo', '1', '2'])->codes);
     }
 
     public function test_88_after_special_answer_logs_matrix_code(): void
@@ -367,7 +411,7 @@ class BotScenarioTest extends TestCase
         $this->reply('1');
 
         Carbon::setTestNow(now()->addMinutes(29));
-        $this->assertSame(['ANS-0>1'], $this->reply('1')->codes);
+        $this->assertSame('ANS-0>1', $this->reply('1')->codes[0]);
     }
 
     public function test_navigation_with_99_and_menu(): void

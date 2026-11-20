@@ -50,6 +50,7 @@ class BotEngine
         private readonly BusinessHours $hours,
         private readonly ComplaintService $complaints,
         private readonly TicketQueueService $tickets,
+        private readonly MenuAnswerResolver $answers,
     ) {}
 
     /**
@@ -254,14 +255,21 @@ class BotEngine
         return BotScript::mainMenu($this->conversation->user_name, $this->hours->statusText());
     }
 
+    /** Jawaban menu dari FAQ sumber; FAQ belum Aktif = Pesan 5 (tetap dengan pilihan 0 = menu, 1 = petugas). */
     private function showAnswer(string $path): BotReply
     {
-        $definition = BotScript::ANSWERS[$path];
+        $answer = $this->answers->resolve($path);
 
         $this->state['answer'] = $path;
-        $this->state['shown'] = true;
+        $this->state['shown'] = ! $answer['held'];
 
-        return $this->reply(BotScript::answer($definition['text'] ?? BotScript::locationText()), ['ANS-'.$path]);
+        if ($answer['held']) {
+            return $this->reply($answer['text']."\n\n".BotScript::answerFooter(), ['MSG-05', 'ANS-'.$path]);
+        }
+
+        $this->tagIncoming($answer['faq_id']);
+
+        return $this->reply(BotScript::answer($answer['text']), ['ANS-'.$path, ...$answer['codes']], $answer['faq_id']);
     }
 
     /**

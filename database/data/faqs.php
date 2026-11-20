@@ -1,8 +1,8 @@
 <?php
 
 // Sumber: Dokumen Inventarisasi FAQ 3.1 (30 Okt 2026), 61 FAQ; dikalibrasi ulang 20 Nov 2026 (audit).
-// Isi wajib sama dengan 3.1 (dikunci tests/Unit/FaqInventoryContractTest). Deviasi terdokumentasi: PSP-011/TRF-003
-// ditambah info SIPANTAS (feedback user 2); PSP-013..015 = jawaban menu Bogor di luar 3.1 (perlu verifikasi).
+// Isi wajib sama dengan 3.1 (dikunci tests/Unit/FaqInventoryContractTest). Deviasi terdokumentasi (feedback user 2,
+// 20 Nov, lebih baru dari 3.1): PSP-011/TRF-003 ditambah info SIPANTAS; PSP-002 syarat penggantian ditambah KK + akta; PSP-013..015 = jawaban menu Bogor di luar 3.1 (perlu verifikasi).
 // Data awal untuk FaqSeeder / kancil:faq-sync; setelah seeding, FAQ dikelola lewat dashboard.
 
 return [
@@ -18,7 +18,12 @@ return [
         'code' => 'PSP-002',
         'group' => 'Permohonan Paspor WNI',
         'question' => 'Apa saja persyaratan untuk penggantian paspor?',
-        'answer' => 'Untuk paspor terbitan tahun 2009 ke atas dan paspor terbitan luar negeri, cukup melampirkan KTP elektronik dan paspor lama.',
+        'answer' => '*Persyaratan:*
+• KTP elektronik
+• Kartu Keluarga
+• Akta lahir / ijazah / buku nikah
+• Paspor lama
+Daftar terlebih dahulu melalui aplikasi M-Paspor.',
         'menu_path' => '0>1>2',
         'status' => 'perlu_verifikasi',
     ],

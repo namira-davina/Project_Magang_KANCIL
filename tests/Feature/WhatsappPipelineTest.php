@@ -237,7 +237,7 @@ class WhatsappPipelineTest extends TestCase
         }
 
         $last = Message::where('sender_type', 'bot')->latest('id')->first();
-        $this->assertStringContainsString('Dokumen persyaratan Paspor Baru:', $last->message_text);
+        $this->assertStringContainsString('KTP elektronik, Kartu Keluarga, dan salah satu dari akta lahir/ijazah/buku nikah.', $last->message_text);
         $this->assertSame(3, Message::where('sender_type', 'bot')->count());
         $this->assertSame(1, Conversation::count());
     }
@@ -581,7 +581,7 @@ class WhatsappPipelineTest extends TestCase
         $this->postWebhook($this->incomingPayload(['message_body' => '1']));
         $this->assertStringContainsString('Persyaratan Paspor Baru', $this->lastBotMessage()->message_text);
         $this->postWebhook($this->incomingPayload(['message_body' => '2']));
-        $this->assertStringContainsString('Dokumen persyaratan Paspor Baru', $this->lastBotMessage()->message_text);
+        $this->assertStringContainsString('KTP elektronik, Kartu Keluarga, dan salah satu dari akta lahir/ijazah/buku nikah.', $this->lastBotMessage()->message_text);
 
         // Minta Petugas lagi: tiket yang sama dipakai, posisi antrean diberitahukan lagi.
         $this->postWebhook($this->incomingPayload(['message_body' => '1']));

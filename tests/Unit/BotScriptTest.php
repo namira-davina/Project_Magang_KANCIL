@@ -2,8 +2,10 @@
 
 namespace Tests\Unit;
 
+use App\Models\Faq;
 use App\Services\Bot\BotEngine;
 use App\Services\Bot\BotScript;
+use App\Services\Bot\MenuAnswerResolver;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 use Tests\TestCase;
@@ -16,6 +18,15 @@ class BotScriptTest extends TestCase
     private function faqData(): array
     {
         return collect(require database_path('data/faqs.php'))->keyBy('code')->all();
+    }
+
+    /** Teks jawaban menu seperti yang dirakit MenuAnswerResolver dari data FAQ (semua FAQ dianggap Aktif). */
+    private function answerText(string $path): string
+    {
+        $faqs = collect(BotScript::ANSWERS[$path]['faq'])
+            ->map(fn (string $code) => new Faq(['question' => $this->faqData()[$code]['question'], 'answer' => $this->faqData()[$code]['answer']]));
+
+        return MenuAnswerResolver::compose($faqs);
     }
 
     public function test_every_menu_option_points_to_existing_target(): void
@@ -73,11 +84,23 @@ class BotScriptTest extends TestCase
 
     public function test_answers_have_text_and_valid_escalation_codes(): void
     {
+        $faqs = $this->faqData();
+
         foreach (BotScript::ANSWERS as $path => $answer) {
-            if ($path !== '1>3') {
-                $this->assertNotEmpty($answer['text'], $path);
-                $this->assertLessThanOrEqual(1600, mb_strlen($answer['text']), "{$path}: muat di satu pesan WhatsApp");
+            if ($path === '1>3') {
+                $this->assertNull($answer['faq'], 'Lokasi Kami dari config kantor, bukan FAQ.');
+
+                continue;
             }
+
+            $this->assertNotEmpty($answer['faq'], $path);
+
+            foreach ($answer['faq'] as $code) {
+                $this->assertArrayHasKey($code, $faqs, "{$path}: FAQ sumber {$code} harus ada di data");
+            }
+
+            $text = BotScript::answer($this->answerText($path));
+            $this->assertLessThanOrEqual(4096, mb_strlen($text), "{$path}: muat di satu pesan WhatsApp");
 
             if ($answer['code']) {
                 $this->assertArrayHasKey($answer['code'], BotScript::PRIORITY);
@@ -203,33 +226,35 @@ Silakan pilih menu', $text);
     {
         $sipantas = 'https://sipantas.kanimcilacap.com/';
 
-        // Biaya: BAP hilang/rusak/penambahan nama bisa online; tidak lagi "tidak dapat online".
-        $fee = BotScript::ANSWERS['0>1']['text'];
-        $this->assertStringContainsString('Khusus paspor hilang, rusak, dan penambahan nama', $fee);
-        $this->assertStringContainsString("(BAP) dapat diajukan online melalui {$sipantas}", $fee);
-        $this->assertStringNotContainsString('Tidak dapat mengajukan permohonan secara online', $fee);
+        // Biaya (TRF-003): BAP hilang/rusak/penambahan nama dapat diajukan online lewat SIPANTAS (feedback user 2).
+        $fee = $this->answerText('0>1');
+        $this->assertStringContainsString("dapat diajukan online melalui {$sipantas}", $fee);
+        $this->assertStringContainsString('Rp650.000', $fee);
+        $this->assertStringContainsString('Biaya layanan percepatan adalah Rp1.000.000.', $fee);
+        $this->assertStringContainsString('PP) Nomor 45 Tahun 2024', $fee);
 
-        // Hilang dan rusak: datang ke kantor setelah terverifikasi petugas lewat SIPANTAS.
-        foreach (['0>7', '0>8'] as $path) {
-            $text = BotScript::ANSWERS[$path]['text'];
-            $this->assertStringContainsString($sipantas, $text, $path);
-            $this->assertStringContainsString('wajib datang ke Kantor Imigrasi setelah permohonan terverifikasi oleh petugas', $text, $path);
+        foreach (['0>7', '0>8', '0>9'] as $path) {
+            $this->assertStringContainsString($sipantas, $this->answerText($path), $path);
         }
 
-        $this->assertStringContainsString($sipantas, BotScript::ANSWERS['0>9']['text']);
+        // Penggantian (feedback user 2): tambah KK dan akta lahir/ijazah/buku nikah.
+        $replace = $this->answerText('0>3');
+        $this->assertStringContainsString('• Kartu Keluarga', $replace);
+        $this->assertStringContainsString('• Akta lahir / ijazah / buku nikah', $replace);
 
-        // Penggantian: tambah KK dan akta lahir/ijazah/buku nikah.
-        $replace = BotScript::ANSWERS['0>3']['text'];
-        $this->assertStringContainsString('* Kartu Keluarga', $replace);
-        $this->assertStringContainsString('* Akta Lahir / Ijazah / Buku Nikah', $replace);
+        // Paspor anak (3.1 ANK-002): anak di bawah 5 tahun TIDAK wajib M-Paspor (teks Bogor lama keliru).
+        $this->assertStringContainsString('Anak di bawah 5 tahun dapat langsung datang ke kantor imigrasi tanpa mendaftar di M-Paspor.', $this->answerText('0>4'));
+
+        // Layanan prioritas = KANCIL NARI (LYK-002), tanpa "Ibu Menyusui" yang tidak ada di 3.1.
+        $this->assertStringNotContainsString('Menyusui', $this->answerText('0>6'));
     }
 
     public function test_answers_have_no_double_spaces_that_gateway_would_collapse(): void
     {
         // BalesOtomatis memadatkan spasi ganda pada echo; teks bot dijaga tanpa spasi ganda / indentasi.
-        foreach (BotScript::ANSWERS as $path => $answer) {
-            if ($answer['text'] !== null) {
-                $this->assertDoesNotMatchRegularExpression('/ {2,}/', $answer['text'], $path);
+        foreach (array_keys(BotScript::ANSWERS) as $path) {
+            if ($path !== '1>3') {
+                $this->assertDoesNotMatchRegularExpression('/ {2,}/', BotScript::answer($this->answerText($path)), $path);
             }
         }
     }

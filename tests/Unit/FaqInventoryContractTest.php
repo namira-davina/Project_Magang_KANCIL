@@ -17,6 +17,14 @@ class FaqInventoryContractTest extends TestCase
         'TRF-003' => 'sipantas.kanimcilacap.com',
     ];
 
+    /**
+     * Deviasi terdokumentasi yang mengganti isi 3.1: feedback user 2 (20 Nov, pihak Imigrasi, lebih baru dari 3.1)
+     * menetapkan syarat penggantian paspor = e-KTP, KK, akta lahir/ijazah/buku nikah, paspor lama.
+     */
+    private const REPLACED = [
+        'PSP-002' => ['ktp elektronik', 'kartu keluarga', 'akta lahir / ijazah / buku nikah', 'paspor lama'],
+    ];
+
     /** FAQ baru di luar 3.1 (jawaban menu Bogor yang belum ada di inventaris). */
     private const EXTRA = ['PSP-013', 'PSP-014', 'PSP-015'];
 
@@ -67,9 +75,11 @@ class FaqInventoryContractTest extends TestCase
             $expected = self::normalize($row['answer']);
             $actual = self::normalize($data[$code]['answer']);
 
-            $ok = isset(self::APPENDED[$code])
-                ? str_starts_with($actual, $expected) && str_contains($actual, self::APPENDED[$code])
-                : $actual === $expected;
+            $ok = match (true) {
+                isset(self::REPLACED[$code]) => collect(self::REPLACED[$code])->every(fn ($item) => str_contains($actual, $item)),
+                isset(self::APPENDED[$code]) => str_starts_with($actual, $expected) && str_contains($actual, self::APPENDED[$code]),
+                default => $actual === $expected,
+            };
 
             if (! $ok) {
                 $mismatches[] = "{$code}\n  3.1 : {$expected}\n  data: {$actual}";
