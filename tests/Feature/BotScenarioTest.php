@@ -91,7 +91,7 @@ class BotScenarioTest extends TestCase
         $this->assertSame(
             "Selamat Pagi, Halo *Budi*\n\n"
             ."Selamat Datang , di Layanan Informasi dan Pengaduan Kantor Imigrasi Kelas I TPI Cilacap.\n\n"
-            ."*Status Hari Ini: BUKA*\nWaktu pelayanan tersedia setiap hari Senin–Jumat pukul 08.00–16.00 WIB.\n\n"
+            ."*Status Hari Ini: BUKA*\nWaktu pelayanan tersedia setiap hari Senin–Kamis pukul 08.00–16.00 WIB dan Jumat pukul 08.00–16.30 WIB.\n\n"
             ."Silakan pilih menu di bawah ini:\n\n"
             ."Ketik *1* Pelayanan Paspor WNI\nKetik *2* Pelayanan Izin Tinggal (For Foreigners)\nKetik *3* Layanan Pengaduan (Complaint Support)\n\n"
             ."Ketik angka pilihan Anda, lalu ikuti petunjuk selanjutnya\n------------\n_Type your selection, then follow the instructions_",
@@ -205,8 +205,10 @@ class BotScenarioTest extends TestCase
             '2027-03-10 10:00:00' => '*Status Hari Ini: LIBUR (Hari Raya Idul Fitri 1448 H)*',
             '2027-05-19 10:00:00' => '*Status Hari Ini: LIBUR (Cuti Bersama Waisak)*',
             '2026-11-13 07:59:00' => '*Status Hari Ini: TUTUP (di luar jam pelayanan)*',
-            '2026-11-13 16:00:00' => '*Status Hari Ini: TUTUP (di luar jam pelayanan)*',
-            '2026-11-13 15:59:00' => '*Status Hari Ini: BUKA*',
+            '2026-11-13 16:30:00' => '*Status Hari Ini: TUTUP (di luar jam pelayanan)*',
+            '2026-11-13 16:29:00' => '*Status Hari Ini: BUKA*',
+            '2026-11-12 16:00:00' => '*Status Hari Ini: TUTUP (di luar jam pelayanan)*',
+            '2026-11-12 15:59:00' => '*Status Hari Ini: BUKA*',
         ];
 
         foreach ($cases as $at => $expected) {
@@ -215,7 +217,7 @@ class BotScenarioTest extends TestCase
             $this->startChat(['wa_chat_id' => 'c'.md5($at), 'whatsapp_number' => '62'.random_int(100000000, 999999999)]);
 
             $text = $this->reply('Halo')->text;
-            $this->assertStringContainsString($expected."\nWaktu pelayanan tersedia setiap hari Senin–Jumat pukul 08.00–16.00 WIB.", $text, $at);
+            $this->assertStringContainsString($expected."\nWaktu pelayanan tersedia setiap hari Senin–Kamis pukul 08.00–16.00 WIB dan Jumat pukul 08.00–16.30 WIB.", $text, $at);
         }
     }
 

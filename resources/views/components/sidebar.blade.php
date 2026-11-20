@@ -141,7 +141,8 @@
             </div>
             <div class="status-card-body">
                 <span class="status-subtitle">Status Operasional Pelayanan</span>
-                <span class="status-time">Senin – Jumat | 08.00 – 16.00 WIB</span>
+                <span class="status-time">Senin – Kamis | 08.00 – 16.00 WIB</span>
+                <span class="status-time">Jumat | 08.00 – 16.30 WIB</span>
             </div>
         </div>
     </div>
