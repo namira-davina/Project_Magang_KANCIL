@@ -291,6 +291,13 @@ class BotEngine
             return [$this->goMainMenu()];
         }
 
+        // Skenario 3.2: 88 = hubungi petugas dari menu mana pun (termasuk saat diminta nomor permohonan).
+        if ($command === '88') {
+            $this->state['status'] = false;
+
+            return [$this->escalate(viaMenu: false)];
+        }
+
         $number = preg_replace('/\s+/', '', $text);
 
         if (! preg_match('/^\d{10,25}$/', $number)) {
