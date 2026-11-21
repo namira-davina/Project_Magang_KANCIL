@@ -24,6 +24,8 @@ class FaqInventoryContractTest extends TestCase
         'PSP-002' => ['ktp elektronik', 'kartu keluarga', 'akta lahir / ijazah / buku nikah', 'paspor lama'],
         // Feedback user 3 (20 Nov sore): syarat paspor hilang mengikuti SIPANTAS (screenshot WA0034).
         'PSP-011' => ['kartu tanda penduduk (ktp)', 'kartu keluarga', 'surat kehilangan (kepolisian)', 'akte / ijazah / surat nikah', 'dokumen pendukung lainnya', 'paspor lama', 'sipantas.kanimcilacap.com'],
+        // Keputusan pemilik 21 Nov: format CEK# ke 081217000900 (nomor bot sendiri, tidak dikenali bot) diganti menu 1 > 11.
+        'AMB-009' => ['ketik 1', 'lalu 11', 'cek status paspor', 'nomor permohonan', 'tempat permohonan', 'mpp banyumas', 'ngapak purbalingga'],
     ];
 
     /** FAQ baru di luar 3.1 (jawaban menu Bogor yang belum ada di inventaris). */
@@ -88,6 +90,14 @@ class FaqInventoryContractTest extends TestCase
         }
 
         $this->assertSame([], $mismatches, "Jawaban FAQ menyimpang dari Inventarisasi 3.1:\n".implode("\n", $mismatches));
+    }
+
+    public function test_no_faq_tells_applicants_to_use_cek_hash_format(): void
+    {
+        // 081217000900 adalah nomor bot itu sendiri; format CEK#... tidak dikenali bot (keputusan 21 Nov: pakai menu 1 > 11).
+        foreach (self::data() as $code => $row) {
+            $this->assertStringNotContainsString('CEK#', $row['answer'], $code);
+        }
     }
 
     public function test_menu_path_and_question_follow_inventory(): void

@@ -349,8 +349,9 @@ Syarat dan ketentuan lain berlaku.',
         'code' => 'AMB-009',
         'group' => 'Pengambilan, Pengiriman, dan Status Paspor',
         'question' => 'Bagaimana cara mengecek status permohonan paspor?',
-        'answer' => 'Hubungi call center *081217000900* dengan format: *CEK#Nomor Permohonan#Nama#Lokasi Pembuatan*
-Pilihan lokasi: Kanim Cilacap / MPP Banyumas / MPP Purbalingga / Kemenag Purbalingga.',
+        'answer' => 'Cek status lewat menu WhatsApp KANCIL SAPA: ketik *1* (Pelayanan Paspor WNI), lalu *11* (Cek Status Paspor).
+Kirim *nomor permohonan* paspor Anda, lalu pilih *tempat permohonan*: Imigrasi Cilacap / MPP Banyumas / MPP Purbalingga / Ngapak Banyumas / Ngapak Purbalingga.
+Petugas akan membalas status permohonan Anda di chat ini pada jam layanan.',
         'menu_path' => '0>4',
         'status' => 'perlu_verifikasi',
     ],
