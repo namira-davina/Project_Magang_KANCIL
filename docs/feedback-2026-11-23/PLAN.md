@@ -115,3 +115,9 @@ dan `BotAiTest`, `tests/e2e/feedback-imigrasi-4.spec.js`.
 Hasil: PHPUnit 926 lulus (8729 assertion); Pint lulus; Playwright bot 12/12; landing vitest 95/95, svelte-check 0 error,
 build + `test:build` lulus, Playwright landing 18/18. Sanity: test navigasi baru dijalankan ke `BotEngine` lama → 46 gagal (bug tertangkap).
 Catatan: `pnpm lint` landing sudah gagal di `master` (32 file format lama, bukan dari perubahan ini); file yang diubah lolos Prettier/ESLint.
+
+### Tambahan 23 Nov (permintaan pemilik): footer menu WNA dwibahasa
+Jawaban dari menu Izin Tinggal (M-08/M-09/M-10, termasuk Pesan 5, jawaban AI di menu itu, dan ulangan footer saat salah input)
+memakai `BotScript::answerFooter(english: true)`: versi Inggris miring di dalam kurung di belakang setiap baris. Menu Paspor WNI tetap
+bahasa Indonesia. Test: `AnswerNavigationTest` (bahasa footer untuk setiap jalur jawaban), `BotAiTest`, e2e bot dan widget landing.
+Hasil akhir: PHPUnit 950 lulus; Playwright bot 12/12; landing vitest 96/96, build lulus, Playwright 18/18.

@@ -4,7 +4,7 @@ Kirim ke nomor bot setelah deploy. Ketik `Halo` dulu untuk membuka menu utama.
 
 | # | Ketik | Hasil yang benar |
 |---|---|---|
-| 1 | `2` → `1` → `1` | Jawaban tarif Re-entry. Footer: "Ketik 9 untuk kembali ke menu sebelumnya / Ketik 0 untuk kembali ke menu utama / Ketik 1 untuk menghubungi Petugas". |
+| 1 | `2` → `1` → `1` | Jawaban tarif Re-entry. Footer: "Ketik 9 untuk kembali ke menu sebelumnya / Ketik 0 untuk kembali ke menu utama / Ketik 1 untuk menghubungi Petugas", masing-masing dengan versi Inggris di dalam kurung, mis. "(Type 9 to return to the previous menu)". |
 | 2 | `9` | Kembali ke **daftar Tarif Izin Tinggal dan Visa** (bukan menu utama). |
 | 3 | `2` → `9` → `3` → … `6` → `9` | Semua tarif bisa dibaca berurutan tanpa mengulang `2` > `1`. |
 | 4 | `7` → `2` → `1` → `9` | Daftar Pelaporan WNA Meninggal muncul lagi. |
@@ -17,4 +17,3 @@ Kirim ke nomor bot setelah deploy. Ketik `Halo` dulu untuk membuka menu utama.
 Belum diubah, menunggu konfirmasi Imigrasi:
 - Penggantian Paspor (menu 1 > 3) perlu "Bukti permohonan M-Paspor" juga?
 - Apakah semua tempat permohonan (MPP, Ngapak) berawalan 1568? Jika ya, nomor dengan awalan lain bisa ditolak otomatis.
-- Footer jawaban menu WNA perlu bahasa Inggris?
