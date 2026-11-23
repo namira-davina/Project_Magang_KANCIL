@@ -119,14 +119,15 @@ class BotEngine
     }
 
     /**
-     * Setelah jawaban tampil (persis Bogor): 0 = menu utama, 1 = hubungi Petugas.
-     * 99 / 88 / menu tetap diterima sebagai jalan pintas.
+     * Setelah jawaban tampil: 9 = menu sebelumnya (submenu tempat jawaban dipilih, feedback Imigrasi 23 Nov),
+     * 0 = menu utama, 1 = hubungi Petugas. 99 / 88 / menu tetap diterima sebagai jalan pintas.
      *
      * @return list<BotReply>
      */
     private function answerAction(string $command, string $text): array
     {
         return match (true) {
+            $command === '9' => [$this->backFromAnswer()],
             in_array($command, ['0', '99', 'menu'], true) => [$this->goMainMenu()],
             in_array($command, ['1', '88'], true) => [$this->escalate(viaMenu: false)],
             ctype_digit($command) => [$this->invalidInput($text)],
@@ -194,6 +195,18 @@ class BotEngine
         $parent = BotScript::MENUS[$this->state['menu']]['parent'] ?? null;
 
         return $this->showMenu($parent ?? 'M-00');
+    }
+
+    /**
+     * "Ketik 9 untuk kembali ke menu sebelumnya" setelah jawaban: menu aktif tidak berubah saat jawaban tampil, jadi menu
+     * sebelumnya = submenu tempat jawaban dipilih (M-01, M-08, M-09, M-10; jawaban AI = menu aktif saat bertanya).
+     */
+    private function backFromAnswer(): BotReply
+    {
+        $this->validInput();
+        $menu = $this->state['menu'] ?? 'M-00';
+
+        return $this->showMenu(isset(BotScript::MENUS[$menu]) ? $menu : 'M-00');
     }
 
     /** @return list<BotReply> */
@@ -264,7 +277,7 @@ class BotEngine
         return BotScript::mainMenu($this->conversation->user_name, $this->hours->statusText());
     }
 
-    /** Jawaban menu dari FAQ sumber; FAQ belum Aktif = Pesan 5 (tetap dengan pilihan 0 = menu, 1 = petugas). */
+    /** Jawaban menu dari FAQ sumber; FAQ belum Aktif = Pesan 5 (tetap dengan pilihan 9 = menu sebelumnya, 0 = menu utama, 1 = petugas). */
     private function showAnswer(string $path): BotReply
     {
         $answer = $this->answers->resolve($path);
@@ -283,7 +296,7 @@ class BotEngine
 
     /**
      * Cek Status Paspor (kantor Cilacap tidak punya akses otomatis ke sistem status paspor; petugas membalas lewat antrean):
-     *  langkah 1  nomor permohonan (boleh sekaligus dengan nama tempat, mis. "1498... MPP Banyumas")
+     *  langkah 1  nomor permohonan (boleh sekaligus dengan nama tempat, mis. "1568... MPP Banyumas")
      *  langkah 2  tempat permohonan 1-5 (feedback Imigrasi 20 Nov)
      * 0/99/menu = menu utama, 88 = petugas di kedua langkah.
      *
@@ -310,7 +323,7 @@ class BotEngine
         }
 
         [$place, $rest] = self::applicationPlace($text);
-        // Dengan nama tempat: ambil semua digit ("1498... tempat MPP Banyumas"); tanpa tempat: hanya angka (+ spasi/titik/strip).
+        // Dengan nama tempat: ambil semua digit ("1568... tempat MPP Banyumas"); tanpa tempat: hanya angka (+ spasi/titik/strip).
         $number = $place ? preg_replace('/\D+/', '', $rest) : preg_replace('/[\s.\-]+/', '', $rest);
 
         if (! preg_match('/^\d{10,25}$/', $number)) {

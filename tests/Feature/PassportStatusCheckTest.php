@@ -56,13 +56,13 @@ class PassportStatusCheckTest extends TestCase
     public function test_two_step_flow_records_number_and_place(string $choice, string $label): void
     {
         $this->openStatus();
-        $this->assertSame(['STATUS-PLACE'], $this->reply('1498000000012345')->codes);
+        $this->assertSame(['STATUS-PLACE'], $this->reply('1568000000012345')->codes);
 
         $queued = $this->reply($choice);
 
         $this->assertSame(['STATUS', 'LYN'], $queued->codes);
         $ticket = ServiceTicket::sole();
-        $this->assertSame("Cek status paspor, no. permohonan 1498000000012345, tempat permohonan {$label}", $ticket->question_text);
+        $this->assertSame("Cek status paspor, no. permohonan 1568000000012345, tempat permohonan {$label}", $ticket->question_text);
         $this->assertSame('A2', EscalationLog::sole()->escalation_code);
         $this->assertSame('0>10', EscalationLog::sole()->menu_path);
     }
@@ -71,11 +71,11 @@ class PassportStatusCheckTest extends TestCase
     public static function oneMessage(): array
     {
         return [
-            'nomor lalu tempat' => ['1498000000012345 MPP Banyumas', 'MPP Banyumas'],
-            'tempat lalu nomor' => ['Ngapak Purbalingga 1498000000012345', 'Ngapak Purbalingga'],
-            'nomor berspasi + kata tempat' => ['1498 0000 0001 2345 tempat permohonan: Imigrasi Cilacap', 'Imigrasi Cilacap'],
-            'singkatan kanim' => ['1498000000012345 kanim', 'Imigrasi Cilacap'],
-            'ngapak dikenali sebelum banyumas' => ['1498000000012345 kancil ngapak banyumas', 'Ngapak Banyumas'],
+            'nomor lalu tempat' => ['1568000000012345 MPP Banyumas', 'MPP Banyumas'],
+            'tempat lalu nomor' => ['Ngapak Purbalingga 1568000000012345', 'Ngapak Purbalingga'],
+            'nomor berspasi + kata tempat' => ['1568 0000 0001 2345 tempat permohonan: Imigrasi Cilacap', 'Imigrasi Cilacap'],
+            'singkatan kanim' => ['1568000000012345 kanim', 'Imigrasi Cilacap'],
+            'ngapak dikenali sebelum banyumas' => ['1568000000012345 kancil ngapak banyumas', 'Ngapak Banyumas'],
         ];
     }
 
@@ -88,13 +88,13 @@ class PassportStatusCheckTest extends TestCase
 
         $this->assertSame(['STATUS', 'LYN'], $queued->codes);
         $this->assertStringEndsWith("tempat permohonan {$label}", ServiceTicket::sole()->question_text);
-        $this->assertStringContainsString('1498000000012345', ServiceTicket::sole()->question_text);
+        $this->assertStringContainsString('1568000000012345', ServiceTicket::sole()->question_text);
     }
 
     public function test_three_invalid_places_give_message_3_without_ticket(): void
     {
         $this->openStatus();
-        $this->reply('1498000000012345');
+        $this->reply('1568000000012345');
 
         $this->assertSame('MSG-01', $this->reply('6')->codes[0]);
         $this->assertSame('MSG-02', $this->reply('jakarta')->codes[0]);
@@ -105,7 +105,7 @@ class PassportStatusCheckTest extends TestCase
     public function test_88_at_place_step_reaches_officer(): void
     {
         $this->openStatus();
-        $this->reply('1498000000012345');
+        $this->reply('1568000000012345');
 
         $this->assertSame('ESK-01', $this->reply('88')->codes[0]);
         $this->assertSame(1, ServiceTicket::count());
@@ -123,18 +123,18 @@ class PassportStatusCheckTest extends TestCase
     public function test_re_entering_status_menu_forgets_previous_number(): void
     {
         $this->openStatus();
-        $this->reply('1498000000012345');
+        $this->reply('1568000000012345');
         $this->reply('0');
         $this->conversation(['1', '11']);
 
-        $this->assertSame(['STATUS-PLACE'], $this->reply('1498000000099999')->codes);
+        $this->assertSame(['STATUS-PLACE'], $this->reply('1568000000099999')->codes);
         $this->reply('3');
-        $this->assertStringContainsString('1498000000099999', ServiceTicket::sole()->question_text);
+        $this->assertStringContainsString('1568000000099999', ServiceTicket::sole()->question_text);
     }
 
     public function test_place_matcher(): void
     {
-        $this->assertSame(['MPP Banyumas', '1498'], BotEngine::applicationPlace('1498 MPP Banyumas'));
+        $this->assertSame(['MPP Banyumas', '1568'], BotEngine::applicationPlace('1568 MPP Banyumas'));
         $this->assertSame([null, 'tidak tahu'], BotEngine::applicationPlace('tidak tahu'));
         $this->assertNull(BotEngine::applicationPlace('banyumasan')[0], 'Hanya kata utuh yang dikenali.');
     }

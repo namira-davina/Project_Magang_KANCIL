@@ -47,7 +47,7 @@ class BotScenarioTest extends TestCase
         // Isi jawaban = FAQ Inventarisasi 3.1 (audit 20 Nov), bukan teks Bogor hardcode.
         return [
             'biaya paspor' => [['1', '1'], 'Rp650.000 (paspor biasa elektronik laminasi, masa berlaku 5 tahun).', '0>1', null, ['TRF-001', 'TRF-002', 'TRF-004', 'TRF-003', 'TRF-011']],
-            'paspor baru' => [['1', '2'], 'KTP elektronik, Kartu Keluarga, dan salah satu dari akta lahir/ijazah/buku nikah.', '0>2', null, ['PSP-001']],
+            'paspor baru' => [['1', '2'], "• Akta lahir / ijazah / buku nikah\n• Bukti permohonan M-Paspor", '0>2', null, ['PSP-001']],
             'penggantian paspor' => [['1', '3'], "• Kartu Keluarga\n• Akta lahir / ijazah / buku nikah\n• Paspor lama", '0>3', null, ['PSP-002']],
             'paspor anak' => [['1', '4'], 'Anak di bawah 5 tahun dapat langsung datang ke kantor imigrasi tanpa mendaftar di M-Paspor.', '0>4', 'C2', ['ANK-001', 'ANK-002', 'ANK-003', 'ANK-004', 'ANK-005', 'ANK-006', 'ANK-007', 'ANK-008', 'ANK-009']],
             'pendaftaran m-paspor' => [['1', '5'], 'Unduh aplikasi M-Paspor:', '0>5', null, ['PSP-013']],
@@ -317,7 +317,7 @@ _Saat ini di luar jam layanan petugas. Jam layanan: Senin–Kamis pukul 08.00–
         $this->chat->update(['session_state' => null, 'conversation_mode' => Conversation::MODE_BOT]);
         ServiceTicket::query()->update(['status' => ServiceTicket::RESOLVED]);
         $this->conversation(['Halo', '1', '11']);
-        $this->assertSame(['STATUS', 'LYN', 'MSG-07'], $this->reply('1498000000012345 MPP Purbalingga')->codes);
+        $this->assertSame(['STATUS', 'LYN', 'MSG-07'], $this->reply('1568000000012345 MPP Purbalingga')->codes);
     }
 
     public function test_message_7_can_be_disabled(): void
@@ -335,7 +335,7 @@ _Saat ini di luar jam layanan petugas. Jam layanan: Senin–Kamis pukul 08.00–
 
         $this->assertSame(['STATUS'], $prompt->codes);
         $this->assertSame(
-            "Silakan ketik *Nomor Permohonan* paspor Anda.\nContoh: 1498000000012345\n"
+            "Silakan ketik *Nomor Permohonan* paspor Anda.\nContoh: 1568000000012345\n"
             ."Tempat permohonan: Imigrasi Cilacap / MPP Banyumas / MPP Purbalingga / Ngapak Banyumas / Ngapak Purbalingga\n\n"
             .'Ketik *0* untuk kembali ke menu utama.',
             $prompt->text,
@@ -343,10 +343,10 @@ _Saat ini di luar jam layanan petugas. Jam layanan: Senin–Kamis pukul 08.00–
 
         $this->assertSame(['MSG-01', 'M-01'], $this->reply('bukan nomor')->codes);
 
-        $place = $this->reply('1498 0000 0001 2345');
+        $place = $this->reply('1568 0000 0001 2345');
         $this->assertSame(['STATUS-PLACE'], $place->codes);
         $this->assertSame(
-            "Nomor permohonan: *1498000000012345*\n\nPilih *tempat permohonan* paspor Anda:\n"
+            "Nomor permohonan: *1568000000012345*\n\nPilih *tempat permohonan* paspor Anda:\n"
             ."Ketik *1* Imigrasi Cilacap\nKetik *2* MPP Banyumas\nKetik *3* MPP Purbalingga\nKetik *4* Ngapak Banyumas\nKetik *5* Ngapak Purbalingga\n\n"
             .'Ketik *0* untuk kembali ke menu utama.',
             $place->text,
@@ -361,7 +361,7 @@ _Saat ini di luar jam layanan petugas. Jam layanan: Senin–Kamis pukul 08.00–
         $queued = $this->reply('2');
         $this->assertSame(['STATUS', 'LYN'], $queued->codes);
         $this->assertHandoff($queued->text);
-        $this->assertSame('Cek status paspor, no. permohonan 1498000000012345, tempat permohonan MPP Banyumas', ServiceTicket::sole()->question_text);
+        $this->assertSame('Cek status paspor, no. permohonan 1568000000012345, tempat permohonan MPP Banyumas', ServiceTicket::sole()->question_text);
         $this->assertSame('0>10', ServiceTicket::sole()->menu_path);
         $this->assertSame(Conversation::MODE_WAITING, $this->chat->fresh()->conversation_mode);
     }
@@ -372,7 +372,7 @@ _Saat ini di luar jam layanan petugas. Jam layanan: Senin–Kamis pukul 08.00–
         $this->assertSame(['M-00'], $this->reply('0')->codes);
         $this->assertSame(0, ServiceTicket::count());
 
-        $this->conversation(['1', '11', '1498000000012345']);
+        $this->conversation(['1', '11', '1568000000012345']);
         $this->assertSame(['M-00'], $this->reply('0')->codes, '0 di langkah tempat = menu utama.');
         $this->assertSame(0, ServiceTicket::count());
     }

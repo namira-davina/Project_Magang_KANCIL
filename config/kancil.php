@@ -93,6 +93,10 @@ return [
         '5' => ['label' => 'Ngapak Purbalingga', 'match' => ['ngapak purbalingga', 'kancil ngapak purbalingga', 'ngapak pbg']],
     ],
 
+    // Contoh nomor permohonan pada Cek Status Paspor: kode kantor Imigrasi Cilacap 1568 (feedback Imigrasi 23 Nov).
+    // Hanya contoh tampilan; validasi tetap 10-25 digit tanpa memaksa awalan.
+    'application_number_example' => '1568000000012345',
+
     'complaint' => [
         'min_length' => 20,
         'max_attachments' => 3,
