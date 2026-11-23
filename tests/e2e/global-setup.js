@@ -21,11 +21,18 @@ function chat(number, messages) {
  * lalu dua percakapan simulasi untuk feedback Imigrasi 20 Nov:
  *  - Cek Status Paspor dengan tempat permohonan (nomor → tempat 2 = MPP Banyumas) → tiket antrean.
  *  - Paspor Rusak (PNBP terpisah) lalu hubungi petugas → tiket antrean dengan riwayat jawaban.
+ * dan dua untuk feedback Imigrasi 23 Nov:
+ *  - Menu 2: tarif Re-entry → 9 (kembali ke daftar tarif) → ITK → petugas.
+ *  - Paspor Baru (daftar persyaratan baru) → petugas.
  */
 export default function globalSetup() {
     fs.writeFileSync(DB_FILE, '');
     artisan('migrate:fresh', '--force', '--seed', '--seeder=E2eSeeder');
-    chat('6280000000071', ['Halo', '1', '11', '1498000000012345', '2']);
+    chat('6280000000071', ['Halo', '1', '11', '1568000000012345', '2']);
     chat('6280000000072', ['Halo', '1', '8', '1']);
+    // Feedback Imigrasi 23 Nov: 9 setelah jawaban = submenu tarif (tanpa lewat menu utama), lalu ITK, lalu petugas.
+    chat('6280000000073', ['Halo', '2', '1', '1', '9', '2', '1']);
+    // Paspor Baru (PSP-001 daftar + bukti permohonan M-Paspor) lalu petugas.
+    chat('6280000000074', ['Halo', '1', '2', '1']);
     artisan('config:clear');
 }
