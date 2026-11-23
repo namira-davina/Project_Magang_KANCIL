@@ -246,4 +246,38 @@ class BotAiTest extends TestCase
                 && collect($messages)->where('role', 'user')->where('content', 'syarat paspor baru apa?')->count() === 1;
         });
     }
+
+    public function test_nine_after_ai_answer_returns_to_menu_where_question_was_asked(): void
+    {
+        // Feedback Imigrasi 23 Nov: jawaban AI memakai footer yang sama (9 = menu sebelumnya).
+        $this->fakeApis($this->aiJson('Tarif ITAS 1 tahun Rp3.000.000.', ['TRF-007']));
+        $this->reply('Halo');
+        $this->conversation(['2', '1']);
+
+        $ai = $this->reply('berapa tarif itas satu tahun?');
+        $this->assertSame(['AI', 'TRF-007'], $ai->codes);
+        $this->assertStringEndsWith(BotScript::answerFooter(english: true), $ai->text);
+
+        $back = $this->reply('9');
+        $this->assertSame(['M-09'], $back->codes, 'Kembali ke submenu tarif tempat pertanyaan diketik.');
+        $this->assertSame(BotScript::menu('M-09'), $back->text);
+        $this->assertSame(0, EscalationLog::count());
+    }
+
+    public function test_nine_after_ai_answer_on_first_message_returns_to_main_menu(): void
+    {
+        $this->fakeApis($this->aiJson('Tarif paspor 5 tahun Rp650.000.', ['TRF-001']));
+        $this->assertSame(['AI', 'TRF-001'], $this->reply('Berapa biaya paspor 5 tahun?')->codes);
+
+        $this->assertSame(['M-00'], $this->reply('9')->codes);
+    }
+
+    public function test_ai_answer_footer_is_indonesian_outside_foreigner_menu(): void
+    {
+        $this->fakeApis($this->aiJson('Tarif paspor 5 tahun Rp650.000.', ['TRF-001']));
+        $this->reply('Halo');
+        $this->reply('1');
+
+        $this->assertStringEndsWith(BotScript::answerFooter(), $this->reply('berapa biaya paspor 5 tahun?')->text);
+    }
 }

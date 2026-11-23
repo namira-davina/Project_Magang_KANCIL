@@ -22,7 +22,7 @@ test.describe.serial('Feedback Imigrasi 20 Nov sore', () => {
         const row = page.locator('#antreanTableBody tr', { hasText: 'tempat permohonan MPP Banyumas' });
         await expect(row).toHaveCount(1);
         await expect(row).toContainText('Pelayanan Paspor WNI › Cek Status Paspor');
-        await expect(row).toContainText('no. permohonan 1498000000012345');
+        await expect(row).toContainText('no. permohonan 1568000000012345');
     });
 
     test('percakapan: jawaban Paspor Rusak menyebut PNBP terpisah, tanpa angka gabungan', async () => {

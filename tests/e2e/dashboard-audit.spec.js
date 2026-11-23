@@ -41,7 +41,7 @@ test.describe.serial('Audit 20 Nov: antrean → pengaduan → tindak lanjut', ()
         // Tiket kemarin (diambil hari ini) tidak dihitung; satu-satunya tiket hari ini yang sudah diambil menunggu 2 menit.
         await expect(page.locator('#statRataTunggu')).toHaveText('2 mnt');
         await expect(page.getByText('Dari tiket masuk hari ini yang sudah diambil')).toBeVisible();
-        await expect(page.locator('#statMenunggu')).toHaveText('3'); // 1 seeder + 2 percakapan simulasi (global-setup)
+        await expect(page.locator('#statMenunggu')).toHaveText('5'); // 1 seeder + 4 percakapan simulasi (global-setup)
     });
 
     test('ambil tiket lalu jadikan pengaduan "Pelayanan petugas": teks jujur soal nomor ADU', async () => {

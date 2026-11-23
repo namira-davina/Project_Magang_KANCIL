@@ -43,7 +43,7 @@ class GlobalCommandsTest extends TestCase
             'setelah jawaban tertahan (Pesan 5)' => [['1', '9']], // PSP-016 ditahan di setUp
             'setelah lokasi' => [['2', '3']],
             'cek status paspor' => [['1', '11']],
-            'cek status: pilih tempat' => [['1', '11', '1498000000012345']],
+            'cek status: pilih tempat' => [['1', '11', '1568000000012345']],
             'menu tarif izin tinggal' => [['2', '1']],
             'menu pelaporan WNA meninggal' => [['2', '2']],
             'setelah jawaban tarif ITAS' => [['2', '1', '3']],

@@ -9,7 +9,7 @@ use Illuminate\Support\Carbon;
  * Teks menu, jawaban, dan pesan standar. Menu dan jawaban paspor/izin tinggal meniru persis layanan WhatsApp
  * Kantor Imigrasi Kelas I Khusus Non TPI Bogor (kecuali Drive Thru dan persyaratan berdasarkan tujuan);
  * hanya identitas kantor (nama, alamat, jam, lokasi) memakai data Cilacap. Pilihan "Ketik *N* ...", 0 = menu utama;
- * setelah jawaban 0 = menu utama, 1 = hubungi Petugas. Pesan MSG/PGD/eskalasi mengikuti Matriks Eskalasi (A1..C6).
+ * setelah jawaban 9 = menu sebelumnya, 0 = menu utama, 1 = hubungi Petugas (feedback Imigrasi 23 Nov). Pesan MSG/PGD/eskalasi mengikuti Matriks Eskalasi (A1..C6).
  */
 final class BotScript
 {
@@ -172,12 +172,16 @@ final class BotScript
             ->implode("\n");
     }
 
-    /** Cek Status Paspor langkah 1: nomor permohonan, dengan daftar tempat permohonan (feedback Imigrasi 20 Nov). */
+    /**
+     * Cek Status Paspor langkah 1: nomor permohonan, dengan daftar tempat permohonan (feedback Imigrasi 20 Nov).
+     * Contoh nomor memakai kode kantor Cilacap 1568 (feedback Imigrasi 23 Nov; config kancil.application_number_example).
+     */
     public static function statusPrompt(): string
     {
         $places = collect(config('kancil.application_places'))->pluck('label')->implode(' / ');
+        $example = (string) config('kancil.application_number_example');
 
-        return "Silakan ketik *Nomor Permohonan* paspor Anda.\nContoh: 1498000000012345\n"
+        return "Silakan ketik *Nomor Permohonan* paspor Anda.\nContoh: {$example}\n"
             ."Tempat permohonan: {$places}\n\nKetik *0* untuk kembali ke menu utama.";
     }
 
@@ -220,17 +224,33 @@ final class BotScript
     }
 
     /** Jawaban dengan pembuka dan penutup gaya layanan informasi. */
-    public static function answer(string $body): string
+    public static function answer(string $body, bool $english = false): string
     {
-        return "*Berikut ini adalah informasi dan solusi yang Anda cari:*\n\n".$body."\n\n".self::answerFooter();
+        return "*Berikut ini adalah informasi dan solusi yang Anda cari:*\n\n".$body."\n\n".self::answerFooter($english);
     }
 
-    public static function answerFooter(): string
+    /**
+     * Footer setelah jawaban. Feedback Imigrasi 23 Nov: teks Bogor "0 = menu sebelumnya" padahal 0 membawa ke menu utama
+     * (menu 2 bertingkat 3, pemohon harus mengulang 2 > 1). Kini 0 = menu utama di semua layar, 9 = submenu tempat jawaban dipilih.
+     */
+    public static function answerFooter(bool $english = false): string
     {
-        return self::DIVIDER."\n\nButuh bantuan lebih lanjut?\n\n"
-            ."*Ketik 0* untuk kembali ke menu sebelumnya\n"
-            ."*Ketik 1* untuk menghubungi Petugas\n\n"
-            .'*Terima kasih.*';
+        // Menu WNA (feedback Imigrasi 23 Nov): versi Inggris di dalam kurung di belakang tiap baris.
+        $en = fn (string $text) => $english ? " _({$text})_" : '';
+
+        return self::DIVIDER."\n\nButuh bantuan lebih lanjut?".$en('Need further assistance?')."\n\n"
+            .'*Ketik 9* untuk kembali ke menu sebelumnya'.$en('Type 9 to return to the previous menu')."\n"
+            .'*Ketik 0* untuk kembali ke menu utama'.$en('Type 0 to return to the main menu')."\n"
+            .'*Ketik 1* untuk menghubungi Petugas'.$en('Type 1 to contact an officer')."\n\n"
+            .'*Terima kasih.*'.$en('Thank you.');
+    }
+
+    /** Menu Pelayanan Izin Tinggal (For Foreigners) dan turunannya: footer jawaban dwibahasa. */
+    public static function isForeignerMenu(?string $code): bool
+    {
+        $path = self::MENUS[$code ?? '']['path'] ?? null;
+
+        return $path !== null && ($path === '1' || str_starts_with($path, '1>'));
     }
 
     /** Pemohon diteruskan ke Petugas: nomor antrean, posisi, dan pilihan selama menunggu (nomor tiket tidak ditampilkan). */

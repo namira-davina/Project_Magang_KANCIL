@@ -170,7 +170,8 @@ Ketik *0* untuk menu utama', BotScript::msg('MSG-03'));
 
         $this->assertSame(
             "*Berikut ini adalah informasi dan solusi yang Anda cari:*\n\nIsi jawaban.\n\n------------------------\n\n"
-            ."Butuh bantuan lebih lanjut?\n\n*Ketik 0* untuk kembali ke menu sebelumnya\n*Ketik 1* untuk menghubungi Petugas\n\n*Terima kasih.*",
+            ."Butuh bantuan lebih lanjut?\n\n*Ketik 9* untuk kembali ke menu sebelumnya\n*Ketik 0* untuk kembali ke menu utama\n"
+            ."*Ketik 1* untuk menghubungi Petugas\n\n*Terima kasih.*",
             $text,
         );
     }
@@ -337,5 +338,32 @@ Silakan pilih menu', $text);
                 $this->assertDoesNotMatchRegularExpression('/ {2,}/', BotScript::answer($this->answerText($path)), $path);
             }
         }
+    }
+
+    public function test_status_prompt_example_uses_cilacap_office_code_1568(): void
+    {
+        // Feedback Imigrasi 23 Nov (WA0010): "contohnya diganti ya kode kita depannya 1568xxxxx".
+        $this->assertSame('1568000000012345', config('kancil.application_number_example'));
+        $this->assertMatchesRegularExpression('/^1568\d{12}$/', config('kancil.application_number_example'));
+        $this->assertStringContainsString("Contoh: 1568000000012345\n", BotScript::statusPrompt());
+        $this->assertStringNotContainsString('1498', BotScript::statusPrompt());
+
+        config(['kancil.application_number_example' => '1568999999999999']);
+        $this->assertStringContainsString('Contoh: 1568999999999999', BotScript::statusPrompt(), 'Contoh diambil dari config.');
+    }
+
+    public function test_bot_source_has_no_old_1498_example(): void
+    {
+        foreach (['app/Services/Bot/BotScript.php', 'app/Services/Bot/BotEngine.php', 'config/kancil.php', 'database/data/faqs.php'] as $file) {
+            $this->assertStringNotContainsString('1498', file_get_contents(base_path($file)), $file);
+        }
+    }
+
+    public function test_example_number_passes_the_status_number_validation(): void
+    {
+        $example = (string) config('kancil.application_number_example');
+
+        $this->assertMatchesRegularExpression('/^\d{10,25}$/', $example, 'Contoh harus lolos validasi langkah 1 cek status.');
+        $this->assertSame(['MPP Banyumas', $example], BotEngine::applicationPlace("{$example} MPP Banyumas"));
     }
 }

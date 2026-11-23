@@ -14,7 +14,7 @@ use Tests\TestCase;
  * Matriks uji "Testing_Kancil Sapa.xlsx" (audit 20 Nov 2026, Sheet1 & Sheet2) dijalankan ulang lewat webhook asli.
  *
  * Kolom Excel: Menu (menu utama) → Topik/Bantuan (pilihan submenu) → Bantuan (0 = menu, 1 = petugas setelah jawaban)
- * → Bantuan (0 = menu, 1 = cek posisi, 2 = batal selama antrean). Setiap balasan bot dipantulkan balik sebagai echo
+ * → Bantuan (0 = menu, 1 = cek posisi, 2 = batal selama antrean). Feedback 23 Nov: setelah jawaban 9 = menu sebelumnya. Setiap balasan bot dipantulkan balik sebagai echo
  * `outgoing_chat` dengan perubahan kosmetik seperti gateway prod (spasi ganda dipadatkan, garis pemisah dibuang) dan
  * tanpa id kirim, persis kondisi bug Sheet1 (1>7 dan 1>8 lalu 0/1 tidak dibalas). Syarat lulus: setiap pesan pemohon
  * dibalas tepat satu kali dengan kode yang benar, dan bot tidak pernah dianggap diambil alih petugas.
@@ -55,13 +55,15 @@ class ExcelMatrixTest extends TestCase
             $cases["1 > {$option} > 1 (petugas) > 0"] = [['1', $option, '1', '0'], ['M-01', 'ANS-'.$path, 'ESK-01', 'M-00']];
             $cases["1 > {$option} > 1 > 1 (cek posisi)"] = [['1', $option, '1', '1'], ['M-01', 'ANS-'.$path, 'ESK-01', 'LYN-STATUS']];
             $cases["1 > {$option} > 1 > 2 (batal)"] = [['1', $option, '1', '2'], ['M-01', 'ANS-'.$path, 'ESK-01', 'LYN-BATAL']];
+            // Feedback Imigrasi 23 Nov: 9 setelah jawaban = kembali ke daftar Paspor, lalu topik lain langsung bisa dipilih.
+            $cases["1 > {$option} > 9 (menu sebelumnya) > 1"] = [['1', $option, '9', '1'], ['M-01', 'ANS-'.$path, 'M-01', 'ANS-0>1']];
         }
 
         $cases['1 > 1 > 2 (angka lain setelah jawaban)'] = [['1', '1', '2'], ['M-01', 'ANS-0>1', 'MSG-01']];
         $cases['1 > 11 (cek status) > 0'] = [['1', '11', '0'], ['M-01', 'STATUS', 'M-00']];
-        $cases['1 > 11 > nomor > tempat 2'] = [['1', '11', '1498000000012345', '2'], ['M-01', 'STATUS', 'STATUS-PLACE', 'STATUS']];
-        $cases['1 > 11 > nomor > 0'] = [['1', '11', '1498000000012345', '0'], ['M-01', 'STATUS', 'STATUS-PLACE', 'M-00']];
-        $cases['1 > 11 > nomor + tempat (1 pesan)'] = [['1', '11', '1498000000012345 MPP Banyumas'], ['M-01', 'STATUS', 'STATUS']];
+        $cases['1 > 11 > nomor > tempat 2'] = [['1', '11', '1568000000012345', '2'], ['M-01', 'STATUS', 'STATUS-PLACE', 'STATUS']];
+        $cases['1 > 11 > nomor > 0'] = [['1', '11', '1568000000012345', '0'], ['M-01', 'STATUS', 'STATUS-PLACE', 'M-00']];
+        $cases['1 > 11 > nomor + tempat (1 pesan)'] = [['1', '11', '1568000000012345 MPP Banyumas'], ['M-01', 'STATUS', 'STATUS']];
         $cases['1 > 12 (kembali)'] = [['1', '12'], ['M-01', 'M-00']];
 
         // Menu 2 (Izin Tinggal, Skenario 3.2)
@@ -74,7 +76,14 @@ class ExcelMatrixTest extends TestCase
             $path = "1>1>{$option}";
             $cases["2 > 1 > {$option} > 0"] = [['2', '1', (string) $option, '0'], ['M-08', 'M-09', 'ANS-'.$path, 'M-00']];
             $cases["2 > 1 > {$option} > 1 (petugas) > 2"] = [['2', '1', (string) $option, '1', '2'], ['M-08', 'M-09', 'ANS-'.$path, 'ESK-01', 'LYN-BATAL']];
+            $cases["2 > 1 > {$option} > 9 (menu sebelumnya) > 7 > 4"] = [['2', '1', (string) $option, '9', '7', '4'], ['M-08', 'M-09', 'ANS-'.$path, 'M-09', 'M-08', 'M-00']];
         }
+
+        // Bug laporan Imigrasi 23 Nov (log prod: penguji mengulang 2 > 1 setiap selesai membaca tarif): kini tarif dibaca berurutan.
+        $cases['2 > 1 > 1..6 berurutan lewat 9'] = [
+            ['2', '1', '1', '9', '2', '9', '3', '9', '4', '9', '5', '9', '6', '9'],
+            ['M-08', 'M-09', 'ANS-1>1>1', 'M-09', 'ANS-1>1>2', 'M-09', 'ANS-1>1>3', 'M-09', 'ANS-1>1>4', 'M-09', 'ANS-1>1>5', 'M-09', 'ANS-1>1>6', 'M-09'],
+        ];
 
         $cases['2 > 2 > 0'] = [['2', '2', '0'], ['M-08', 'M-10', 'M-00']];
         $cases['2 > 2 > 4 (kembali) > 4'] = [['2', '2', '4', '4'], ['M-08', 'M-10', 'M-08', 'M-00']];
@@ -83,9 +92,11 @@ class ExcelMatrixTest extends TestCase
             $path = "1>2>{$option}";
             $cases["2 > 2 > {$option} > 0"] = [['2', '2', (string) $option, '0'], ['M-08', 'M-10', 'ANS-'.$path, 'M-00']];
             $cases["2 > 2 > {$option} > 1 (petugas) > 1"] = [['2', '2', (string) $option, '1', '1'], ['M-08', 'M-10', 'ANS-'.$path, 'ESK-01', 'LYN-STATUS']];
+            $cases["2 > 2 > {$option} > 9 (menu sebelumnya)"] = [['2', '2', (string) $option, '9'], ['M-08', 'M-10', 'ANS-'.$path, 'M-10']];
         }
 
         $cases['2 > 3 (lokasi) > 0'] = [['2', '3', '0'], ['M-08', 'ANS-1>3', 'M-00']];
+        $cases['2 > 3 (lokasi) > 9 > 1'] = [['2', '3', '9', '1'], ['M-08', 'ANS-1>3', 'M-08', 'M-09']];
         $cases['2 > 3 > 1 > 0'] = [['2', '3', '1', '0'], ['M-08', 'ANS-1>3', 'ESK-01', 'M-00']];
         $cases['2 > 3 > 1 > 1'] = [['2', '3', '1', '1'], ['M-08', 'ANS-1>3', 'ESK-01', 'LYN-STATUS']];
         $cases['2 > 3 > 1 > 2'] = [['2', '3', '1', '2'], ['M-08', 'ANS-1>3', 'ESK-01', 'LYN-BATAL']];

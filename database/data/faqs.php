@@ -4,6 +4,7 @@
 // Isi wajib sama dengan 3.1 (dikunci tests/Unit/FaqInventoryContractTest). Deviasi terdokumentasi (feedback user 2,
 // 20 Nov, lebih baru dari 3.1): PSP-011/TRF-003 ditambah info SIPANTAS; PSP-002 syarat penggantian ditambah KK + akta; PSP-013..016 = jawaban menu Bogor di luar 3.1 (perlu verifikasi).
 // Feedback user 3 (20 Nov sore): PSP-011/014/016 syarat SIPANTAS; angka PNBP tidak ditulis di FAQ menu (blok PNBP terpisah).
+// Feedback user 4 (23 Nov): PSP-001 jadi daftar "Persyaratan:" + bukti permohonan M-Paspor; pertanyaan ANK-005 "surat pernyataan bermeterai".
 // Data awal untuk FaqSeeder / kancil:faq-sync; setelah seeding, FAQ dikelola lewat dashboard.
 
 return [
@@ -11,7 +12,12 @@ return [
         'code' => 'PSP-001',
         'group' => 'Permohonan Paspor WNI',
         'question' => 'Apa saja persyaratan untuk membuat paspor baru?',
-        'answer' => 'KTP elektronik, Kartu Keluarga, dan salah satu dari akta lahir/ijazah/buku nikah. Bawa berkas asli dan fotokopi ukuran A4.',
+        'answer' => '*Persyaratan:*
+• KTP elektronik
+• Kartu Keluarga
+• Akta lahir / ijazah / buku nikah
+• Bukti permohonan M-Paspor
+Bawa berkas asli dan fotokopi ukuran A4.',
         'menu_path' => '0>1>1',
         'status' => 'perlu_verifikasi',
     ],
@@ -230,7 +236,7 @@ Bawa berkas asli dan fotokopi ukuran A4.',
     [
         'code' => 'ANK-005',
         'group' => 'Paspor Anak dan Kondisi Keluarga',
-        'question' => 'Siapa yang menandatangani surat pernyataan jika kedua orang tua bercerai hidup?',
+        'question' => 'Siapa yang menandatangani surat pernyataan bermeterai jika kedua orang tua bercerai hidup?',
         'answer' => 'Jika ada penetapan pengadilan tentang hak asuh: orang tua pemegang hak asuh. Jika permohonan diajukan orang tua yang tidak memegang hak asuh, atau perceraian diputus tanpa penetapan hak asuh: kedua orang tua. Jika salah satu orang tua tidak diketahui keberadaannya: orang tua yang diketahui keberadaannya, disertai keterangan bahwa salah satu orang tua tidak ditemukan.',
         'menu_path' => '0>1>4>2',
         'status' => 'perlu_verifikasi',

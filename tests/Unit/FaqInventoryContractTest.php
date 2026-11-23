@@ -26,6 +26,13 @@ class FaqInventoryContractTest extends TestCase
         'PSP-011' => ['kartu tanda penduduk (ktp)', 'kartu keluarga', 'surat kehilangan (kepolisian)', 'akte / ijazah / surat nikah', 'dokumen pendukung lainnya', 'paspor lama', 'sipantas.kanimcilacap.com'],
         // Keputusan pemilik 21 Nov: format CEK# ke 081217000900 (nomor bot sendiri, tidak dikenali bot) diganti menu 1 > 11.
         'AMB-009' => ['ketik 1', 'lalu 11', 'cek status paspor', 'nomor permohonan', 'tempat permohonan', 'mpp banyumas', 'ngapak purbalingga'],
+        // Feedback user 4 (23 Nov, screenshot WA0008/WA0009): daftar "Persyaratan:" seperti PSP-002 + bukti permohonan M-Paspor.
+        'PSP-001' => ['persyaratan:', 'ktp elektronik', 'kartu keluarga', 'akta lahir / ijazah / buku nikah', 'bukti permohonan m-paspor', 'bawa berkas asli dan fotokopi ukuran a4'],
+    ];
+
+    /** Deviasi pertanyaan terdokumentasi. Feedback user 4 (23 Nov, screenshot WA0007): surat pernyataan bermeterai. */
+    private const QUESTION_REPLACED = [
+        'ANK-005' => 'Siapa yang menandatangani surat pernyataan bermeterai jika kedua orang tua bercerai hidup?',
     ];
 
     /** FAQ baru di luar 3.1 (jawaban menu Bogor yang belum ada di inventaris). */
@@ -107,7 +114,7 @@ class FaqInventoryContractTest extends TestCase
         foreach (self::inventory() as $code => $row) {
             $this->assertSame($row['menu_path'], $data[$code]['menu_path'], $code);
             $this->assertSame(
-                self::normalize(str_replace('- ', '-', $row['question'])),
+                self::normalize(self::QUESTION_REPLACED[$code] ?? str_replace('- ', '-', $row['question'])),
                 self::normalize($data[$code]['question']),
                 $code,
             );
