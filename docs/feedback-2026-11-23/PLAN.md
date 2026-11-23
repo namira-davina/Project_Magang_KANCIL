@@ -102,3 +102,16 @@ Landing
 - PSP-002 (penggantian paspor) juga daftar lewat M-Paspor: perlu "Bukti permohonan M-Paspor" juga?
 - Apakah semua tempat permohonan (MPP Banyumas/Purbalingga, Ngapak) juga berawalan 1568? Jika ya, validasi awalan bisa ditambahkan.
 - Footer jawaban untuk menu WNA perlu versi bahasa Inggris?
+
+## 7. Realisasi (23 Nov)
+
+Bot (`fix/feedback-imigrasi-23nov`): f530892 plan, 6c266d0 fix + test, 325d6ed e2e + checklist (`checklist-uji-ulang.md`).
+Landing (`fix/feedback-imigrasi-23nov`): 3ba1f03.
+
+Nama file test akhir: `tests/Feature/AnswerNavigationTest.php`, `tests/Feature/FeedbackImigrasi4ContentTest.php`
+(menggabungkan rencana FaqContentFeedback4Test + resolver + faq-sync), tambahan kasus 9 di `ExcelMatrixTest` (webhook + echo gateway)
+dan `BotAiTest`, `tests/e2e/feedback-imigrasi-4.spec.js`.
+
+Hasil: PHPUnit 926 lulus (8729 assertion); Pint lulus; Playwright bot 12/12; landing vitest 95/95, svelte-check 0 error,
+build + `test:build` lulus, Playwright landing 18/18. Sanity: test navigasi baru dijalankan ke `BotEngine` lama → 46 gagal (bug tertangkap).
+Catatan: `pnpm lint` landing sudah gagal di `master` (32 file format lama, bukan dari perubahan ini); file yang diubah lolos Prettier/ESLint.
