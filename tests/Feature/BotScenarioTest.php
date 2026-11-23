@@ -80,7 +80,7 @@ class BotScenarioTest extends TestCase
         $this->assertSame(['ANS-'.$internalPath, ...$faqCodes], $answer->codes);
         $this->assertStringContainsString($fragment, $answer->text);
         $this->assertStringStartsWith('*Berikut ini adalah informasi dan solusi yang Anda cari:*', $answer->text);
-        $this->assertStringEndsWith(BotScript::answerFooter(), $answer->text);
+        $this->assertStringEndsWith(BotScript::answerFooter(str_starts_with($internalPath, '1>')), $answer->text);
 
         $esk = $this->reply('1');
         $this->assertSame(['ESK-01', 'LYN'], $esk->codes, 'Ketik 1 setelah jawaban = hubungi Petugas.');

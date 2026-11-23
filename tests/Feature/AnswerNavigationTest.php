@@ -70,7 +70,7 @@ class AnswerNavigationTest extends TestCase
         $this->reply('Halo');
         $answer = $this->conversation($route);
         $this->assertSame('ANS-'.$path, $answer->codes[0]);
-        $this->assertStringEndsWith(BotScript::answerFooter(), $answer->text);
+        $this->assertStringEndsWith(BotScript::answerFooter(BotScript::isForeignerMenu($parent)), $answer->text);
 
         $back = $this->reply('9');
 
@@ -126,6 +126,54 @@ class AnswerNavigationTest extends TestCase
         $this->assertStringNotContainsString('*Ketik 0* untuk kembali ke menu sebelumnya', $footer, 'Label lama yang menyesatkan.');
     }
 
+    public function test_foreigner_answer_footer_has_english_in_brackets(): void
+    {
+        // Permintaan pemilik 23 Nov: footer jawaban menu WNA diberi versi Inggris di dalam kurung.
+        $footer = BotScript::answerFooter(english: true);
+
+        $this->assertSame(
+            "------------------------\n\nButuh bantuan lebih lanjut? _(Need further assistance?)_\n\n"
+            ."*Ketik 9* untuk kembali ke menu sebelumnya _(Type 9 to return to the previous menu)_\n"
+            ."*Ketik 0* untuk kembali ke menu utama _(Type 0 to return to the main menu)_\n"
+            ."*Ketik 1* untuk menghubungi Petugas _(Type 1 to contact an officer)_\n\n"
+            .'*Terima kasih.* _(Thank you.)_',
+            $footer,
+        );
+        $this->assertStringNotContainsString('  ', $footer);
+    }
+
+    public function test_only_foreigner_menus_are_bilingual(): void
+    {
+        foreach (array_keys(BotScript::MENUS) as $code) {
+            $this->assertSame(in_array($code, ['M-08', 'M-09', 'M-10'], true), BotScript::isForeignerMenu($code), $code);
+        }
+        $this->assertFalse(BotScript::isForeignerMenu(null));
+        $this->assertFalse(BotScript::isForeignerMenu('M-99'));
+    }
+
+    #[DataProvider('answerRoutes')]
+    public function test_footer_language_follows_menu_for_every_answer(string $path, array $route, string $parent): void
+    {
+        $this->reply('Halo');
+        $text = $this->conversation($route)->text;
+        $foreigner = str_starts_with($path, '1>');
+
+        $this->assertStringEndsWith(BotScript::answerFooter($foreigner), $text);
+        $this->assertSame($foreigner, str_contains($text, '(Type 9 to return to the previous menu)'), "{$path}: footer Inggris hanya di menu WNA.");
+
+        // Salah input setelah jawaban mengulang footer dengan bahasa yang sama.
+        $this->assertStringEndsWith(BotScript::answerFooter($foreigner), $this->reply('5')->text);
+    }
+
+    public function test_held_foreigner_answer_and_passport_answer_footers(): void
+    {
+        $this->holdFaq('TRF-005', 'PSP-001');
+        $this->reply('Halo');
+
+        $this->assertStringEndsWith(BotScript::answerFooter(english: true), $this->conversation(['2', '1', '1'])->text);
+        $this->assertStringEndsWith(BotScript::answerFooter(), $this->conversation(['0', '1', '2'])->text, 'Menu Paspor WNI tetap bahasa Indonesia.');
+    }
+
     public function test_tester_session_from_prod_log_reads_all_foreigner_tariffs_without_main_menu(): void
     {
         // Log prod 23 Nov 09.33-09.46: 2,1,1,0,2,1,2,0,2,1,3,0,... Kini cukup 9 di antara tarif.
@@ -165,7 +213,7 @@ class AnswerNavigationTest extends TestCase
 
         $held = $this->conversation(['2', '1', '3']);
         $this->assertSame(['MSG-05', 'ANS-1>1>3'], $held->codes);
-        $this->assertStringEndsWith(BotScript::answerFooter(), $held->text);
+        $this->assertStringEndsWith(BotScript::answerFooter(english: true), $held->text);
 
         $this->assertSame(['M-09'], $this->reply('9')->codes);
         $this->assertSame('ANS-1>1>4', $this->reply('4')->codes[0]);
@@ -184,7 +232,7 @@ class AnswerNavigationTest extends TestCase
 
         $invalid = $this->reply('5');
         $this->assertSame('MSG-01', $invalid->codes[0]);
-        $this->assertStringEndsWith(BotScript::answerFooter(), $invalid->text, 'Footer baru (9/0/1) diulang.');
+        $this->assertStringEndsWith(BotScript::answerFooter(english: true), $invalid->text, 'Footer baru (9/0/1) diulang.');
     }
 
     public function test_nine_resets_invalid_counter_so_msg03_is_not_reached_early(): void

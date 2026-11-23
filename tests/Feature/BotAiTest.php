@@ -256,7 +256,7 @@ class BotAiTest extends TestCase
 
         $ai = $this->reply('berapa tarif itas satu tahun?');
         $this->assertSame(['AI', 'TRF-007'], $ai->codes);
-        $this->assertStringEndsWith(BotScript::answerFooter(), $ai->text);
+        $this->assertStringEndsWith(BotScript::answerFooter(english: true), $ai->text);
 
         $back = $this->reply('9');
         $this->assertSame(['M-09'], $back->codes, 'Kembali ke submenu tarif tempat pertanyaan diketik.');
@@ -270,5 +270,14 @@ class BotAiTest extends TestCase
         $this->assertSame(['AI', 'TRF-001'], $this->reply('Berapa biaya paspor 5 tahun?')->codes);
 
         $this->assertSame(['M-00'], $this->reply('9')->codes);
+    }
+
+    public function test_ai_answer_footer_is_indonesian_outside_foreigner_menu(): void
+    {
+        $this->fakeApis($this->aiJson('Tarif paspor 5 tahun Rp650.000.', ['TRF-001']));
+        $this->reply('Halo');
+        $this->reply('1');
+
+        $this->assertStringEndsWith(BotScript::answerFooter(), $this->reply('berapa biaya paspor 5 tahun?')->text);
     }
 }

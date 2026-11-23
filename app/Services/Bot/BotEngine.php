@@ -286,12 +286,12 @@ class BotEngine
         $this->state['shown'] = ! $answer['held'];
 
         if ($answer['held']) {
-            return $this->reply($answer['text']."\n\n".BotScript::answerFooter(), ['MSG-05', 'ANS-'.$path]);
+            return $this->reply($answer['text']."\n\n".BotScript::answerFooter($this->englishFooter()), ['MSG-05', 'ANS-'.$path]);
         }
 
         $this->tagIncoming($answer['faq_id']);
 
-        return $this->reply(BotScript::answer($answer['text']), ['ANS-'.$path, ...$answer['codes']], $answer['faq_id']);
+        return $this->reply(BotScript::answer($answer['text'], $this->englishFooter()), ['ANS-'.$path, ...$answer['codes']], $answer['faq_id']);
     }
 
     /**
@@ -587,7 +587,7 @@ class BotEngine
             $text .= "\n\n".BotScript::msg('AI-DISCLAIMER');
         }
 
-        return $this->reply(BotScript::answer($text), ['AI', ...$answer->faqCodes], $answer->primaryFaqId(), 'ai');
+        return $this->reply(BotScript::answer($text, $this->englishFooter()), ['AI', ...$answer->faqCodes], $answer->primaryFaqId(), 'ai');
     }
 
     // ---------------------------------------------------------------- media
@@ -833,10 +833,16 @@ class BotEngine
         }
 
         if ($this->state['answer'] ?? null) {
-            return BotScript::answerFooter();
+            return BotScript::answerFooter($this->englishFooter());
         }
 
         return $this->state['menu'] === 'M-00' ? $this->mainMenuText() : $this->menuText($this->state['menu']);
+    }
+
+    /** Jawaban dari menu WNA (M-08/M-09/M-10, termasuk jawaban AI di sana) memakai footer dwibahasa (feedback Imigrasi 23 Nov). */
+    private function englishFooter(): bool
+    {
+        return BotScript::isForeignerMenu($this->state['menu'] ?? null);
     }
 
     private function currentPromptCode(): string

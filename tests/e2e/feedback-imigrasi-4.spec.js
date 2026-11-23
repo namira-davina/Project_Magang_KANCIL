@@ -32,6 +32,9 @@ test.describe.serial('Feedback Imigrasi 23 Nov', () => {
         await expect(messages).toContainText('Ketik 9 untuk kembali ke menu sebelumnya');
         await expect(messages).toContainText('Ketik 0 untuk kembali ke menu utama');
         await expect(messages).not.toContainText('Ketik 0 untuk kembali ke menu sebelumnya');
+        // Footer jawaban menu WNA dwibahasa (versi Inggris di dalam kurung).
+        await expect(messages).toContainText('(Type 9 to return to the previous menu)');
+        await expect(messages).toContainText('(Type 1 to contact an officer)');
         await expect(messages).toContainText('Berapa tarif izin masuk kembali');
         await expect(messages).toContainText('Berapa tarif Izin Tinggal Kunjungan');
 
@@ -55,6 +58,7 @@ test.describe.serial('Feedback Imigrasi 23 Nov', () => {
         await expect(messages).toContainText('• Bukti permohonan M-Paspor');
         await expect(messages).toContainText('Paspor elektronik 5 tahun: Rp650.000');
         await expect(messages).not.toContainText('dan salah satu dari akta lahir/ijazah/buku nikah');
+        await expect(messages).not.toContainText('(Type 9 to return to the previous menu)'); // menu Paspor WNI tetap bahasa Indonesia
     });
 
     test('FAQ: PSP-001 dan ANK-005 menampilkan isi baru', async () => {
