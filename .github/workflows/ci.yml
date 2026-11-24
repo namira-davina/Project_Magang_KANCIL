@@ -67,3 +67,71 @@ jobs:
             playwright-report
             test-results
           retention-days: 7
+
+  deploy:
+    needs: [php, frontend, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+    steps:
+      - name: Siapkan SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT || '2222' }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy ke VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT || '2222' }}
+          VPS_USER: ${{ secrets.VPS_USER || 'admin' }}
+          APP_PATH: ${{ secrets.VPS_APP_PATH || '/var/www/dashboard.kancilsapa.com' }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "APP_PATH='$APP_PATH' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$APP_PATH"
+
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "Ada perubahan lokal di server, deploy dihentikan:"
+            git status --short
+            exit 1
+          fi
+
+          OLD=$(git rev-parse HEAD)
+          git pull --ff-only origin main
+          NEW=$(git rev-parse HEAD)
+          echo "Deploy $OLD -> $NEW"
+
+          changed() { [ "$OLD" != "$NEW" ] && git diff --name-only "$OLD" "$NEW" | grep -Eq "$1"; }
+
+          if changed '^composer\.(json|lock)$'; then
+            composer install --no-dev --optimize-autoloader --no-interaction
+          fi
+
+          if changed '^database/migrations/'; then
+            php artisan migrate --force
+          fi
+
+          if changed '^(resources/|package\.json|pnpm-lock\.yaml|vite\.config\.js)'; then
+            pnpm install --frozen-lockfile
+            pnpm build
+          fi
+
+          php artisan optimize:clear
+          php artisan queue:restart
+
+          sleep 3
+          systemctl is-active kancil-queue
+          php artisan queue:failed | tail -n 3
+          REMOTE
+
+      - name: Bersihkan kunci SSH
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
