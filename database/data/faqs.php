@@ -306,9 +306,10 @@ Bawa berkas asli dan fotokopi ukuran A4.',
     [
         'code' => 'AMB-004',
         'group' => 'Pengambilan, Pengiriman, dan Status Paspor',
-        'question' => 'Berapa hari kerja sampai paspor diambilkan pada layanan pengiriman melalui pos?',
-        'answer' => 'Pada layanan pengiriman paspor melalui pos, paspor diambilkan setelah 4 hari kerja sejak proses permohonan selesai.
-Lama penyelesaian untuk pengambilan biasa tidak tercantum; silakan hubungi petugas.',
+        'question' => 'Berapa hari kerja lama proses paspor sampai selesai dan diambilkan?',
+        'answer' => '• Paspor percepatan: 1 hari kerja.
+• Paspor reguler yang diproses di Kantor Imigrasi Cilacap: 4 hari kerja.
+• Paspor yang diproses di Beranda Imigrasi MPP Purbalingga atau MPP Banyumas: 1 minggu, sudah termasuk pengiriman.',
         'menu_path' => '0>7',
         'status' => 'perlu_verifikasi',
     ],
