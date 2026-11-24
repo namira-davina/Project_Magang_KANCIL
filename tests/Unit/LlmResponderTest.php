@@ -67,6 +67,25 @@ class LlmResponderTest extends TestCase
         $this->assertSame($answer, $parsed['answer'] ?? null);
     }
 
+    public static function bulletTexts(): array
+    {
+        return [
+            'sebaris dipecah' => [
+                'Waktu tergantung jenisnya: • Percepatan: 1 hari kerja. • Reguler: 4 hari kerja.',
+                "Waktu tergantung jenisnya:\n• Percepatan: 1 hari kerja.\n• Reguler: 4 hari kerja.",
+            ],
+            'sudah per baris tetap' => ["Ada:\n• satu\n• dua", "Ada:\n• satu\n• dua"],
+            'tanpa butir tetap' => ['Tidak ada daftar.', 'Tidak ada daftar.'],
+            'butir di awal tetap' => ["• satu\n• dua", "• satu\n• dua"],
+        ];
+    }
+
+    #[DataProvider('bulletTexts')]
+    public function test_bullets_go_on_their_own_line(string $input, string $expected): void
+    {
+        $this->assertSame($expected, LlmResponder::bulletsOnOwnLine($input));
+    }
+
     public function test_code_of_falls_back_to_id(): void
     {
         $faq = Faq::create(['question' => 'q', 'answer' => 'a']);
