@@ -127,8 +127,20 @@ jobs:
           php artisan optimize:clear
           php artisan queue:restart
 
-          sleep 3
-          systemctl is-active kancil-queue
+          # queue:restart makes the worker exit; systemd restarts it after RestartSec=5.
+          # Wait up to 30s for it to come back instead of checking right away.
+          for i in $(seq 1 15); do
+            if [ "$(systemctl is-active kancil-queue)" = "active" ]; then
+              echo "kancil-queue active"
+              break
+            fi
+            if [ "$i" = "15" ]; then
+              echo "kancil-queue did not become active"
+              systemctl status kancil-queue --no-pager | tail -n 15 || true
+              exit 1
+            fi
+            sleep 2
+          done
           php artisan queue:failed | tail -n 3
           REMOTE
 
