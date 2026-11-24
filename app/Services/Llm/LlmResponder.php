@@ -64,7 +64,7 @@ class LlmResponder
             ->map(fn ($code) => strtoupper(trim((string) $code)))
             ->filter(fn ($code) => $byCode->has($code))
             ->unique()->values();
-        $text = trim((string) ($parsed['answer'] ?? ''));
+        $text = self::bulletsOnOwnLine(trim((string) ($parsed['answer'] ?? '')));
         $confident = ($parsed['confident'] ?? false) === true && $codes->isNotEmpty() && $text !== '';
 
         $this->log($conversation, $message, $question, $response, $text, $codes->all(), $confident, latency: $started,
@@ -83,6 +83,15 @@ class LlmResponder
             $used->pluck('id')->all(),
             $used->contains(fn (Faq $faq) => ! $faq->isPublished()),
         );
+    }
+
+    /**
+     * Model kecil kadang menulis daftar sebaris ("a: • x. • y."). Pindahkan setiap butir ke baris sendiri;
+     * butir yang sudah di awal baris tidak diubah, dan tidak menambah spasi ganda (gateway memadatkannya).
+     */
+    public static function bulletsOnOwnLine(string $text): string
+    {
+        return preg_replace('/(?<=\S)[ \t]+•[ \t]*/u', "\n• ", $text);
     }
 
     /** FAQ yang boleh dipakai AI. */
@@ -131,7 +140,7 @@ class LlmResponder
 
         Aturan wajib:
         1. Jangan menambah fakta di luar basis pengetahuan (tarif, jam layanan, alamat, syarat, nomor lain). Jika jawabannya tidak ada, set "confident": false.
-        2. Sapa dengan "Bapak/Ibu", sopan, ringkas (maksimal ±900 karakter), format WhatsApp: *tebal*, daftar memakai "• ".
+        2. Sapa dengan "Bapak/Ibu", sopan, ringkas (maksimal ±900 karakter), format WhatsApp: *tebal*, daftar memakai "• " dan setiap butir WAJIB di baris baru (pisahkan dengan karakter baris baru), jangan menulis beberapa butir dalam satu baris.
         3. Jangan meminta NIK, nomor paspor, atau data pribadi lain. Jangan mengaku bisa mengecek status permohonan atau membuat tiket.
         4. Jangan menyebut nomor telepon, WhatsApp, atau email kantor. Bila pemohon perlu petugas, sampaikan bahwa ia dapat mengetik 1 setelah jawaban untuk dihubungkan dengan Petugas di chat ini.
         5. Jika pemohon ingin mengadu/komplain, arahkan: ketik 0 lalu pilih 3 (Layanan Pengaduan). Set "confident": false bila tidak ada FAQ yang relevan.
