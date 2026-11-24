@@ -44,7 +44,7 @@ class FaqSyncCommandTest extends TestCase
         $this->artisan('kancil:faq-sync --apply')->assertSuccessful();
 
         $this->assertSame(65, Faq::count());
-        $this->assertStringContainsString('tidak tercantum; silakan hubungi petugas.', Faq::where('code', 'AMB-004')->value('answer'));
+        $this->assertStringContainsString('Paspor percepatan: 1 hari kerja', Faq::where('code', 'AMB-004')->value('answer'));
         $this->assertSame(61, Faq::published()->count(), 'Status lama dipertahankan tanpa --reset-status.');
 
         $new = Faq::where('code', 'PSP-014')->sole();
@@ -66,7 +66,7 @@ class FaqSyncCommandTest extends TestCase
         $this->assertStringStartsWith('• Lama penyelesaian', Faq::where('code', 'AMB-004')->value('answer'));
 
         $this->artisan('kancil:faq-sync --apply --force')->assertSuccessful();
-        $this->assertStringStartsWith('Pada layanan pengiriman paspor melalui pos', Faq::where('code', 'AMB-004')->value('answer'));
+        $this->assertStringStartsWith('• Paspor percepatan: 1 hari kerja', Faq::where('code', 'AMB-004')->value('answer'));
     }
 
     public function test_reset_status_follows_inventory(): void

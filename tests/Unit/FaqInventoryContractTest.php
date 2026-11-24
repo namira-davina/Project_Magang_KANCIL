@@ -28,11 +28,15 @@ class FaqInventoryContractTest extends TestCase
         'AMB-009' => ['ketik 1', 'lalu 11', 'cek status paspor', 'nomor permohonan', 'tempat permohonan', 'mpp banyumas', 'ngapak purbalingga'],
         // Feedback user 4 (23 Nov, screenshot WA0008/WA0009): daftar "Persyaratan:" seperti PSP-002 + bukti permohonan M-Paspor.
         'PSP-001' => ['persyaratan:', 'ktp elektronik', 'kartu keluarga', 'akta lahir / ijazah / buku nikah', 'bukti permohonan m-paspor', 'bawa berkas asli dan fotokopi ukuran a4'],
+        // Feedback Imigrasi 24 Nov (chat 08.10): percepatan 1 hari kerja, reguler Cilacap 4 hari kerja, MPP Purbalingga/Banyumas 1 minggu termasuk pengiriman.
+        'AMB-004' => ['percepatan: 1 hari kerja', 'cilacap: 4 hari kerja', 'mpp purbalingga atau mpp banyumas: 1 minggu', 'sudah termasuk pengiriman'],
     ];
 
     /** Deviasi pertanyaan terdokumentasi. Feedback user 4 (23 Nov, screenshot WA0007): surat pernyataan bermeterai. */
     private const QUESTION_REPLACED = [
         'ANK-005' => 'Siapa yang menandatangani surat pernyataan bermeterai jika kedua orang tua bercerai hidup?',
+        // Feedback Imigrasi 24 Nov: pertanyaan lama proses mencakup percepatan, reguler Cilacap, dan MPP.
+        'AMB-004' => 'Berapa hari kerja lama proses paspor sampai selesai dan diambilkan?',
     ];
 
     /** FAQ baru di luar 3.1 (jawaban menu Bogor yang belum ada di inventaris). */
